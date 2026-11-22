@@ -17,6 +17,7 @@ export const SettingsModal: React.FC = () => {
   const {
     isSettingsOpen,
     setIsSettingsOpen,
+    setIsDiagnosticOpen,
     profile,
     updateProfile,
     memories,
@@ -27,7 +28,7 @@ export const SettingsModal: React.FC = () => {
     setTheme,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'privacy' | 'appearance'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'privacy' | 'appearance' | 'dev'>('profile');
   const [newMemoryKey, setNewMemoryKey] = useState('');
   const [newMemoryValue, setNewMemoryValue] = useState('');
   const [newMemoryCategory, setNewMemoryCategory] = useState<'preference' | 'objective' | 'skill' | 'habit' | 'context'>('preference');
@@ -93,6 +94,13 @@ export const SettingsModal: React.FC = () => {
           >
             <Palette size={16} />
             <span>Apparence</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'dev' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dev')}
+          >
+            <Shield size={16} />
+            <span>Développeur</span>
           </button>
         </div>
 
@@ -293,6 +301,32 @@ export const SettingsModal: React.FC = () => {
                   <span className="theme-name">Noir Profond</span>
                   <span className="theme-sub">Contraste soigné pour sessions prolongées</span>
                 </button>
+              </div>
+            </div>
+          )}
+          {/* ONGLET 5 : DÉVELOPPEUR & DIAGNOSTIC HACKATHON */}
+          {activeTab === 'dev' && (
+            <div className="settings-section">
+              <h3 className="section-title">Outils Développeur & Hackathon</h3>
+              <p className="section-desc">Accès au banc d'essai technique Phase 0 (#BuildHybridAI) et aux tests de certification d'inférence.</p>
+
+              <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-main)]">Banc de Test Hybride (Phase 0)</h4>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Vérifie l'API Chrome Prompt API (Gemini Nano) et Firebase AI Logic Cloud.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsDiagnosticOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Ouvrir le Diagnostic
+                  </button>
+                </div>
               </div>
             </div>
           )}

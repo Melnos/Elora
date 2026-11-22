@@ -5,11 +5,11 @@ import {
   Search,
   Plus,
   ArrowRight,
-  Bot,
-  Trash2,
-  CheckCircle2,
-  X,
   Sparkles,
+  Trash2,
+  X,
+  Clock,
+  HelpCircle,
 } from 'lucide-react';
 import type { KnowledgeDoc } from '../../types';
 
@@ -22,8 +22,7 @@ export const KnowledgeScreen: React.FC = () => {
 
   // Nouveaux champs pour ajouter un document
   const [newTitle, setNewTitle] = useState('');
-  const [newCollection, setNewCollection] = useState('Personnel');
-  const [newType, setNewType] = useState<'pdf' | 'notes' | 'course' | 'research'>('notes');
+  const [newCollection, setNewCollection] = useState('Intelligence Artificielle');
   const [newSummary, setNewSummary] = useState('');
   const [newContent, setNewContent] = useState('');
   const [newTags, setNewTags] = useState('');
@@ -48,11 +47,11 @@ export const KnowledgeScreen: React.FC = () => {
     addKnowledgeDoc({
       title: newTitle.trim(),
       collection: newCollection.trim() || 'Général',
-      type: newType,
-      summary: newSummary.trim() || newContent.substring(0, 120) + '...',
+      type: 'notes',
+      summary: newSummary.trim() || newContent.substring(0, 140) + '...',
       keyInsights: [
-        'Document importé par l\'utilisateur.',
-        `Enregistré dans la collection ${newCollection}.`,
+        'Document importé dans la bibliothèque personnelle.',
+        `Classé dans la collection ${newCollection}.`,
       ],
       content: newContent.trim(),
       tags: newTags
@@ -69,50 +68,65 @@ export const KnowledgeScreen: React.FC = () => {
   };
 
   const handleAskAboutDoc = async (doc: KnowledgeDoc) => {
+    setSelectedDoc(null);
     setActiveTab('ai');
-    await sendMessage(`Peux-tu m'expliquer et synthétiser les concepts clés de ce document enregistré : "${doc.title}" ?\n\nContenu :\n${doc.content}`);
+    await sendMessage(`Peux-tu analyser et synthétiser les concepts clés de ce document enregistré : "${doc.title}" ?\n\nContenu :\n${doc.content}`);
   };
 
   const handleGenerateQuiz = async (doc: KnowledgeDoc) => {
+    setSelectedDoc(null);
     setActiveTab('ai');
     await sendMessage(`Génère un quiz interactif de 3 questions avec explications à partir du document suivant : "${doc.title}" :\n\n${doc.content}`);
   };
 
   return (
-    <div className="page-container knowledge-page">
-      {/* En-tête de l'espace Knowledge */}
-      <div className="section-header-row">
+    <div className="bento-viewport">
+      {/* En-tête de la Bibliothèque */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-main-title">Connaissances & Bibliothèque</h1>
-          <p className="page-main-desc">
-            Centralisez vos cours, notes de recherche et fiches techniques. ELORA les relie à vos projets et objectifs.
+          <div className="bento-tag mb-2">
+            <BookOpen size={13} className="text-[var(--color-accent)]" />
+            <span>Bibliothèque Numérique</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--color-text-main)] tracking-tight">
+            Savoir & Ressources
+          </h1>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            Vos documents, synthèses et fiches connectés à votre mémoire personnelle.
           </p>
         </div>
 
-        <button className="btn-primary-action" onClick={() => setShowAddModal(true)}>
-          <Plus size={16} />
+        <button
+          className="bento-btn-primary self-start md:self-auto"
+          onClick={() => setShowAddModal(true)}
+        >
+          <Plus size={15} />
           <span>Ajouter une ressource</span>
         </button>
       </div>
 
-      {/* Barre de recherche et filtres de collection */}
-      <div className="knowledge-filter-bar">
-        <div className="search-input-box">
-          <Search size={16} className="search-icon" />
+      {/* Barre de Recherche et Sélecteurs de Collection */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        <div className="relative w-full sm:w-80">
+          <Search size={15} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
           <input
             type="text"
-            className="search-field"
-            placeholder="Rechercher un document, concept ou mot-clé..."
+            placeholder="Rechercher une note, un sujet, un tag..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] shadow-sm"
           />
         </div>
 
-        <div className="collections-pill-list">
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full pb-1 sm:pb-0">
           {collections.map((col) => (
             <button
               key={col}
-              className={`collection-pill ${selectedCollection === col ? 'active' : ''}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedCollection === col
+                  ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                  : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+              }`}
               onClick={() => setSelectedCollection(col)}
             >
               {col === 'all' ? 'Toutes les collections' : col}
@@ -121,103 +135,137 @@ export const KnowledgeScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Grille des documents */}
-      <div className="knowledge-cards-grid">
-        {filteredDocs.length === 0 ? (
-          <div className="empty-state-card col-span-full">
-            <BookOpen size={40} className="icon-gold mb-3" />
-            <h3>Aucun document correspondant</h3>
-            <p>Essayez un autre mot-clé ou ajoutez votre premier document de travail.</p>
-          </div>
-        ) : (
-          filteredDocs.map((doc) => (
-            <div key={doc.id} className="doc-card" onClick={() => setSelectedDoc(doc)}>
-              <div className="doc-card-top">
-                <span className="doc-type-badge">{doc.type.toUpperCase()}</span>
-                <span className="doc-collection-tag">{doc.collection}</span>
-              </div>
-
-              <h3 className="doc-title">{doc.title}</h3>
-              <p className="doc-summary">{doc.summary}</p>
-
-              <div className="doc-tags-list">
-                {doc.tags.map((tag) => (
-                  <span key={tag} className="doc-tag-pill">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="doc-card-footer">
-                <span className="doc-date">Ajouté le {doc.addedAt}</span>
-                <button
-                  className="btn-read-doc"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedDoc(doc);
-                  }}
-                >
-                  Consulter <ArrowRight size={13} />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Modale de prévisualisation & exploitation par l'IA */}
-      {selectedDoc && (
-        <div className="modal-backdrop" onClick={() => setSelectedDoc(null)}>
-          <div className="modal-dialog doc-preview-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+      {/* Grille Bento des Documents */}
+      {filteredDocs.length === 0 ? (
+        <div className="p-12 text-center rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] my-6">
+          <BookOpen size={36} className="mx-auto text-[var(--color-text-muted)] opacity-50 mb-3" />
+          <h3 className="text-sm font-bold text-[var(--color-text-main)]">Aucun document trouvé</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-sm mx-auto">
+            Essayez d'ajuster votre recherche ou ajoutez un nouveau document pour enrichir votre savoir.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredDocs.map((doc, idx) => (
+            <div
+              key={doc.id}
+              className={`p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all duration-300 flex flex-col justify-between shadow-sm cursor-pointer group ${
+                idx === 0 ? 'md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] to-[var(--color-bg-base)]' : ''
+              }`}
+              onClick={() => setSelectedDoc(doc)}
+            >
               <div>
-                <span className="doc-type-badge">{selectedDoc.type.toUpperCase()}</span>
-                <h2 className="modal-title mt-1">{selectedDoc.title}</h2>
-                <span className="text-muted text-sm">Collection : {selectedDoc.collection} • {selectedDoc.addedAt}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-[var(--color-bg-base)] text-[var(--color-accent)] border border-[var(--color-border-subtle)]">
+                    {doc.collection}
+                  </span>
+                  <span className="text-[11px] text-[var(--color-text-muted)] flex items-center gap-1">
+                    <Clock size={11} />
+                    <span>{doc.addedAt}</span>
+                  </span>
+                </div>
+
+                <h3 className="text-base font-bold text-[var(--color-text-main)] group-hover:text-[var(--color-accent)] transition-colors line-clamp-2">
+                  {doc.title}
+                </h3>
+
+                <p className="text-xs text-[var(--color-text-muted)] mt-2 line-clamp-3 leading-relaxed">
+                  {doc.summary}
+                </p>
               </div>
-              <button className="modal-close-btn" onClick={() => setSelectedDoc(null)}>
-                <X size={20} />
-              </button>
+
+              <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  {doc.tags.slice(0, 2).map((t, tIdx) => (
+                    <span key={tIdx} className="text-[10px] text-[var(--color-text-muted)] px-1.5 py-0.5 rounded bg-[var(--color-bg-base)] truncate">
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+
+                <span className="text-xs font-semibold text-[var(--color-accent)] group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                  <span>Lire</span>
+                  <ArrowRight size={13} />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modale d'aperçu du document */}
+      {selectedDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-2xl p-6 md:p-8 flex flex-col overflow-hidden">
+            <button
+              onClick={() => setSelectedDoc(null)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-base)] transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="mb-4 pr-8">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                {selectedDoc.collection}
+              </span>
+              <h2 className="text-xl font-bold text-[var(--color-text-main)] mt-2">
+                {selectedDoc.title}
+              </h2>
             </div>
 
-            <div className="doc-preview-body">
-              <div className="preview-section">
-                <h4 className="preview-subtitle">Points Clés Mémorisés</h4>
-                <ul className="preview-insights-list">
-                  {selectedDoc.keyInsights.map((insight, idx) => (
-                    <li key={idx}>
-                      <CheckCircle2 size={15} color="var(--local-green)" />
-                      <span>{insight}</span>
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-sm text-[var(--color-text-main)] leading-relaxed">
+              <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)]">
+                <h4 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                  Synthèse & Points Clés
+                </h4>
+                <p className="text-xs text-[var(--color-text-muted)] mb-3">{selectedDoc.summary}</p>
+                <ul className="space-y-1.5 text-xs">
+                  {selectedDoc.keyInsights.map((ki, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-[var(--color-accent)] font-bold">•</span>
+                      <span>{ki}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="preview-section">
-                <h4 className="preview-subtitle">Contenu de la Ressource</h4>
-                <div className="preview-content-box">
-                  <p>{selectedDoc.content}</p>
+              <div>
+                <h4 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                  Contenu Intégral
+                </h4>
+                <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] text-xs whitespace-pre-wrap font-mono border border-[var(--color-border-subtle)]">
+                  {selectedDoc.content}
                 </div>
               </div>
+            </div>
 
-              <div className="doc-actions-ai-bar">
-                <button className="btn-ai-action" onClick={() => handleAskAboutDoc(selectedDoc)}>
-                  <Bot size={16} />
-                  <span>Expliquer avec ELORA</span>
-                </button>
-                <button className="btn-ai-action" onClick={() => handleGenerateQuiz(selectedDoc)}>
-                  <Sparkles size={16} />
-                  <span>Générer un quiz de révision</span>
+            <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                className="text-xs text-red-500 hover:underline flex items-center gap-1"
+                onClick={() => {
+                  deleteKnowledgeDoc(selectedDoc.id);
+                  setSelectedDoc(null);
+                }}
+              >
+                <Trash2 size={13} />
+                <span>Supprimer</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  className="bento-btn-secondary"
+                  onClick={() => handleGenerateQuiz(selectedDoc)}
+                >
+                  <HelpCircle size={14} />
+                  <span>Quiz d'apprentissage</span>
                 </button>
                 <button
-                  className="btn-danger-action"
-                  onClick={() => {
-                    deleteKnowledgeDoc(selectedDoc.id);
-                    setSelectedDoc(null);
-                  }}
-                  title="Supprimer définitivement"
+                  className="bento-btn-primary"
+                  onClick={() => handleAskAboutDoc(selectedDoc)}
                 >
-                  <Trash2 size={16} />
+                  <Sparkles size={14} />
+                  <span>Analyser avec ELORA</span>
                 </button>
               </div>
             </div>
@@ -227,94 +275,102 @@ export const KnowledgeScreen: React.FC = () => {
 
       {/* Modale d'ajout d'une ressource */}
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Ajouter une Ressource</h2>
-              <button className="modal-close-btn" onClick={() => setShowAddModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-2xl p-6 md:p-8">
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-base)] transition-colors"
+            >
+              <X size={18} />
+            </button>
 
-            <form onSubmit={handleAddSubmit} className="settings-section">
-              <div className="form-group">
-                <label className="form-label">Titre du document</label>
+            <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-1">
+              Nouvelle Ressource
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted)] mb-5">
+              Ajoutez un cours, des notes ou un document technique dans votre bibliothèque.
+            </p>
+
+            <form onSubmit={handleAddSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                  Titre du document
+                </label>
                 <input
                   type="text"
-                  className="form-input"
                   required
-                  placeholder="Ex : Architecture Microservices & On-Device"
+                  placeholder="ex: Architecture IA Hybride avec Gemini Nano"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group flex-1">
-                  <label className="form-label">Collection</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                    Collection
+                  </label>
                   <input
                     type="text"
-                    className="form-input"
-                    placeholder="Ex: Architecture, Hackathon, Cours..."
+                    required
+                    placeholder="ex: Hackathon"
                     value={newCollection}
                     onChange={(e) => setNewCollection(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                   />
                 </div>
-                <div className="form-group flex-1">
-                  <label className="form-label">Type</label>
-                  <select
-                    className="form-select"
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value as any)}
-                  >
-                    <option value="notes">Notes personnelles</option>
-                    <option value="pdf">Document PDF</option>
-                    <option value="course">Cours / Fiche</option>
-                    <option value="research">Article de recherche</option>
-                  </select>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                    Tags (séparés par des virgules)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="gemini, nano, web"
+                    value={newTags}
+                    onChange={(e) => setNewTags(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Résumé court (1 à 2 phrases)</label>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                  Résumé ou objet principal
+                </label>
                 <input
                   type="text"
-                  className="form-input"
-                  placeholder="Bref aperçu du contenu..."
+                  placeholder="En quelques mots..."
                   value={newSummary}
                   onChange={(e) => setNewSummary(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Contenu textuel complet</label>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                  Contenu ou notes détaillées
+                </label>
                 <textarea
-                  className="form-textarea"
-                  rows={5}
                   required
-                  placeholder="Collez ici le texte, les notes ou le contenu de votre ressource..."
+                  rows={4}
+                  placeholder="Collez ici le texte, les points clés ou les extraits de code..."
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Tags (séparés par des virgules)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Ex: React, AI, Performance"
-                  value={newTags}
-                  onChange={(e) => setNewTags(e.target.value)}
-                />
-              </div>
-
-              <div className="form-actions mt-3">
-                <button type="button" className="btn-secondary-sm" onClick={() => setShowAddModal(false)}>
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="bento-btn-secondary"
+                >
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary-sm">
-                  Enregistrer dans ma bibliothèque
+                <button type="submit" className="bento-btn-primary">
+                  Enregistrer la ressource
                 </button>
               </div>
             </form>

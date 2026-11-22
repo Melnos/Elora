@@ -3,17 +3,15 @@ import { useApp } from '../../context/AppContext';
 import type { NavTab } from '../../types';
 import {
   Home,
-  Bot,
+  Sparkles,
   BookOpen,
   Calendar,
   Compass,
   TrendingUp,
   Settings,
-  Activity,
-  User,
   LogIn,
   LogOut,
-  CloudCheck,
+  User,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -22,7 +20,6 @@ export const Sidebar: React.FC = () => {
     setActiveTab,
     profile,
     setIsSettingsOpen,
-    setIsDiagnosticOpen,
     setIsAuthModalOpen,
     currentUser,
     logout,
@@ -31,115 +28,104 @@ export const Sidebar: React.FC = () => {
   } = useApp();
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'home', label: 'Espace Personnel', icon: <Home size={20} /> },
-    { id: 'ai', label: 'Intelligence ELORA', icon: <Bot size={20} /> },
-    { id: 'knowledge', label: 'Connaissances', icon: <BookOpen size={20} /> },
+    { id: 'home', label: 'Espace Personnel', icon: <Home size={19} /> },
+    { id: 'ai', label: 'Intelligence ELORA', icon: <Sparkles size={19} /> },
+    { id: 'knowledge', label: 'Bibliothèque', icon: <BookOpen size={19} /> },
     {
       id: 'planner',
       label: 'Organisation & Focus',
-      icon: <Calendar size={20} />,
+      icon: <Calendar size={19} />,
       badge: tasks.filter((t) => !t.completed).length,
     },
     {
       id: 'opportunities',
       label: 'Opportunités',
-      icon: <Compass size={20} />,
+      icon: <Compass size={19} />,
       badge: opportunities.filter((o) => o.saved).length,
     },
-    { id: 'progress', label: 'Évolution & Bilan', icon: <TrendingUp size={20} /> },
+    { id: 'progress', label: 'Évolution & Bilan', icon: <TrendingUp size={19} /> },
   ];
 
   return (
     <aside className="elora-sidebar">
-      {/* En-tête Sidebar */}
-      <div className="sidebar-brand">
-        <div className="brand-badge">EL</div>
-        <div className="brand-titles">
-          <span className="brand-title">ELORA</span>
-          <span className="brand-subtitle">Intelligence Hybride</span>
+      {/* Marque & Symbole ELORA */}
+      <div className="sidebar-brand-container">
+        <div className="brand-gem">
+          <Sparkles size={18} className="text-white" />
+        </div>
+        <div className="brand-text-block">
+          <span className="brand-main-title">ELORA</span>
+          <span className="brand-tagline">Intelligence Personnelle</span>
         </div>
       </div>
 
-      {/* Profil rapide & Statut Auth */}
-      <div className="sidebar-user" onClick={() => (currentUser ? setIsSettingsOpen(true) : setIsAuthModalOpen(true))}>
-        <div className="user-avatar">
-          <User size={16} />
+      {/* Navigation des 6 Espaces */}
+      <nav className="sidebar-navigation">
+        <div className="nav-group-label">Espaces de travail</div>
+        <div className="nav-items-stack">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                className={`sidebar-nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+              >
+                <span className="nav-link-icon">{item.icon}</span>
+                <span className="nav-link-text">{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="nav-counter-pill">{item.badge}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="user-details">
-          <span className="user-name">{currentUser?.displayName || profile.name}</span>
-          <span className="user-role flex items-center gap-1">
-            {currentUser ? (
-              <>
-                <CloudCheck size={11} className="text-emerald-500" />
-                <span>Synchronisé Cloud</span>
-              </>
-            ) : (
-              <span>Local • Invité</span>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* Navigation principale des 6 espaces */}
-      <nav className="sidebar-nav">
-        <span className="nav-section-title">Espaces de travail</span>
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              className={`nav-item-btn ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="nav-badge">{item.badge}</span>
-              )}
-            </button>
-          );
-        })}
       </nav>
 
-      {/* Actions secondaires en bas de sidebar */}
-      <div className="sidebar-footer">
-        {currentUser ? (
-          <button
-            className="footer-btn text-red-500/80 hover:text-red-500"
-            onClick={() => logout()}
-            title="Se déconnecter de la session Firebase"
-          >
-            <LogOut size={17} />
-            <span>Déconnexion</span>
-          </button>
-        ) : (
-          <button
-            className="footer-btn text-[var(--color-accent)]"
-            onClick={() => setIsAuthModalOpen(true)}
-            title="Se connecter pour sauvegarder dans Firestore"
-          >
-            <LogIn size={17} />
-            <span>Connexion / Inscription</span>
-          </button>
-        )}
-
-        <button
-          className="footer-btn"
-          onClick={() => setIsDiagnosticOpen(true)}
-          title="Consulter le banc de test technique IA Hybride"
+      {/* Carte Utilisateur & Actions en bas */}
+      <div className="sidebar-bottom-card">
+        <div
+          className="user-profile-row"
+          onClick={() => (currentUser ? setIsSettingsOpen(true) : setIsAuthModalOpen(true))}
         >
-          <Activity size={18} />
-          <span>Diagnostic IA (#BuildHybridAI)</span>
-        </button>
+          <div className="user-avatar-circle">
+            <User size={16} />
+          </div>
+          <div className="user-info-text">
+            <span className="user-display-name">{currentUser?.displayName || profile.name}</span>
+            <span className="user-status-text">
+              {currentUser ? 'Synchronisé Cloud' : 'Mode Local'}
+            </span>
+          </div>
+        </div>
 
-        <button
-          className="footer-btn"
-          onClick={() => setIsSettingsOpen(true)}
-          title="Paramètres, mémoire et préférences"
-        >
-          <Settings size={18} />
-          <span>Paramètres & Mémoire</span>
-        </button>
+        <div className="sidebar-quick-actions">
+          <button
+            className="quick-action-btn"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Paramètres et Mémoire"
+          >
+            <Settings size={16} />
+          </button>
+
+          {currentUser ? (
+            <button
+              className="quick-action-btn hover:text-red-500"
+              onClick={() => logout()}
+              title="Déconnexion"
+            >
+              <LogOut size={16} />
+            </button>
+          ) : (
+            <button
+              className="quick-action-btn text-[var(--color-accent)]"
+              onClick={() => setIsAuthModalOpen(true)}
+              title="Connexion"
+            >
+              <LogIn size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );

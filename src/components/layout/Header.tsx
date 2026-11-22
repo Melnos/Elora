@@ -1,16 +1,11 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import {
-  Cpu,
-  Cloud,
   Moon,
   Sun,
   Settings,
-  Activity,
-  WifiOff,
   LogIn,
-  RefreshCw,
-  UserCheck,
+  Sparkles,
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -18,12 +13,9 @@ export const Header: React.FC = () => {
     theme,
     setTheme,
     setIsSettingsOpen,
-    setIsDiagnosticOpen,
     setIsAuthModalOpen,
     currentUser,
-    isSyncingCloud,
-    triggerCloudSync,
-    caps,
+    profile,
     activeTab,
   } = useApp();
 
@@ -32,114 +24,76 @@ export const Header: React.FC = () => {
       case 'home':
         return 'Espace Personnel';
       case 'ai':
-        return 'Intelligence Centrale';
+        return 'Intelligence ELORA';
       case 'knowledge':
-        return 'Connaissances & Bibliothèque';
+        return 'Bibliothèque & Savoir';
       case 'planner':
         return 'Organisation & Focus';
       case 'opportunities':
         return 'Opportunités Vérifiées';
       case 'progress':
-        return 'Évolution & Progrès';
+        return 'Évolution & Bilan';
       default:
         return 'ELORA';
     }
   };
 
-  const isLocalReady = caps?.onDeviceStatus === 'readily';
-  const isOnline = caps?.networkOnline ?? true;
-
   return (
-    <header className="elora-header">
-      <div className="header-left">
-        <div className="logo-group">
-          <span className="brand-name">ELORA</span>
-          <span className="brand-dot">•</span>
-          <span className="page-breadcrumb">{getPageTitle()}</span>
+    <header className="elora-topbar">
+      <div className="topbar-inner">
+        {/* Titre et Espace actif */}
+        <div className="topbar-branding">
+          <div className="topbar-logo-badge">
+            <Sparkles size={16} className="text-[var(--color-accent)]" />
+          </div>
+          <div className="topbar-title-group">
+            <span className="topbar-app-name">ELORA</span>
+            <span className="topbar-separator">/</span>
+            <span className="topbar-space-name">{getPageTitle()}</span>
+          </div>
         </div>
-      </div>
 
-      <div className="header-right">
-        {/* Badge d'état IA temps réel */}
-        <button
-          className="engine-badge-btn"
-          onClick={() => setIsDiagnosticOpen(true)}
-          title="Ouvrir le banc de test et diagnostic technique IA"
-        >
-          {isLocalReady ? (
-            <span className="badge-pill local">
-              <Cpu size={13} />
-              <span>Gemini Nano Prêt</span>
-            </span>
-          ) : isOnline ? (
-            <span className="badge-pill cloud">
-              <Cloud size={13} />
-              <span>Firebase Cloud</span>
-            </span>
+        {/* Contrôles utilisateur épurés */}
+        <div className="topbar-actions">
+          {/* Thème clair / sombre */}
+          <button
+            className="topbar-btn"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title={`Basculer en thème ${theme === 'dark' ? 'clair' : 'sombre'}`}
+          >
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+
+          {/* Paramètres & Mémoire Personnelle */}
+          <button
+            className="topbar-btn"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Paramètres et Mémoire Personnelle"
+          >
+            <Settings size={17} />
+          </button>
+
+          {/* Profil / Connexion */}
+          {currentUser ? (
+            <button
+              className="topbar-user-pill"
+              onClick={() => setIsSettingsOpen(true)}
+              title={`Connecté : ${currentUser.displayName || profile.name}`}
+            >
+              <div className="user-dot active" />
+              <span className="user-label">{currentUser.displayName || profile.name.split(' ')[0]}</span>
+            </button>
           ) : (
-            <span className="badge-pill offline">
-              <WifiOff size={13} />
-              <span>Hors Ligne</span>
-            </span>
+            <button
+              className="topbar-auth-btn"
+              onClick={() => setIsAuthModalOpen(true)}
+              title="Connexion ou synchronisation Cloud"
+            >
+              <LogIn size={15} />
+              <span>Connexion</span>
+            </button>
           )}
-        </button>
-
-        {/* État Authentification / Cloud Sync */}
-        {currentUser ? (
-          <button
-            className="engine-badge-btn"
-            onClick={() => triggerCloudSync()}
-            title={isSyncingCloud ? 'Synchronisation Cloud en cours...' : `Connecté en tant que ${currentUser.email || currentUser.displayName} (cliquez pour synchroniser)`}
-          >
-            <span className="badge-pill cloud">
-              {isSyncingCloud ? (
-                <RefreshCw size={13} className="animate-spin" />
-              ) : (
-                <UserCheck size={13} />
-              )}
-              <span className="desktop-only-text">
-                {isSyncingCloud ? 'Synchro...' : 'Cloud Actif'}
-              </span>
-            </span>
-          </button>
-        ) : (
-          <button
-            className="header-icon-btn auth-btn"
-            onClick={() => setIsAuthModalOpen(true)}
-            title="Se connecter pour synchroniser vos données dans Firestore"
-          >
-            <LogIn size={17} />
-            <span className="desktop-only-text">Connexion</span>
-          </button>
-        )}
-
-        {/* Bouton Diagnostic Hackathon */}
-        <button
-          className="header-icon-btn diagnostic-btn"
-          onClick={() => setIsDiagnosticOpen(true)}
-          title="Banc de test technique Phase 0 (#BuildHybridAI)"
-        >
-          <Activity size={18} />
-          <span className="desktop-only-text">Preuve IA</span>
-        </button>
-
-        {/* Bouton Thème */}
-        <button
-          className="header-icon-btn"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title={`Passer en mode ${theme === 'dark' ? 'clair (Ivoire)' : 'sombre (Noir profond)'}`}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-
-        {/* Bouton Paramètres & Mémoire */}
-        <button
-          className="header-icon-btn"
-          onClick={() => setIsSettingsOpen(true)}
-          title="Paramètres & Mémoire Personnelle"
-        >
-          <Settings size={18} />
-        </button>
+        </div>
       </div>
     </header>
   );

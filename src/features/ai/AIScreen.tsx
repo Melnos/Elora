@@ -2,21 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Send,
-  Bot,
   User,
-  Cpu,
-  Cloud,
   Plus,
   Sparkles,
-  Shield,
   Copy,
   Check,
   MessageSquare,
   Paperclip,
   X,
+  FileCode,
   FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
-import type { InferenceMode, AIRequestAttachment } from '../../lib/ai/types';
+import type { AIRequestAttachment } from '../../lib/ai/types';
 
 export const AIScreen: React.FC = () => {
   const {
@@ -26,24 +24,47 @@ export const AIScreen: React.FC = () => {
     createConversation,
     sendMessage,
     isGenerating,
-    caps,
   } = useApp();
 
   const [inputPrompt, setInputPrompt] = useState('');
-  const [selectedMode, setSelectedMode] = useState<InferenceMode>('prefer_on_device');
-  const [isLocalOnly, setIsLocalOnly] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showHistoryMobile, setShowHistoryMobile] = useState(false);
   const [attachments, setAttachments] = useState<AIRequestAttachment[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const currentConversation =
     conversations.find((c) => c.id === currentConversationId) || conversations[0];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentConversation?.messages, isGenerating]);
+
+  // Détection du format de fichier
+  const getFileBadge = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (['ts', 'tsx', 'js', 'jsx', 'py', 'json', 'html', 'css'].includes(ext || '')) {
+      return {
+        label: ext?.toUpperCase() || 'CODE',
+        icon: <FileCode size={12} className="text-blue-500" />,
+        bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+      };
+    }
+    if (['csv', 'xlsx', 'tsv'].includes(ext || '')) {
+      return {
+        label: 'TABLEUR',
+        icon: <FileSpreadsheet size={12} className="text-emerald-500" />,
+        bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      };
+    }
+    return {
+      label: ext?.toUpperCase() || 'DOC',
+      icon: <FileText size={12} className="text-amber-500" />,
+      bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    };
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -65,7 +86,6 @@ export const AIScreen: React.FC = () => {
       };
       reader.readAsText(file);
     }
-    // Réinitialiser la valeur de l'input pour permettre le ré-upload
     e.target.value = '';
   };
 
@@ -82,8 +102,6 @@ export const AIScreen: React.FC = () => {
     setAttachments([]);
 
     await sendMessage(text, {
-      mode: selectedMode,
-      localOnly: isLocalOnly,
       attachments: currentAtts,
     });
   };
@@ -95,192 +113,156 @@ export const AIScreen: React.FC = () => {
   };
 
   const quickPrompts = [
-    'Quelles sont mes priorités immédiates et comment les organiser ?',
-    'Explique la synergie entre Gemini Nano local et Firebase AI Logic cloud.',
-    'Aide-moi à préparer ma candidature pour le hackathon #BuildHybridAI.',
+    'Quelles sont mes 3 priorités d\'aujourd\'hui et comment m\'organiser ?',
+    'Aide-moi à structurer mon plan d\'action pour mon objectif principal.',
+    'Analyse mes opportunités sauvegardées et prépare un pitch de candidature.',
   ];
 
   return (
-    <div className="ai-chat-layout">
-      {/* Colonne latérale d'historique des discussions */}
-      <aside className={`ai-history-panel ${showHistoryMobile ? 'open' : ''}`}>
-        <div className="history-header">
-          <div className="flex-align-center gap-2">
-            <MessageSquare size={16} className="icon-gold" />
-            <span className="history-title">Conversations</span>
+    <div className="ai-workspace-container">
+      {/* Panneau latéral des discussions */}
+      <aside className={`ai-threads-sidebar ${showHistoryMobile ? 'open' : ''}`}>
+        <div className="threads-header">
+          <div className="flex items-center gap-2">
+            <MessageSquare size={16} className="text-[var(--color-accent)]" />
+            <span className="text-sm font-bold text-[var(--color-text-main)]">Discussions</span>
           </div>
           <button
-            className="btn-new-chat"
+            className="p-1.5 rounded-xl hover:bg-[var(--color-bg-surface)] text-[var(--color-text-main)] border border-[var(--color-border-subtle)] transition-colors"
             onClick={() => {
               createConversation();
               setShowHistoryMobile(false);
             }}
-            title="Démarrer une nouvelle discussion"
+            title="Nouvelle conversation"
           >
-            <Plus size={16} />
-            <span>Nouveau</span>
+            <Plus size={15} />
           </button>
         </div>
 
-        <div className="conversation-list">
+        <div className="threads-list">
           {conversations.map((conv) => (
             <button
               key={conv.id}
-              className={`conversation-tab-btn ${conv.id === currentConversationId ? 'active' : ''}`}
+              className={`thread-item-btn ${conv.id === currentConversationId ? 'active' : ''}`}
               onClick={() => {
                 setCurrentConversationId(conv.id);
                 setShowHistoryMobile(false);
               }}
             >
-              <div className="conv-title-row">
-                <span className="conv-title-text">{conv.title}</span>
-              </div>
-              <span className="conv-date">{conv.lastActive}</span>
+              <span className="thread-title-text">{conv.title}</span>
+              <span className="thread-date-text">{conv.lastActive}</span>
             </button>
           ))}
         </div>
       </aside>
 
-      {/* Zone principale de conversation */}
-      <main className="ai-chat-main">
-        {/* Barre de contrôle du routage IA */}
-        <div className="ai-routing-toolbar">
+      {/* Surface principale de conversation */}
+      <section className="ai-chat-canvas">
+        {/* Barre supérieure épurée du chat */}
+        <div className="chat-top-bar">
           <button
-            className="btn-toggle-history-mobile"
+            className="mobile-thread-toggle"
             onClick={() => setShowHistoryMobile(!showHistoryMobile)}
-            title="Historique des conversations"
+            title="Afficher les discussions"
           >
             <MessageSquare size={16} />
             <span>Historique ({conversations.length})</span>
           </button>
 
-          <div className="routing-selectors">
-            {/* Sélecteur de mode d'inférence */}
-            <div className="mode-selector-group">
-              <label htmlFor="inference-mode" className="mode-label">
-                Routage IA :
-              </label>
-              <select
-                id="inference-mode"
-                className="mode-select"
-                value={selectedMode}
-                onChange={(e) => setSelectedMode(e.target.value as InferenceMode)}
-              >
-                <option value="prefer_on_device">⚡ Hybride auto (Priorité Nano)</option>
-                <option value="only_on_device">🔒 Strictement local (Nano seul)</option>
-                <option value="prefer_in_cloud">☁️ Cloud prioritaire (Gemini 3.5)</option>
-                <option value="only_in_cloud">☁️ Cloud strict (Firebase AI Logic)</option>
-              </select>
-            </div>
-
-            {/* Bascule confidentialité absolue */}
-            <button
-              type="button"
-              className={`privacy-toggle-btn ${isLocalOnly ? 'active' : ''}`}
-              onClick={() => setIsLocalOnly(!isLocalOnly)}
-              title="Interdire tout transfert vers le cloud pour cette conversation"
-            >
-              <Shield size={14} />
-              <span>Zéro fuite Cloud</span>
-            </button>
+          <div className="chat-status-pill">
+            <span className="status-indicator-dot" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">ELORA AI</span>
           </div>
+
+          <button
+            className="desktop-new-chat-btn"
+            onClick={() => createConversation()}
+          >
+            <Plus size={14} />
+            <span>Nouvelle discussion</span>
+          </button>
         </div>
 
-        {/* Fil des messages */}
-        <div className="chat-messages-scroll-area">
-          {(!currentConversation || currentConversation.messages.length === 0) ? (
-            <div className="chat-empty-state">
-              <div className="empty-state-icon">
-                <Sparkles size={32} />
+        {/* Défilement des messages */}
+        <div className="chat-stream-viewport">
+          {!currentConversation || currentConversation.messages.length === 0 ? (
+            <div className="chat-welcome-state">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20 shadow-sm">
+                <Sparkles size={28} />
               </div>
-              <h2 className="empty-title">ELORA • Intelligence Personnelle</h2>
-              <p className="empty-description">
-                Posez une question, confiez une tâche d'organisation ou explorez vos projets. ELORA
-                combine votre mémoire active locale avec la puissance de Gemini Nano et Firebase AI Logic.
+              <h2 className="text-2xl font-extrabold text-[var(--color-text-main)] tracking-tight">
+                Comment puis-je vous aider aujourd'hui ?
+              </h2>
+              <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-2 leading-relaxed">
+                ELORA connecte vos projets, vos documents et vos objectifs pour vous offrir un accompagnement sur mesure.
               </p>
-              <div className="quick-suggestions-grid">
-                {quickPrompts.map((qp, idx) => (
+
+              <div className="quick-starters-grid">
+                {quickPrompts.map((prompt, idx) => (
                   <button
                     key={idx}
-                    className="quick-suggestion-card"
+                    className="quick-starter-pill"
                     onClick={() => {
-                      setInputPrompt(qp);
+                      setInputPrompt(prompt);
+                      textareaRef.current?.focus();
                     }}
                   >
-                    <span>{qp}</span>
+                    <span>{prompt}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="messages-container">
+            <div className="conversation-flow">
               {currentConversation.messages.map((msg) => {
                 const isAssistant = msg.role === 'assistant';
                 const isStreamingCurrent = isAssistant && !msg.content && isGenerating;
 
                 return (
-                  <div key={msg.id} className={`message-bubble-wrapper ${msg.role}`}>
-                    <div className="message-author-avatar">
-                      {isAssistant ? <Bot size={16} /> : <User size={16} />}
+                  <div key={msg.id} className={`dialogue-row ${msg.role}`}>
+                    <div className="dialogue-avatar">
+                      {isAssistant ? (
+                        <div className="w-8 h-8 rounded-xl bg-[var(--color-accent)]/15 text-[var(--color-accent)] flex items-center justify-center border border-[var(--color-accent)]/20">
+                          <Sparkles size={16} />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-xl bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] flex items-center justify-center border border-[var(--color-border-subtle)]">
+                          <User size={16} />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="message-content-container">
-                      <div className="message-header-meta">
-                        <span className="author-name">
-                          {isAssistant ? 'ELORA' : 'Vous'}
-                        </span>
-                        <span className="msg-timestamp">{msg.timestamp}</span>
-
-                        {/* Badge certifié de la source d'inférence */}
-                        {isAssistant && msg.inferenceSource && (
-                          <span className={`inference-tag ${msg.inferenceSource}`}>
-                            {msg.inferenceSource === 'on_device' ? (
-                              <>
-                                <Cpu size={12} />
-                                <span>ON-DEVICE</span>
-                              </>
-                            ) : (
-                              <>
-                                <Cloud size={12} />
-                                <span>CLOUD</span>
-                              </>
-                            )}
-                            {msg.durationMs !== undefined && (
-                              <span className="duration-pill">• {msg.durationMs}ms</span>
-                            )}
-                          </span>
-                        )}
+                    <div className="dialogue-card">
+                      <div className="dialogue-card-header">
+                        <span className="author-label">{isAssistant ? 'ELORA' : 'Vous'}</span>
+                        <span className="timestamp-label">{msg.timestamp}</span>
 
                         {isAssistant && msg.content && (
                           <button
-                            className="btn-copy-msg"
+                            className="btn-copy-bubble"
                             onClick={() => handleCopyText(msg.id, msg.content)}
                             title="Copier la réponse"
                           >
                             {copiedId === msg.id ? (
-                              <Check size={13} color="var(--local-green)" />
+                              <Check size={12} className="text-emerald-500" />
                             ) : (
-                              <Copy size={13} />
+                              <Copy size={12} />
                             )}
                           </button>
                         )}
                       </div>
 
-                      <div className="message-text-body">
+                      <div className="dialogue-body">
                         {isStreamingCurrent ? (
-                          <div className="generating-indicator">
-                            <span className="generating-dot"></span>
-                            <span className="generating-dot"></span>
-                            <span className="generating-dot"></span>
-                            <span className="generating-label">
-                              {selectedMode === 'only_on_device' || isLocalOnly
-                                ? 'Inférence locale en cours (Gemini Nano)...'
-                                : 'Génération en cours...'}
-                            </span>
+                          <div className="flex items-center gap-2 py-2">
+                            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
+                            <span className="text-xs text-[var(--color-text-muted)]">ELORA formule sa réponse...</span>
                           </div>
                         ) : (
-                          msg.content.split('\n\n').map((paragraph, pIdx) => (
-                            <p key={pIdx}>{paragraph}</p>
+                          msg.content.split('\n\n').map((p, idx) => (
+                            <p key={idx} className="mb-2 last:mb-0 leading-relaxed text-sm">
+                              {p}
+                            </p>
                           ))
                         )}
                       </div>
@@ -293,51 +275,59 @@ export const AIScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Aperçu des pièces jointes */}
+        {/* Fichiers joints en attente d'envoi */}
         {attachments.length > 0 && (
-          <div className="px-4 py-2 bg-[var(--color-bg-surface-elevated)] border-t border-[var(--color-border-subtle)] flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-[var(--color-text-muted)] font-medium">Documents joints :</span>
-            {attachments.map((att, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)]"
-              >
-                <FileText size={12} className="text-[var(--color-accent)]" />
-                <span className="truncate max-w-[140px]">{att.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeAttachment(idx)}
-                  className="p-0.5 hover:text-red-500 text-[var(--color-text-muted)]"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
+          <div className="attachments-staging-strip">
+            <span className="text-xs font-semibold text-[var(--color-text-muted)]">Pièces jointes :</span>
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((att, i) => {
+                const badge = getFileBadge(att.name);
+                return (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-xs font-medium text-[var(--color-text-main)] shadow-sm"
+                  >
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badge.bg}`}>
+                      {badge.label}
+                    </span>
+                    <span className="truncate max-w-[130px]">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(i)}
+                      className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-1"
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Compositeur de message fixe en bas */}
-        <div className="ai-composer-wrapper">
-          <form className="ai-composer-form" onSubmit={handleSend}>
+        {/* Compositeur flottant */}
+        <div className="floating-composer-shell">
+          <form className="floating-composer-form" onSubmit={handleSend}>
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="hidden"
               multiple
-              accept=".txt,.md,.json,.csv,.js,.ts,.py,.html"
+              accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf"
             />
             <button
               type="button"
-              className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors rounded-lg"
+              className="composer-action-btn"
               onClick={() => fileInputRef.current?.click()}
-              title="Joindre un document texte, markdown ou code pour analyse"
+              title="Joindre un document ou un fichier de code"
             >
               <Paperclip size={18} />
             </button>
 
             <textarea
-              className="ai-composer-textarea"
+              ref={textareaRef}
+              className="composer-input-area"
               rows={1}
               value={inputPrompt}
               onChange={(e) => setInputPrompt(e.target.value)}
@@ -347,27 +337,20 @@ export const AIScreen: React.FC = () => {
                   handleSend(e);
                 }
               }}
-              placeholder="Écrivez votre message à ELORA..."
+              placeholder="Écrivez votre message ou déposez un fichier..."
             />
 
             <button
               type="submit"
-              className="btn-send-message"
+              className="composer-send-btn"
               disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
-              title="Envoyer le message"
+              title="Envoyer"
             >
-              <Send size={18} />
+              <Send size={16} />
             </button>
           </form>
-          <div className="composer-footer-note">
-            <span>
-              {caps?.onDeviceStatus === 'readily'
-                ? '⚡ Gemini Nano actif localement'
-                : '☁️ Firebase AI Logic connecté (Cloud)'}
-            </span>
-          </div>
         </div>
-      </main>
+      </section>
     </div>
   );
 };
