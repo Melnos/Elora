@@ -5,12 +5,12 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
-  Compass,
   Target,
   Play,
   Calendar,
   Check,
   Flame,
+  Award,
 } from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
@@ -37,40 +37,44 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <div className="bento-viewport">
-      {/* Grille Bento Asymétrique */}
+      {/* Grille Bento Asymétrique Haute Fidélité */}
       <div className="bento-layout-grid">
         {/* CARTE 1 : BENTO HERO - Briefing Quotidien (7 cols sur desktop) */}
-        <div className="bento-item bento-hero-span">
+        <div className="bento-item bento-hero-span relative overflow-hidden">
           <div className="bento-card-bg-glow" />
           <div className="bento-card-content flex flex-col justify-between h-full">
             <div>
-              <div className="bento-tag">
-                <Sparkles size={13} className="text-[var(--color-accent)]" />
-                <span>Briefing Quotidien</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF6A00]/15 text-[#FF6A00] border border-[#FF6A00]/25 text-xs font-black mb-4 shadow-sm">
+                <Sparkles size={14} className="text-[#FF6A00] animate-pulse" />
+                <span>Briefing Quotidien • Système Hybride Prêt</span>
               </div>
-              <h1 className="bento-hero-title">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-[var(--color-text-main)] tracking-tight">
                 Bonjour, {profile.name}.
               </h1>
-              <p className="bento-hero-subtitle">
-                Votre cap actuel : <span className="text-[var(--color-text-main)] font-semibold">« {profile.currentObjective} »</span>.
+              <p className="text-sm sm:text-base text-[var(--color-text-muted)] mt-3 leading-relaxed max-w-xl">
+                Cap stratégique : <span className="text-[var(--color-text-main)] font-bold">« {profile.currentObjective} »</span>.
                 {pendingHighTasks.length > 0 ? (
-                  <span> {pendingHighTasks.length} action(s) prioritaire(s) attendent votre attention.</span>
+                  <span className="block mt-1 text-[#FF6A00] font-semibold">
+                    ⚡ {pendingHighTasks.length} action(s) prioritaire(s) requièrent votre focus aujourd'hui.
+                  </span>
                 ) : (
-                  <span> Toutes vos actions prioritaires sont accomplies.</span>
+                  <span className="block mt-1 text-emerald-500 font-semibold">
+                    ✨ Toutes vos priorités immédiates sont à jour.
+                  </span>
                 )}
               </p>
             </div>
 
-            <div className="bento-hero-footer">
+            <div className="flex flex-wrap items-center gap-3 pt-6 mt-auto">
               <button
-                className="bento-btn-primary"
+                className="bento-btn-primary shadow-lg hover:shadow-orange-500/25 transition-all"
                 onClick={() => setActiveTab('ai')}
               >
                 <Sparkles size={16} />
-                <span>Consulter ELORA</span>
+                <span>Consulter ELORA (IA)</span>
               </button>
               <button
-                className="bento-link-action"
+                className="bento-link-action px-4 py-2.5 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-[var(--color-text-main)] hover:border-[#FF6A00] transition-all flex items-center gap-2"
                 onClick={() => setActiveTab('planner')}
               >
                 <span>Accéder au Planner</span>
@@ -81,29 +85,31 @@ export const HomeScreen: React.FC = () => {
         </div>
 
         {/* CARTE 2 : BENTO FOCUS - Quick Deep Work Launch (5 cols sur desktop) */}
-        <div className="bento-item bento-focus-span">
+        <div className="bento-item bento-focus-span relative overflow-hidden">
           <div className="bento-card-content flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <div className="bento-tag">
-                <Flame size={13} className="text-amber-500" />
-                <span>Deep Work</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/25 text-xs font-bold shadow-sm">
+                <Flame size={14} className="text-amber-500" />
+                <span>Deep Work Studio</span>
               </div>
-              <span className="text-xs font-semibold text-[var(--color-text-muted)]">25 min</span>
+              <span className="text-xs font-black text-[var(--color-text-muted)] bg-[var(--color-bg-surface-elevated)] px-2.5 py-1 rounded-lg">
+                25 min
+              </span>
             </div>
 
-            <div className="my-auto text-center py-4">
-              <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full border-2 border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]">
-                <span className="text-2xl font-black text-[var(--color-text-main)] font-mono">25:00</span>
+            <div className="my-auto text-center py-6">
+              <div className="relative inline-flex items-center justify-center w-28 h-28 rounded-full border-4 border-amber-500/30 bg-[var(--color-bg-base)] shadow-inner">
+                <span className="text-3xl font-black text-[var(--color-text-main)] font-mono tracking-tight">25:00</span>
               </div>
-              <h3 className="text-sm font-bold text-[var(--color-text-main)] mt-3">Session de Focus</h3>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Éliminez les distractions et avancez sur votre objectif</p>
+              <h3 className="text-base font-bold text-[var(--color-text-main)] mt-4">Session de Concentration</h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Éliminez les distractions et avancez sur votre cap</p>
             </div>
 
             <button
-              className="bento-btn-secondary w-full"
+              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:shadow-amber-500/25 transition-all cursor-pointer"
               onClick={() => setActiveTab('planner')}
             >
-              <Play size={15} />
+              <Play size={16} fill="currentColor" />
               <span>Démarrer le Focus</span>
             </button>
           </div>
@@ -111,110 +117,146 @@ export const HomeScreen: React.FC = () => {
 
         {/* CARTE 3 : BENTO PRIORITÉS - Tâches immédiates (6 cols) */}
         <div className="bento-item bento-half-span">
-          <div className="bento-card-content flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[var(--color-accent)]">
-                  <Clock size={15} />
+          <div className="bento-card-content flex flex-col justify-between h-full">
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-[#FF6A00] shadow-sm">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-[var(--color-text-main)]">Priorités Immédiates</h2>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">Actions directes recommandées</p>
+                  </div>
                 </div>
-                <h2 className="text-base font-bold text-[var(--color-text-main)]">Priorités Immédiates</h2>
+                <button
+                  className="px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-[#FF6A00] hover:border-[#FF6A00] flex items-center gap-1.5 transition-all cursor-pointer"
+                  onClick={() => setActiveTab('planner')}
+                >
+                  <span>Planner</span>
+                  <ArrowRight size={13} />
+                </button>
               </div>
-              <button
-                className="text-xs font-semibold text-[var(--color-accent)] hover:underline flex items-center gap-1"
-                onClick={() => setActiveTab('planner')}
-              >
-                <span>Planner</span>
-                <ArrowRight size={13} />
-              </button>
+
+              {pendingHighTasks.length === 0 ? (
+                <div className="py-10 text-center">
+                  <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-2 opacity-90" />
+                  <p className="text-xs text-[var(--color-text-muted)]">Toutes vos priorités sont à jour pour le moment.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingHighTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="p-3.5 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] flex items-center justify-between gap-3 hover:border-[var(--color-border-strong)] transition-all shadow-sm"
+                    >
+                      <button
+                        className="w-6 h-6 rounded-lg border-2 border-[var(--color-border-strong)] flex items-center justify-center shrink-0 hover:border-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                        onClick={() => toggleTaskCompleted(t.id)}
+                        title="Marquer comme terminée"
+                      >
+                        {t.completed && <Check size={14} className="text-emerald-500 stroke-[3]" />}
+                      </button>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <span className="text-xs font-bold text-[var(--color-text-main)] block leading-snug">
+                          {t.title}
+                        </span>
+                        <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 inline-block">
+                          {t.category}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-[#FF6A00]/15 text-[#FF6A00] border border-[#FF6A00]/25 shrink-0 flex items-center gap-1">
+                        <Calendar size={11} />
+                        {t.dueDate}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {pendingHighTasks.length === 0 ? (
-              <div className="my-auto py-8 text-center">
-                <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2 opacity-80" />
-                <p className="text-xs text-[var(--color-text-muted)]">Toutes vos priorités sont à jour pour le moment.</p>
-              </div>
-            ) : (
-              <div className="space-y-2.5 my-auto">
-                {pendingHighTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-3 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] flex items-center justify-between gap-3 hover:border-[var(--color-border-strong)] transition-colors"
-                  >
-                    <button
-                      className="w-5 h-5 rounded-md border border-[var(--color-border-strong)] flex items-center justify-center shrink-0 hover:border-[var(--color-accent)] transition-colors"
-                      onClick={() => toggleTaskCompleted(t.id)}
-                      title="Marquer comme terminée"
-                    >
-                      {t.completed && <Check size={13} className="text-emerald-500" />}
-                    </button>
-                    <span className="text-xs font-medium text-[var(--color-text-main)] flex-1 truncate">
-                      {t.title}
-                    </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
-                      {t.dueDate}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="pt-4 mt-auto">
+              <button
+                className="w-full py-2.5 rounded-xl border border-dashed border-[var(--color-border-strong)] text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:border-[var(--color-text-main)] transition-all flex items-center justify-center gap-1.5"
+                onClick={() => setActiveTab('planner')}
+              >
+                <span>+ Ajouter une nouvelle priorité</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* CARTE 4 : BENTO OBJECTIFS - Trajectoire de progression (6 cols) */}
         <div className="bento-item bento-half-span">
           <div className="bento-card-content flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] flex items-center justify-center text-[var(--color-accent)]">
-                  <Target size={15} />
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-sm">
+                    <Target size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-[var(--color-text-main)]">Trajectoire & Objectif</h2>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">Avancement stratégique mesuré</p>
+                  </div>
                 </div>
-                <h2 className="text-base font-bold text-[var(--color-text-main)]">Trajectoire & Objectif</h2>
+                <button
+                  className="px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-violet-400 hover:border-violet-500 flex items-center gap-1.5 transition-all cursor-pointer"
+                  onClick={() => setActiveTab('progress')}
+                >
+                  <span>Bilan</span>
+                  <ArrowRight size={13} />
+                </button>
               </div>
-              <button
-                className="text-xs font-semibold text-[var(--color-accent)] hover:underline flex items-center gap-1"
-                onClick={() => setActiveTab('progress')}
-              >
-                <span>Bilan</span>
-                <ArrowRight size={13} />
-              </button>
+
+              {primaryGoal ? (
+                <div className="p-5 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] space-y-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-400 inline-block mb-1.5">
+                        {primaryGoal.category}
+                      </span>
+                      <h3 className="text-sm sm:text-base font-bold text-[var(--color-text-main)] leading-snug">
+                        {primaryGoal.title}
+                      </h3>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-1 flex items-center gap-1.5">
+                        <Calendar size={12} />
+                        Échéance : {primaryGoal.targetDate}
+                      </p>
+                    </div>
+                    <span className="text-2xl font-black text-[#FF6A00] font-mono">
+                      {primaryGoal.progressPercentage}%
+                    </span>
+                  </div>
+
+                  {/* Barre de progression Apple */}
+                  <div className="w-full h-3 rounded-full bg-[var(--color-bg-base)] overflow-hidden p-0.5 border border-[var(--color-border-subtle)]">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#FF6A00] to-amber-400 transition-all duration-700 shadow-sm"
+                      style={{ width: `${primaryGoal.progressPercentage}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] font-medium pt-1">
+                    <span>Jalons complétés</span>
+                    <span className="font-bold text-[var(--color-text-main)]">
+                      {primaryGoal.milestones.filter((m) => m.completed).length} sur {primaryGoal.milestones.length}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-10 text-center">
+                  <p className="text-xs text-[var(--color-text-muted)]">Aucun objectif actif défini.</p>
+                </div>
+              )}
             </div>
 
-            {primaryGoal ? (
-              <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] my-auto space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-bold text-[var(--color-text-main)]">{primaryGoal.title}</h3>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Échéance : {primaryGoal.targetDate}</p>
-                  </div>
-                  <span className="text-base font-black text-[var(--color-accent)] font-mono">
-                    {primaryGoal.progressPercentage}%
-                  </span>
-                </div>
-
-                {/* Barre de progression Apple */}
-                <div className="w-full h-2 rounded-full bg-[var(--color-bg-surface-elevated)] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
-                    style={{ width: `${primaryGoal.progressPercentage}%` }}
-                  />
-                </div>
-
-                <div className="text-[11px] text-[var(--color-text-muted)]">
-                  Jalons complétés : {primaryGoal.milestones.filter((m) => m.completed).length} sur {primaryGoal.milestones.length}
-                </div>
-              </div>
-            ) : (
-              <div className="my-auto text-center py-6">
-                <p className="text-xs text-[var(--color-text-muted)]">Aucun objectif actif défini.</p>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end">
+            <div className="pt-4 mt-auto flex justify-end">
               <button
-                className="bento-link-action"
+                className="text-xs font-bold text-[#FF6A00] hover:underline flex items-center gap-1.5 cursor-pointer"
                 onClick={() => setActiveTab('progress')}
               >
-                <span>Détails de l'évolution</span>
+                <span>Consulter le bilan détaillé</span>
                 <ArrowRight size={13} />
               </button>
             </div>
@@ -223,44 +265,44 @@ export const HomeScreen: React.FC = () => {
 
         {/* CARTE 5 : BENTO OPPORTUNITÉ - Mise en avant vérifiée (12 cols) */}
         {featuredOpportunity && (
-          <div className="bento-item bento-full-span">
+          <div className="bento-item bento-full-span p-6 sm:p-8 bg-gradient-to-br from-[var(--color-bg-surface)] via-[var(--color-bg-surface)] to-orange-500/10 border-2 border-[#FF6A00]/30 shadow-xl">
             <div className="bento-card-content">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="bento-tag-spotlight">
-                      <Compass size={13} />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#FF6A00]/20 text-[#FF6A00] border border-[#FF6A00]/30 text-xs font-black shadow-sm">
+                      <Award size={13} />
                       <span>Opportunité en Vedette</span>
                     </span>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
                       {featuredOpportunity.matchScore}% de compatibilité
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-[var(--color-text-main)]">
+                  <h3 className="text-xl sm:text-2xl font-black text-[var(--color-text-main)]">
                     {featuredOpportunity.title}
                   </h3>
-                  <p className="text-xs text-[var(--color-text-muted)] line-clamp-2">
-                    Organisé par <span className="font-semibold text-[var(--color-text-main)]">{featuredOpportunity.organization}</span> • {featuredOpportunity.matchReason}
+                  <p className="text-xs sm:text-sm text-[var(--color-text-muted)] leading-relaxed max-w-2xl">
+                    Organisé par <span className="font-bold text-[var(--color-text-main)]">{featuredOpportunity.organization}</span> • {featuredOpportunity.matchReason}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
                   <button
-                    className="bento-btn-secondary"
+                    className="px-5 py-3 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-[var(--color-text-main)] hover:border-[#FF6A00] transition-all flex items-center gap-2 shadow-sm cursor-pointer"
                     onClick={() => {
                       addOpportunityToPlanner(featuredOpportunity);
                       setActiveTab('planner');
                     }}
                   >
-                    <Calendar size={14} />
+                    <Calendar size={15} />
                     <span>Ajouter au Planner</span>
                   </button>
                   <button
-                    className="bento-btn-primary"
+                    className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white text-xs font-black flex items-center gap-2 shadow-lg hover:shadow-orange-500/25 transition-all cursor-pointer"
                     onClick={() => setActiveTab('ai')}
                   >
-                    <Sparkles size={14} />
+                    <Sparkles size={15} />
                     <span>Préparer avec ELORA</span>
                   </button>
                 </div>

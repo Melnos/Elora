@@ -4,65 +4,65 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Monaco, Consolas, monospace;
 
-  /* Thème clair : Ivoire & Couleurs Vibrantes */
-  --color-bg-base: #F8F5F0;
+  /* Thème clair : Fond iOS Gris clair & Cartes Blanches lumineuses */
+  --color-bg-base: #F4F3F0;
   --color-bg-surface: #FFFFFF;
-  --color-bg-surface-elevated: #F2ECE4;
+  --color-bg-surface-elevated: #EAE8E3;
   --color-border-subtle: rgba(0, 0, 0, 0.08);
   --color-border-strong: rgba(0, 0, 0, 0.16);
 
   --color-text-main: #141312;
-  --color-text-muted: #5E5850;
+  --color-text-muted: #6E6860;
 
   /* Couleurs de marque riches et vibrantes */
   --color-gold: #C08A3E;
   --color-gold-hover: #A6732B;
   --color-gold-bg: rgba(192, 138, 62, 0.14);
 
-  --color-orange: #FF6422;
-  --color-orange-bg: rgba(255, 100, 34, 0.12);
+  --color-orange: #FF6A00;
+  --color-orange-bg: rgba(255, 106, 0, 0.12);
 
-  --color-emerald: #0DA566;
-  --color-emerald-bg: rgba(13, 165, 102, 0.12);
+  --color-emerald: #10B981;
+  --color-emerald-bg: rgba(16, 185, 129, 0.12);
 
-  --color-blue: #1D63ED;
-  --color-blue-bg: rgba(29, 99, 237, 0.12);
+  --color-blue: #0A84FF;
+  --color-blue-bg: rgba(10, 132, 255, 0.12);
 
-  --color-purple: #7C3AED;
-  --color-purple-bg: rgba(124, 58, 237, 0.12);
+  --color-purple: #BF5AF2;
+  --color-purple-bg: rgba(191, 90, 242, 0.12);
 
   --color-card-border: rgba(0, 0, 0, 0.08);
 }
 
 html.dark,
 :root.dark {
-  /* Thème sombre : Noir d'encre profond & Couleurs Électriques */
-  --color-bg-base: #0B0A09;
-  --color-bg-surface: #151413;
-  --color-bg-surface-elevated: #1F1D1A;
-  --color-border-subtle: rgba(255, 255, 255, 0.09);
-  --color-border-strong: rgba(255, 255, 255, 0.18);
+  /* Thème sombre : Noir d'encre Apple Bento & Surfaces riches contrastées */
+  --color-bg-base: #000000;
+  --color-bg-surface: #18191D;
+  --color-bg-surface-elevated: #24262E;
+  --color-border-subtle: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
 
-  --color-text-main: #FAF8F5;
-  --color-text-muted: #A39D93;
+  --color-text-main: #FFFFFF;
+  --color-text-muted: #9E9EA4;
 
   --color-gold: #E5A955;
   --color-gold-hover: #F2BD72;
-  --color-gold-bg: rgba(229, 169, 85, 0.18);
+  --color-gold-bg: rgba(229, 169, 85, 0.2);
 
-  --color-orange: #FF7539;
-  --color-orange-bg: rgba(255, 117, 57, 0.18);
+  --color-orange: #FF6A00;
+  --color-orange-bg: rgba(255, 106, 0, 0.2);
 
-  --color-emerald: #22C55E;
-  --color-emerald-bg: rgba(34, 197, 94, 0.18);
+  --color-emerald: #10B981;
+  --color-emerald-bg: rgba(16, 185, 129, 0.2);
 
-  --color-blue: #3B82F6;
-  --color-blue-bg: rgba(59, 130, 246, 0.18);
+  --color-blue: #0A84FF;
+  --color-blue-bg: rgba(10, 132, 255, 0.2);
 
-  --color-purple: #9333EA;
-  --color-purple-bg: rgba(147, 51, 234, 0.18);
+  --color-purple: #BF5AF2;
+  --color-purple-bg: rgba(191, 90, 242, 0.2);
 
-  --color-card-border: rgba(255, 255, 255, 0.1);
+  --color-card-border: rgba(255, 255, 255, 0.12);
 }
 
 * {
