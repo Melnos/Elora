@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { SettingsModal } from './SettingsModal';
 import { DiagnosticModal } from './DiagnosticModal';
+import { AuthModal } from '../auth/AuthModal';
 
 import { HomeScreen } from '../../features/home/HomeScreen';
 import { AIScreen } from '../../features/ai/AIScreen';
@@ -14,7 +15,7 @@ import { OpportunitiesScreen } from '../../features/opportunities/OpportunitiesS
 import { ProgressScreen } from '../../features/progress/ProgressScreen';
 
 export const AppLayout: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
 
   const renderActiveScreen = () => {
     switch (activeTab) {
@@ -51,6 +52,12 @@ export const AppLayout: React.FC = () => {
 
       {/* Barre de navigation inférieure mobile */}
       <BottomNav />
+
+      {/* Modale d'Authentification Firebase */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
 
       {/* Modale de Paramètres & Mémoire */}
       <SettingsModal />

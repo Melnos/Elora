@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Règle de sécurité stricte pour ELORA (#BuildHybridAI Hackathon) :
+    // Chaque utilisateur n'a accès qu'à son propre espace personnel isolé.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Toutes les sous-collections (tasks, goals, focusSessions, memories, knowledge, conversations)
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Interdiction par défaut de tout accès public ou non autorisé
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -55,3 +55,55 @@ Pour tester Gemini Nano dans Chrome :
 1. Ouvrir `chrome://flags/#prompt-api-for-gemini-nano` → **Enabled**
 2. Ouvrir `chrome://flags/#optimization-guide-on-device-model` → **Enabled BypassPerfRequirement**
 3. Redémarrer Chrome et vérifier le téléchargement dans `chrome://components`.
+
+
+---
+
+## Décision 002 : Construction de l'Expérience Produit ELORA (Phase A)
+- **Date :** 22 Novembre 2026
+- **Statut :** Validé
+
+### 1. Organisation en Six Espaces Stricts
+Conformément au cahier des charges ELORA :
+1. **Home :** Briefing quotidien, 1-3 priorités immédiates, objectifs actifs, opportunité en vedette, raccourcis contextuels.
+2. **AI :** Espace conversationnel avec sélecteur de mode hybride, badges officiels `[ON-DEVICE]` / `[CLOUD]`, streaming temps réel, pièces jointes.
+3. **Knowledge :** Gestion des collections, recherche instantanée, aperçu modal avec points clés, questions d'approfondissement vers l'IA.
+4. **Planner & Focus :** Gestion des tâches avec filtres et priorités, générateur de plan IA, et mode **Focus** intégré avec chronomètre actif, présélections de durée et journalisation.
+5. **Opportunities :** Cartes d'opportunités réelles et vérifiées (hackathons, bourses, programmes d'accélération), critères d'éligibilité, ajout en 1 clic au Planner et préparation guidée par ELORA.
+6. **Progress :** Métriques réelles calculées à partir des données effectives (tâches, focus, connaissances, jalons), bilan hebdomadaire structuré.
+
+### 2. Design System & Identité Visuelle
+- Palette Thème Clair : Ivoire (`#FAF8F5`), surfaces douces (`#F2EFEB`), bordures subtiles (`#E5DFD7`), accent doré (`#C08A3E`).
+- Palette Thème Sombre : Noir profond (`#0F0E0D`), surfaces sombres (`#181615`), bordures sombres (`#292523`), texte ivoire pur (`#FDFDFC`).
+- Mobile-first avec barre de navigation inférieure et bouton IA surélevé.
+
+---
+
+## Décision 003 : Infrastructure Backend, Streaming IA, Sécurité & PWA (Phases B, C, D)
+- **Date :** 22 Novembre 2026
+- **Statut :** Validé
+
+### 1. Authentification & Sécurité Firebase
+- Module `src/lib/firebase/auth.ts` : Inscription/Connexion par email/mot de passe, Google Sign-in avec popup, réinitialisation de mot de passe, écouteur d'état réactif `onAuthStateChanged`.
+- Modale d'authentification ergonomique `AuthModal.tsx` intégrée au shell applicatif.
+- Règles Cloud Firestore (`firestore.rules`) garantissant l'isolation totale des données :
+  ```text
+  match /users/{userId}/{document=**} {
+    allow read, write: if request.auth != null && request.auth.uid == userId;
+  }
+  ```
+- Configuration de Firebase App Check avec token de débogage pour les environnements de test.
+
+### 2. Synchronisation et Mode Hors Ligne
+- Module `src/lib/firebase/firestore.ts` : synchronisation bidirectionnelle des tâches, objectifs, sessions focus, connaissances, mémoires personnelles et conversations.
+- Dépilage automatique de la file d'attente hors ligne (`OfflineQueue`) lors du rétablissement du réseau.
+
+### 3. Streaming IA & Analyse de Pièces Jointes
+- Intégration de `generateContentStream` de Firebase AI Logic pour un affichage fluide mot par mot dans `CloudAIProvider`.
+- Intégration de `promptStreaming` pour Gemini Nano dans `LocalAIProvider`.
+- Prise en charge des documents texte, Markdown, JSON et code attachés directement aux prompts de discussion pour analyse et synthèse.
+
+### 4. PWA (Progressive Web App) & Service Worker
+- `public/manifest.webmanifest` : Configuration PWA autonome (`display: standalone`), icônes, métadonnées, thème ivoire / noir profond.
+- `public/sw.js` : Service worker avec stratégie de mise en cache Stale-While-Revalidate pour le shell et les assets locaux, garantissant l'accès permanent aux fonctionnalités de base même hors ligne.
+- Optimisation Rollup / Vite : Chunks séparés (`firebase-core`, `firebase-ai`, `vendor-ui`, `index`).

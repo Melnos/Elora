@@ -1,0 +1,21 @@
+{
+  "name": "ELORA - Intelligence Personnelle Hybride",
+  "short_name": "ELORA",
+  "description": "Environnement d'intelligence personnelle hybride combinant Firebase AI Logic et Gemini Nano.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F0E0D",
+  "theme_color": "#FAF8F5",
+  "categories": ["productivity", "education", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

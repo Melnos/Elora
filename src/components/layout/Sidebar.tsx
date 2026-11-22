@@ -11,10 +11,24 @@ import {
   Settings,
   Activity,
   User,
+  LogIn,
+  LogOut,
+  CloudCheck,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab, profile, setIsSettingsOpen, setIsDiagnosticOpen, tasks, opportunities } = useApp();
+  const {
+    activeTab,
+    setActiveTab,
+    profile,
+    setIsSettingsOpen,
+    setIsDiagnosticOpen,
+    setIsAuthModalOpen,
+    currentUser,
+    logout,
+    tasks,
+    opportunities,
+  } = useApp();
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'home', label: 'Espace Personnel', icon: <Home size={20} /> },
@@ -46,14 +60,23 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Profil rapide */}
-      <div className="sidebar-user" onClick={() => setIsSettingsOpen(true)}>
+      {/* Profil rapide & Statut Auth */}
+      <div className="sidebar-user" onClick={() => (currentUser ? setIsSettingsOpen(true) : setIsAuthModalOpen(true))}>
         <div className="user-avatar">
           <User size={16} />
         </div>
         <div className="user-details">
-          <span className="user-name">{profile.name}</span>
-          <span className="user-role">{profile.roleTitle}</span>
+          <span className="user-name">{currentUser?.displayName || profile.name}</span>
+          <span className="user-role flex items-center gap-1">
+            {currentUser ? (
+              <>
+                <CloudCheck size={11} className="text-emerald-500" />
+                <span>Synchronisé Cloud</span>
+              </>
+            ) : (
+              <span>Local • Invité</span>
+            )}
+          </span>
         </div>
       </div>
 
@@ -80,6 +103,26 @@ export const Sidebar: React.FC = () => {
 
       {/* Actions secondaires en bas de sidebar */}
       <div className="sidebar-footer">
+        {currentUser ? (
+          <button
+            className="footer-btn text-red-500/80 hover:text-red-500"
+            onClick={() => logout()}
+            title="Se déconnecter de la session Firebase"
+          >
+            <LogOut size={17} />
+            <span>Déconnexion</span>
+          </button>
+        ) : (
+          <button
+            className="footer-btn text-[var(--color-accent)]"
+            onClick={() => setIsAuthModalOpen(true)}
+            title="Se connecter pour sauvegarder dans Firestore"
+          >
+            <LogIn size={17} />
+            <span>Connexion / Inscription</span>
+          </button>
+        )}
+
         <button
           className="footer-btn"
           onClick={() => setIsDiagnosticOpen(true)}

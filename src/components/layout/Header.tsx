@@ -8,6 +8,9 @@ import {
   Settings,
   Activity,
   WifiOff,
+  LogIn,
+  RefreshCw,
+  UserCheck,
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -16,6 +19,10 @@ export const Header: React.FC = () => {
     setTheme,
     setIsSettingsOpen,
     setIsDiagnosticOpen,
+    setIsAuthModalOpen,
+    currentUser,
+    isSyncingCloud,
+    triggerCloudSync,
     caps,
     activeTab,
   } = useApp();
@@ -76,6 +83,35 @@ export const Header: React.FC = () => {
             </span>
           )}
         </button>
+
+        {/* État Authentification / Cloud Sync */}
+        {currentUser ? (
+          <button
+            className="engine-badge-btn"
+            onClick={() => triggerCloudSync()}
+            title={isSyncingCloud ? 'Synchronisation Cloud en cours...' : `Connecté en tant que ${currentUser.email || currentUser.displayName} (cliquez pour synchroniser)`}
+          >
+            <span className="badge-pill cloud">
+              {isSyncingCloud ? (
+                <RefreshCw size={13} className="animate-spin" />
+              ) : (
+                <UserCheck size={13} />
+              )}
+              <span className="desktop-only-text">
+                {isSyncingCloud ? 'Synchro...' : 'Cloud Actif'}
+              </span>
+            </span>
+          </button>
+        ) : (
+          <button
+            className="header-icon-btn auth-btn"
+            onClick={() => setIsAuthModalOpen(true)}
+            title="Se connecter pour synchroniser vos données dans Firestore"
+          >
+            <LogIn size={17} />
+            <span className="desktop-only-text">Connexion</span>
+          </button>
+        )}
 
         {/* Bouton Diagnostic Hackathon */}
         <button

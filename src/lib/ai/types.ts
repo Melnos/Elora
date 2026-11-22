@@ -41,6 +41,12 @@ export interface InferenceMetadata {
   };
 }
 
+export interface AIRequestAttachment {
+  name: string;
+  mimeType: string;
+  data: string; // text content or base64
+}
+
 export interface AIRequestOptions {
   /** Texte ou consigne pour l'IA */
   prompt: string;
@@ -56,6 +62,10 @@ export interface AIRequestOptions {
   maxOutputTokens?: number;
   /** Type de tâche (simple, reasoning, multimodale, etc.) */
   taskType?: 'simple_summary' | 'chat' | 'complex_reasoning' | 'multimodal';
+  /** Callback optionnel pour le streaming temps réel */
+  onStreamChunk?: (chunk: string, accumulated: string) => void;
+  /** Fichiers ou pièces jointes (documents, code, texte) */
+  attachments?: AIRequestAttachment[];
 }
 
 export interface AIResponse {

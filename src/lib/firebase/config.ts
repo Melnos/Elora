@@ -1,9 +1,12 @@
 /**
- * ELORA - Configuration Firebase et Firebase AI Logic
- * Conforme aux spécifications Firebase AI Logic SDK 13.x
+ * ELORA - Configuration Firebase, Auth, Firestore et Firebase AI Logic
+ * Conforme aux spécifications Firebase 13.x et Firebase AI Logic
  */
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeAppCheck, CustomProvider, type AppCheck } from 'firebase/app-check';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 
 export const firebaseConfig = {
@@ -23,9 +26,58 @@ export function getFirebaseApp(): FirebaseApp {
   return initializeApp(firebaseConfig);
 }
 
-let aiInstance: AI | null = null;
+// Auth singleton
+let authInstance: Auth | null = null;
+export function getFirebaseAuth(): Auth {
+  if (!authInstance) {
+    const app = getFirebaseApp();
+    authInstance = getAuth(app);
+  }
+  return authInstance;
+}
 
-// Initialisation de Firebase AI Logic avec le backend Gemini Developer API
+// Firestore singleton
+let firestoreInstance: Firestore | null = null;
+export function getFirebaseFirestore(): Firestore {
+  if (!firestoreInstance) {
+    const app = getFirebaseApp();
+    firestoreInstance = getFirestore(app);
+  }
+  return firestoreInstance;
+}
+
+// App Check singleton
+let appCheckInstance: AppCheck | null = null;
+export function getFirebaseAppCheck(): AppCheck | null {
+  if (typeof window === 'undefined') return null;
+  if (!appCheckInstance) {
+    try {
+      const app = getFirebaseApp();
+      // En environnement de dev ou hackathon, activer le debug token si disponible
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+      appCheckInstance = initializeAppCheck(app, {
+        provider: new CustomProvider({
+          getToken: () => {
+            return Promise.resolve({
+              token: 'elora-debug-app-check-token',
+              expireTimeMillis: Date.now() + 60 * 60 * 1000,
+            });
+          },
+        }),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch {
+      // Si App Check a déjà été initialisé ou n'est pas requis en local
+    }
+  }
+  return appCheckInstance;
+}
+
+// Firebase AI Logic singleton
+let aiInstance: AI | null = null;
 export function getFirebaseAI(): AI {
   if (!aiInstance) {
     const app = getFirebaseApp();

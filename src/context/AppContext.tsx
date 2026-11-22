@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import type { User } from 'firebase/auth';
 import type {
   NavTab,
   ThemeMode,
@@ -24,7 +25,22 @@ import {
 } from '../lib/mockData';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
 import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
-import type { CapabilityReport, InferenceMode, AIResponse } from '../lib/ai/types';
+import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment } from '../lib/ai/types';
+import { subscribeToAuthState, logoutUser } from '../lib/firebase/auth';
+import {
+  syncUserProfile,
+  fetchUserData,
+  saveUserTask,
+  deleteUserTask,
+  saveUserGoal,
+  saveUserFocusSession,
+  saveUserMemory,
+  deleteUserMemory,
+  saveUserKnowledgeDoc,
+  deleteUserKnowledgeDoc,
+  saveUserConversation,
+  processOfflineQueue,
+} from '../lib/firebase/firestore';
 
 interface AppContextType {
   // Navigation & Vues
@@ -40,6 +56,15 @@ interface AppContextType {
   setIsSettingsOpen: (open: boolean) => void;
   isDiagnosticOpen: boolean;
   setIsDiagnosticOpen: (open: boolean) => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+
+  // Authentification & Cloud Sync
+  currentUser: User | null;
+  isAuthLoading: boolean;
+  isSyncingCloud: boolean;
+  logout: () => Promise<void>;
+  triggerCloudSync: () => Promise<void>;
 
   // Données utilisateur & Mémoire
   profile: UserProfile;
@@ -79,7 +104,14 @@ interface AppContextType {
   currentConversationId: string;
   setCurrentConversationId: (id: string) => void;
   createConversation: (initialTitle?: string) => string;
-  sendMessage: (text: string, options?: { mode?: InferenceMode; localOnly?: boolean }) => Promise<void>;
+  sendMessage: (
+    text: string,
+    options?: {
+      mode?: InferenceMode;
+      localOnly?: boolean;
+      attachments?: AIRequestAttachment[];
+    }
+  ) => Promise<void>;
   isGenerating: boolean;
 
   // Diagnostic IA
@@ -97,8 +129,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Données avec persistance LocalStorage
+  // Authentification Firebase
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+
+  // Données avec persistance LocalStorage (offline-first)
   const [profile, setProfile] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('elora_profile');
     return saved ? JSON.parse(saved) : initialProfile;
@@ -168,7 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     applyThemeToDocument(theme);
   }, [theme]);
 
-  // Sauvegardes locales automatiques
+  // Sauvegardes locales automatiques (Offline-first)
   useEffect(() => {
     localStorage.setItem('elora_tasks', JSON.stringify(tasks));
   }, [tasks]);
@@ -201,6 +239,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem('elora_profile', JSON.stringify(profile));
   }, [profile]);
 
+  // Synchronisation Cloud manuelle ou automatique
+  const triggerCloudSync = useCallback(async () => {
+    if (!currentUser || !navigator.onLine) return;
+    setIsSyncingCloud(true);
+    try {
+      await processOfflineQueue(currentUser.uid);
+      const cloudData = await fetchUserData(currentUser.uid);
+      if (cloudData) {
+        if (cloudData.profile) setProfile(cloudData.profile);
+        if (cloudData.tasks.length > 0) setTasks(cloudData.tasks);
+        if (cloudData.goals.length > 0) setGoals(cloudData.goals);
+        if (cloudData.focusSessions.length > 0) setFocusSessions(cloudData.focusSessions);
+        if (cloudData.memories.length > 0) setMemories(cloudData.memories);
+        if (cloudData.knowledgeDocs.length > 0) setKnowledgeDocs(cloudData.knowledgeDocs);
+        if (cloudData.conversations.length > 0) setConversations(cloudData.conversations);
+      }
+    } catch (err) {
+      console.warn('[Sync] Erreur lors de la synchronisation Firestore :', err);
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  }, [currentUser]);
+
+  // Écouteur de session Firebase Auth
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState(async (user) => {
+      setCurrentUser(user);
+      setIsAuthLoading(false);
+      if (user) {
+        // Mettre à jour l'email et le nom si présents
+        if (user.displayName || user.email) {
+          setProfile((prev) => ({
+            ...prev,
+            name: user.displayName || prev.name,
+            email: user.email || prev.email,
+          }));
+        }
+        // Déclencher la synchronisation Cloud
+        triggerCloudSync();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [triggerCloudSync]);
+
+  // Synchronisation au retour en ligne
+  useEffect(() => {
+    const handleOnline = () => {
+      if (currentUser) {
+        triggerCloudSync();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [currentUser, triggerCloudSync]);
+
   // Actualisation des capacités IA
   const refreshCapabilities = useCallback(async () => {
     const report = await CapabilityDetector.detect();
@@ -213,7 +307,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Actions Profile
   const updateProfile = (updated: Partial<UserProfile>) => {
-    setProfile((prev) => ({ ...prev, ...updated }));
+    setProfile((prev) => {
+      const next = { ...prev, ...updated };
+      if (currentUser) {
+        syncUserProfile(currentUser.uid, next);
+      }
+      return next;
+    });
   };
 
   // Actions Mémoire
@@ -224,16 +324,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dateAdded: new Date().toISOString().split('T')[0],
     };
     setMemories((prev) => [newMem, ...prev]);
+    if (currentUser) {
+      saveUserMemory(currentUser.uid, newMem);
+    }
   };
 
   const toggleMemoryAI = (id: string) => {
     setMemories((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, enabledForAI: !m.enabledForAI } : m))
+      prev.map((m) => {
+        if (m.id === id) {
+          const updated = { ...m, enabledForAI: !m.enabledForAI };
+          if (currentUser) saveUserMemory(currentUser.uid, updated);
+          return updated;
+        }
+        return m;
+      })
     );
   };
 
   const deleteMemory = (id: string) => {
     setMemories((prev) => prev.filter((m) => m.id !== id));
+    if (currentUser) {
+      deleteUserMemory(currentUser.uid, id);
+    }
   };
 
   // Actions Tâches
@@ -243,16 +356,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: `task_${Date.now()}`,
     };
     setTasks((prev) => [newTask, ...prev]);
+    if (currentUser) {
+      saveUserTask(currentUser.uid, newTask);
+    }
   };
 
   const toggleTaskCompleted = (id: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+      prev.map((t) => {
+        if (t.id === id) {
+          const updated = { ...t, completed: !t.completed };
+          if (currentUser) saveUserTask(currentUser.uid, updated);
+          return updated;
+        }
+        return t;
+      })
     );
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    if (currentUser) {
+      deleteUserTask(currentUser.uid, id);
+    }
   };
 
   // Actions Objectifs
@@ -262,92 +388,112 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: `goal_${Date.now()}`,
     };
     setGoals((prev) => [newGoal, ...prev]);
+    if (currentUser) {
+      saveUserGoal(currentUser.uid, newGoal);
+    }
   };
 
   const toggleMilestone = (goalId: string, milestoneId: string) => {
     setGoals((prev) =>
       prev.map((g) => {
-        if (g.id !== goalId) return g;
-        const updatedMilestones = g.milestones.map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
-        );
-        const completedCount = updatedMilestones.filter((m) => m.completed).length;
-        const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
-        return {
-          ...g,
-          milestones: updatedMilestones,
-          progressPercentage: newProgress,
-          completed: newProgress === 100,
-        };
+        if (g.id === goalId) {
+          const updatedMilestones = g.milestones.map((m) =>
+            m.id === milestoneId ? { ...m, completed: !m.completed } : m
+          );
+          const completedCount = updatedMilestones.filter((m) => m.completed).length;
+          const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
+          const updatedGoal = { ...g, milestones: updatedMilestones, progressPercentage: newProgress };
+          if (currentUser) saveUserGoal(currentUser.uid, updatedGoal);
+          return updatedGoal;
+        }
+        return g;
       })
     );
   };
 
-  // Actions Focus
+  // Actions Sessions Focus
   const addFocusSession = (session: Omit<FocusSession, 'id' | 'completedAt'>) => {
     const newSession: FocusSession = {
       ...session,
-      id: `foc_${Date.now()}`,
-      completedAt: new Date().toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      id: `focus_${Date.now()}`,
+      completedAt: new Date().toISOString(),
     };
     setFocusSessions((prev) => [newSession, ...prev]);
+    if (currentUser) {
+      saveUserFocusSession(currentUser.uid, newSession);
+    }
   };
 
   // Actions Connaissances
-  const addKnowledgeDoc = (doc: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => {
+  const addKnowledgeDoc = (docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => {
     const newDoc: KnowledgeDoc = {
-      ...doc,
+      ...docData,
       id: `doc_${Date.now()}`,
       addedAt: new Date().toISOString().split('T')[0],
     };
     setKnowledgeDocs((prev) => [newDoc, ...prev]);
+    if (currentUser) {
+      saveUserKnowledgeDoc(currentUser.uid, newDoc);
+    }
   };
 
   const deleteKnowledgeDoc = (id: string) => {
     setKnowledgeDocs((prev) => prev.filter((d) => d.id !== id));
+    if (currentUser) {
+      deleteUserKnowledgeDoc(currentUser.uid, id);
+    }
   };
 
   // Actions Opportunités
   const toggleSaveOpportunity = (id: string) => {
     setOpportunities((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, saved: !o.saved } : o))
+      prev.map((opp) => (opp.id === id ? { ...opp, saved: !opp.saved } : opp))
     );
   };
 
   const addOpportunityToPlanner = (opp: OpportunityItem) => {
     addTask({
-      title: `Candidature : ${opp.title}`,
-      description: `Organisateur : ${opp.organization}. Lien officiel : ${opp.officialUrl}`,
-      dueDate: opp.deadline,
+      title: `Préparer candidature : ${opp.title}`,
       priority: 'high',
+      dueDate: opp.deadline,
       completed: false,
-      category: 'Opportunités',
+      category: 'Projet',
     });
   };
 
-  // Actions Conversations IA
-  const createConversation = (initialTitle = 'Nouvelle discussion') => {
+  // Déconnexion
+  const logout = async () => {
+    await logoutUser();
+    setCurrentUser(null);
+  };
+
+  // Conversations IA
+  const createConversation = (initialTitle: string = 'Nouvelle conversation'): string => {
+    const newId = `conv_${Date.now()}`;
     const newConv: Conversation = {
-      id: `conv_${Date.now()}`,
+      id: newId,
       title: initialTitle,
       lastActive: 'À l\'instant',
       messages: [],
     };
     setConversations((prev) => [newConv, ...prev]);
-    setCurrentConversationId(newConv.id);
-    return newConv.id;
+    setCurrentConversationId(newId);
+    if (currentUser) {
+      saveUserConversation(currentUser.uid, newConv);
+    }
+    return newId;
   };
 
+  // Envoi de message IA avec streaming temps réel et pièces jointes
   const sendMessage = async (
     text: string,
-    options?: { mode?: InferenceMode; localOnly?: boolean }
+    options?: {
+      mode?: InferenceMode;
+      localOnly?: boolean;
+      attachments?: AIRequestAttachment[];
+    }
   ) => {
-    if (!text.trim()) return;
+    if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
 
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}_u`,
@@ -356,11 +502,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    // Injecter immédiatement le message utilisateur
+    const assistantMsgId = `msg_${Date.now()}_a`;
+    const initialAssistantMsg: ChatMessage = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    // Injecter immédiatement le message utilisateur et le placeholder assistant
     setConversations((prev) =>
       prev.map((c) =>
         c.id === currentConversationId
-          ? { ...c, messages: [...c.messages, userMsg], lastActive: 'À l\'instant' }
+          ? {
+              ...c,
+              messages: [...c.messages, userMsg, initialAssistantMsg],
+              lastActive: 'À l\'instant',
+            }
           : c
       )
     );
@@ -368,55 +526,92 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
 
     try {
-      // Préparation du prompt enrichi avec la mémoire active
+      // Préparation du prompt enrichi avec la mémoire active et les connaissances clés
       const activeMemoriesContext = memories
         .filter((m) => m.enabledForAI)
         .map((m) => `- ${m.key} : ${m.value}`)
         .join('\n');
 
-      const systemContext = `Tu es ELORA, une intelligence personnelle hybride conçue pour aider l'utilisateur (${profile.name}) à comprendre, organiser ses projets, atteindre ses objectifs et saisir les meilleures opportunités.
+      const systemContext = `Tu es ELORA, un environnement d'intelligence personnelle hybride conçu pour accompagner ${profile.name}.
 Contexte mémorisé de l'utilisateur :
-${activeMemoriesContext}
-Réponds avec clarté, pertinence et élégance. Formate ta réponse en Markdown avec des sections lisibles lorsque nécessaire.`;
+${activeMemoriesContext || 'Aucune mémoire active pour le moment.'}
+Objectifs principaux :
+${goals.map((g) => `- ${g.title} (${g.progressPercentage}% complété)`).join('\n')}
+
+Instructions :
+- Réponds avec clarté, pertinence, élégance et empathie intellectuelle.
+- Formate tes réponses en Markdown soigné avec titres clairs, puces et blocs de code si utile.
+- Ne fabrique jamais de fausses données ou de faux accomplissements.`;
 
       const aiResponse: AIResponse = await orchestrator.process({
         prompt: `${systemContext}\n\nDemande de l'utilisateur : ${text}`,
         mode: options?.mode,
         localOnly: options?.localOnly,
+        attachments: options?.attachments,
+        onStreamChunk: (_chunk: string, accumulated: string) => {
+          // Mise à jour continue en streaming temps réel
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id !== currentConversationId) return c;
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                ),
+              };
+            })
+          );
+        },
       });
 
-      const assistantMsg: ChatMessage = {
-        id: `msg_${Date.now()}_a`,
-        role: 'assistant',
-        content: aiResponse.text,
-        timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        inferenceSource: aiResponse.metadata.source === 'unavailable' ? undefined : aiResponse.metadata.source,
-        modelName: aiResponse.metadata.modelName,
-        durationMs: aiResponse.metadata.durationMs,
-      };
+      // Finalisation des métadonnées officielles de la réponse
+      setConversations((prev) => {
+        const nextConvs = prev.map((c) => {
+          if (c.id !== currentConversationId) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === assistantMsgId
+                ? {
+                    ...m,
+                    content: aiResponse.text,
+                    inferenceSource:
+                      aiResponse.metadata.source === 'unavailable'
+                        ? undefined
+                        : aiResponse.metadata.source,
+                    modelName: aiResponse.metadata.modelName,
+                    durationMs: aiResponse.metadata.durationMs,
+                  }
+                : m
+            ),
+          };
+        });
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === currentConversationId
-            ? { ...c, messages: [...c.messages, assistantMsg], lastActive: 'À l\'instant' }
-            : c
-        )
-      );
+        // Persistance Cloud de la conversation mise à jour
+        if (currentUser) {
+          const currentConv = nextConvs.find((c) => c.id === currentConversationId);
+          if (currentConv) saveUserConversation(currentUser.uid, currentConv);
+        }
+
+        return nextConvs;
+      });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      const errorAssistantMsg: ChatMessage = {
-        id: `msg_${Date.now()}_err`,
-        role: 'assistant',
-        content: `⚠️ **Information ELORA :**\n\n${errMsg}`,
-        timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      };
-
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === currentConversationId
-            ? { ...c, messages: [...c.messages, errorAssistantMsg] }
-            : c
-        )
+        prev.map((c) => {
+          if (c.id !== currentConversationId) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === assistantMsgId
+                ? {
+                    ...m,
+                    content: `⚠️ **Information ELORA :**\n\n${errMsg}`,
+                  }
+                : m
+            ),
+          };
+        })
       );
     } finally {
       setIsGenerating(false);
@@ -434,6 +629,13 @@ Réponds avec clarté, pertinence et élégance. Formate ta réponse en Markdown
         setIsSettingsOpen,
         isDiagnosticOpen,
         setIsDiagnosticOpen,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        currentUser,
+        isAuthLoading,
+        isSyncingCloud,
+        logout,
+        triggerCloudSync,
         profile,
         updateProfile,
         memories,

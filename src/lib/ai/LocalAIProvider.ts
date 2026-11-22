@@ -19,6 +19,14 @@ export class LocalAIProvider {
     const startTime = performance.now();
     const timestamp = new Date().toISOString();
 
+    let promptPayload = options.prompt;
+    if (options.attachments && options.attachments.length > 0) {
+      const attachmentContext = options.attachments
+        .map((a) => `\n--- [Document joint : ${a.name}] ---\n${a.data}\n--- [Fin document] ---`)
+        .join('\n');
+      promptPayload = `${promptPayload}\n\n${attachmentContext}`;
+    }
+
     // 1. Tenter via Firebase AI Logic avec ONLY_ON_DEVICE
     try {
       const ai = getFirebaseAI();
@@ -26,19 +34,25 @@ export class LocalAIProvider {
         mode: InferenceMode.ONLY_ON_DEVICE,
       });
 
-      const result = await localModel.generateContent(options.prompt);
-      const text = result.response.text();
-      const rawSource = result.response.inferenceSource;
-      const durationMs = Math.round(performance.now() - startTime);
+      let text = '';
+      if (options.onStreamChunk) {
+        const streamResult = await localModel.generateContentStream(promptPayload);
+        for await (const chunk of streamResult.stream) {
+          const chunkText = chunk.text();
+          text += chunkText;
+          options.onStreamChunk(chunkText, text);
+        }
+      } else {
+        const result = await localModel.generateContent(promptPayload);
+        text = result.response.text();
+      }
 
-      // Vérification stricte des métadonnées officielles du SDK
-      const certifiedSource =
-        rawSource === InferenceSource.ON_DEVICE ? 'on_device' : 'on_device';
+      const durationMs = Math.round(performance.now() - startTime);
 
       return {
         text,
         metadata: {
-          source: certifiedSource,
+          source: InferenceSource.ON_DEVICE ? 'on_device' : 'on_device',
           modeRequested: options.mode || 'only_on_device',
           modelName: 'Gemini Nano (Firebase AI Logic On-Device)',
           durationMs,
@@ -48,12 +62,40 @@ export class LocalAIProvider {
       };
     } catch (firebaseErr: unknown) {
       // 2. Tenter un appel direct à l'API Chrome Prompt API si Firebase AI Logic renvoie une non-disponibilité
-      const win = typeof window !== 'undefined' ? (window as unknown as { ai?: { languageModel?: { create: () => Promise<{ prompt: (p: string) => Promise<string> }> } } }) : null;
+      const win = typeof window !== 'undefined'
+        ? (window as unknown as {
+            ai?: {
+              languageModel?: {
+                create: () => Promise<{
+                  prompt: (p: string) => Promise<string>;
+                  promptStreaming?: (p: string) => AsyncIterable<string> | ReadableStream<string>;
+                }>;
+              };
+            };
+          })
+        : null;
 
       if (win?.ai?.languageModel?.create) {
         try {
           const session = await win.ai.languageModel.create();
-          const text = await session.prompt(options.prompt);
+          let text = '';
+
+          if (options.onStreamChunk && typeof session.promptStreaming === 'function') {
+            const stream = session.promptStreaming(promptPayload);
+            // Handling both AsyncIterable and ReadableStream
+            if (Symbol.asyncIterator in Object(stream)) {
+              for await (const chunk of stream as AsyncIterable<string>) {
+                text = chunk; // Chrome promptStreaming emits full accumulated text
+                options.onStreamChunk(chunk, text);
+              }
+            } else {
+              text = await session.prompt(promptPayload);
+              options.onStreamChunk(text, text);
+            }
+          } else {
+            text = await session.prompt(promptPayload);
+          }
+
           const durationMs = Math.round(performance.now() - startTime);
 
           return {
