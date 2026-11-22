@@ -105,26 +105,26 @@ export const KnowledgeScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Barre de Recherche et Sélecteurs de Collection */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
-        <div className="relative w-full sm:w-80">
-          <Search size={15} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
+      {/* Barre de Recherche et Sélecteurs de Collection découpés proprement */}
+      <div className="space-y-3 mb-8">
+        <div className="relative w-full max-w-xl">
+          <Search size={16} className="absolute left-4 top-3.5 text-[var(--color-text-muted)]" />
           <input
             type="text"
             placeholder="Rechercher une note, un sujet, un tag..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] shadow-sm"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] shadow-sm transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto w-full pt-1 pb-1">
           {collections.map((col) => (
             <button
               key={col}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
                 selectedCollection === col
-                  ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                  ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
                   : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
               }`}
               onClick={() => setSelectedCollection(col)}
@@ -145,39 +145,43 @@ export const KnowledgeScreen: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredDocs.map((doc, idx) => (
             <div
               key={doc.id}
-              className={`p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all duration-300 flex flex-col justify-between shadow-sm cursor-pointer group ${
-                idx === 0 ? 'md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] to-[var(--color-bg-base)]' : ''
+              className={`p-7 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[#FF6A00] transition-all duration-300 flex flex-col justify-between shadow-sm hover:shadow-xl cursor-pointer group ${
+                idx === 0
+                  ? 'md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] via-[var(--color-bg-surface)] to-amber-500/5 border-amber-500/30'
+                  : idx === 1
+                  ? 'bg-gradient-to-br from-[var(--color-bg-surface)] to-violet-500/5 border-violet-500/30'
+                  : 'bg-gradient-to-br from-[var(--color-bg-surface)] to-emerald-500/5 border-emerald-500/30'
               }`}
               onClick={() => setSelectedDoc(doc)}
             >
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-[var(--color-bg-base)] text-[var(--color-accent)] border border-[var(--color-border-subtle)]">
+                <div className="flex items-center justify-between mb-3.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-[var(--color-bg-base)] text-[#FF6A00] border border-[var(--color-border-subtle)]">
                     {doc.collection}
                   </span>
-                  <span className="text-[11px] text-[var(--color-text-muted)] flex items-center gap-1">
-                    <Clock size={11} />
+                  <span className="text-[11px] font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
+                    <Clock size={12} />
                     <span>{doc.addedAt}</span>
                   </span>
                 </div>
 
-                <h3 className="text-base font-bold text-[var(--color-text-main)] group-hover:text-[var(--color-accent)] transition-colors line-clamp-2">
+                <h3 className="text-lg font-bold text-[var(--color-text-main)] group-hover:text-[#FF6A00] transition-colors line-clamp-2">
                   {doc.title}
                 </h3>
 
-                <p className="text-xs text-[var(--color-text-muted)] mt-2 line-clamp-3 leading-relaxed">
+                <p className="text-xs text-[var(--color-text-muted)] mt-2.5 line-clamp-3 leading-relaxed">
                   {doc.summary}
                 </p>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  {doc.tags.slice(0, 2).map((t, tIdx) => (
-                    <span key={tIdx} className="text-[10px] text-[var(--color-text-muted)] px-1.5 py-0.5 rounded bg-[var(--color-bg-base)] truncate">
+              <div className="pt-4 mt-5 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {doc.tags.slice(0, 3).map((t, tIdx) => (
+                    <span key={tIdx} className="text-[10px] font-medium text-[var(--color-text-muted)] px-2 py-0.5 rounded-md bg-[var(--color-bg-base)] truncate">
                       #{t}
                     </span>
                   ))}

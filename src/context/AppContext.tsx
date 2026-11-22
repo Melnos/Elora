@@ -13,20 +13,11 @@ import type {
   Conversation,
   ChatMessage,
 } from '../types';
-import {
-  initialProfile,
-  initialMemories,
-  initialTasks,
-  initialGoals,
-  initialFocusSessions,
-  initialKnowledge,
-  initialOpportunities,
-  initialConversations,
-} from '../lib/mockData';
+import { EloraDB } from '../lib/db/database';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
 import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
 import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment } from '../lib/ai/types';
-import { subscribeToAuthState, logoutUser } from '../lib/firebase/auth';
+import { subscribeToAuthState, logoutUser, getSavedAuthSession } from '../lib/firebase/auth';
 import {
   syncUserProfile,
   fetchUserData,
@@ -131,51 +122,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Authentification Firebase
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  // Authentification
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getSavedAuthSession());
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
-  // Données avec persistance LocalStorage (offline-first)
-  const [profile, setProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('elora_profile');
-    return saved ? JSON.parse(saved) : initialProfile;
-  });
-
-  const [memories, setMemories] = useState<MemoryItem[]>(() => {
-    const saved = localStorage.getItem('elora_memories');
-    return saved ? JSON.parse(saved) : initialMemories;
-  });
-
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem('elora_tasks');
-    return saved ? JSON.parse(saved) : initialTasks;
-  });
-
-  const [goals, setGoals] = useState<GoalItem[]>(() => {
-    const saved = localStorage.getItem('elora_goals');
-    return saved ? JSON.parse(saved) : initialGoals;
-  });
-
-  const [focusSessions, setFocusSessions] = useState<FocusSession[]>(() => {
-    const saved = localStorage.getItem('elora_focus');
-    return saved ? JSON.parse(saved) : initialFocusSessions;
-  });
-
-  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(() => {
-    const saved = localStorage.getItem('elora_knowledge');
-    return saved ? JSON.parse(saved) : initialKnowledge;
-  });
-
-  const [opportunities, setOpportunities] = useState<OpportunityItem[]>(() => {
-    const saved = localStorage.getItem('elora_opportunities');
-    return saved ? JSON.parse(saved) : initialOpportunities;
-  });
-
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    const saved = localStorage.getItem('elora_conversations');
-    return saved ? JSON.parse(saved) : initialConversations;
-  });
+  // Données avec persistance base de données locale (EloraDB)
+  const [profile, setProfile] = useState<UserProfile>(() => EloraDB.getProfile());
+  const [memories, setMemories] = useState<MemoryItem[]>(() => EloraDB.getMemories());
+  const [tasks, setTasks] = useState<TaskItem[]>(() => EloraDB.getTasks());
+  const [goals, setGoals] = useState<GoalItem[]>(() => EloraDB.getGoals());
+  const [focusSessions, setFocusSessions] = useState<FocusSession[]>(() => EloraDB.getFocusSessions());
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(() => EloraDB.getKnowledge());
+  const [opportunities, setOpportunities] = useState<OpportunityItem[]>(() => EloraDB.getOpportunities());
+  const [conversations, setConversations] = useState<Conversation[]>(() => EloraDB.getConversations());
 
   const [currentConversationId, setCurrentConversationId] = useState<string>(() => {
     return conversations[0]?.id || 'conv_1';
@@ -206,39 +166,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     applyThemeToDocument(theme);
   }, [theme]);
 
-  // Sauvegardes locales automatiques (Offline-first)
-  useEffect(() => {
-    localStorage.setItem('elora_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_goals', JSON.stringify(goals));
-  }, [goals]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_focus', JSON.stringify(focusSessions));
-  }, [focusSessions]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_memories', JSON.stringify(memories));
-  }, [memories]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_knowledge', JSON.stringify(knowledgeDocs));
-  }, [knowledgeDocs]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_opportunities', JSON.stringify(opportunities));
-  }, [opportunities]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_conversations', JSON.stringify(conversations));
-  }, [conversations]);
-
-  useEffect(() => {
-    localStorage.setItem('elora_profile', JSON.stringify(profile));
-  }, [profile]);
-
   // Synchronisation Cloud manuelle ou automatique
   const triggerCloudSync = useCallback(async () => {
     if (!currentUser || !navigator.onLine) return;
@@ -247,13 +174,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await processOfflineQueue(currentUser.uid);
       const cloudData = await fetchUserData(currentUser.uid);
       if (cloudData) {
-        if (cloudData.profile) setProfile(cloudData.profile);
-        if (cloudData.tasks.length > 0) setTasks(cloudData.tasks);
-        if (cloudData.goals.length > 0) setGoals(cloudData.goals);
-        if (cloudData.focusSessions.length > 0) setFocusSessions(cloudData.focusSessions);
-        if (cloudData.memories.length > 0) setMemories(cloudData.memories);
-        if (cloudData.knowledgeDocs.length > 0) setKnowledgeDocs(cloudData.knowledgeDocs);
-        if (cloudData.conversations.length > 0) setConversations(cloudData.conversations);
+        if (cloudData.profile) {
+          setProfile(cloudData.profile);
+          EloraDB.saveProfile(cloudData.profile);
+        }
+        if (cloudData.tasks.length > 0) {
+          setTasks(cloudData.tasks);
+          EloraDB.saveTasks(cloudData.tasks);
+        }
+        if (cloudData.goals.length > 0) {
+          setGoals(cloudData.goals);
+          EloraDB.saveGoals(cloudData.goals);
+        }
+        if (cloudData.focusSessions.length > 0) {
+          setFocusSessions(cloudData.focusSessions);
+        }
+        if (cloudData.memories.length > 0) {
+          setMemories(cloudData.memories);
+        }
+        if (cloudData.knowledgeDocs.length > 0) {
+          setKnowledgeDocs(cloudData.knowledgeDocs);
+        }
+        if (cloudData.conversations.length > 0) {
+          setConversations(cloudData.conversations);
+          EloraDB.saveConversations(cloudData.conversations);
+        }
       }
     } catch (err) {
       console.warn('[Sync] Erreur lors de la synchronisation Firestore :', err);
@@ -268,32 +213,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentUser(user);
       setIsAuthLoading(false);
       if (user) {
-        // Mettre à jour l'email et le nom si présents
         if (user.displayName || user.email) {
-          setProfile((prev) => ({
-            ...prev,
-            name: user.displayName || prev.name,
-            email: user.email || prev.email,
-          }));
+          setProfile((prev) => {
+            const updated = {
+              ...prev,
+              name: user.displayName || prev.name,
+              email: user.email || prev.email,
+            };
+            EloraDB.saveProfile(updated);
+            return updated;
+          });
         }
-        // Déclencher la synchronisation Cloud
         triggerCloudSync();
       }
     });
 
     return () => unsubscribe();
   }, [triggerCloudSync]);
-
-  // Synchronisation au retour en ligne
-  useEffect(() => {
-    const handleOnline = () => {
-      if (currentUser) {
-        triggerCloudSync();
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [currentUser, triggerCloudSync]);
 
   // Actualisation des capacités IA
   const refreshCapabilities = useCallback(async () => {
@@ -309,6 +245,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateProfile = (updated: Partial<UserProfile>) => {
     setProfile((prev) => {
       const next = { ...prev, ...updated };
+      EloraDB.saveProfile(next);
       if (currentUser) {
         syncUserProfile(currentUser.uid, next);
       }
@@ -318,64 +255,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Actions Mémoire
   const addMemory = (item: Omit<MemoryItem, 'id' | 'dateAdded'>) => {
-    const newMem: MemoryItem = {
-      ...item,
-      id: `mem_${Date.now()}`,
-      dateAdded: new Date().toISOString().split('T')[0],
-    };
-    setMemories((prev) => [newMem, ...prev]);
+    const newMem = EloraDB.addMemory(item);
+    setMemories(EloraDB.getMemories());
     if (currentUser) {
       saveUserMemory(currentUser.uid, newMem);
     }
   };
 
   const toggleMemoryAI = (id: string) => {
-    setMemories((prev) =>
-      prev.map((m) => {
-        if (m.id === id) {
-          const updated = { ...m, enabledForAI: !m.enabledForAI };
-          if (currentUser) saveUserMemory(currentUser.uid, updated);
-          return updated;
-        }
-        return m;
-      })
-    );
+    const updated = EloraDB.toggleMemory(id);
+    setMemories(updated);
+    if (currentUser) {
+      const target = updated.find((m) => m.id === id);
+      if (target) saveUserMemory(currentUser.uid, target);
+    }
   };
 
   const deleteMemory = (id: string) => {
-    setMemories((prev) => prev.filter((m) => m.id !== id));
+    const updated = EloraDB.deleteMemory(id);
+    setMemories(updated);
     if (currentUser) {
       deleteUserMemory(currentUser.uid, id);
     }
   };
 
-  // Actions Tâches
+  // Actions Tâches (Planner)
   const addTask = (task: Omit<TaskItem, 'id'>) => {
-    const newTask: TaskItem = {
-      ...task,
-      id: `task_${Date.now()}`,
-    };
-    setTasks((prev) => [newTask, ...prev]);
+    const newTask = EloraDB.addTask(task);
+    setTasks(EloraDB.getTasks());
     if (currentUser) {
       saveUserTask(currentUser.uid, newTask);
     }
   };
 
   const toggleTaskCompleted = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const updated = { ...t, completed: !t.completed };
-          if (currentUser) saveUserTask(currentUser.uid, updated);
-          return updated;
-        }
-        return t;
-      })
-    );
+    const updated = EloraDB.toggleTask(id);
+    setTasks(updated);
+    if (currentUser) {
+      const target = updated.find((t) => t.id === id);
+      if (target) saveUserTask(currentUser.uid, target);
+    }
   };
 
   const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    const updated = EloraDB.deleteTask(id);
+    setTasks(updated);
     if (currentUser) {
       deleteUserTask(currentUser.uid, id);
     }
@@ -387,38 +311,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...goal,
       id: `goal_${Date.now()}`,
     };
-    setGoals((prev) => [newGoal, ...prev]);
+    const goalsList = [...goals, newGoal];
+    EloraDB.saveGoals(goalsList);
+    setGoals(goalsList);
     if (currentUser) {
       saveUserGoal(currentUser.uid, newGoal);
     }
   };
 
   const toggleMilestone = (goalId: string, milestoneId: string) => {
-    setGoals((prev) =>
-      prev.map((g) => {
-        if (g.id === goalId) {
-          const updatedMilestones = g.milestones.map((m) =>
-            m.id === milestoneId ? { ...m, completed: !m.completed } : m
-          );
-          const completedCount = updatedMilestones.filter((m) => m.completed).length;
-          const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
-          const updatedGoal = { ...g, milestones: updatedMilestones, progressPercentage: newProgress };
-          if (currentUser) saveUserGoal(currentUser.uid, updatedGoal);
-          return updatedGoal;
-        }
-        return g;
-      })
-    );
+    const updated = EloraDB.toggleMilestone(goalId, milestoneId);
+    setGoals(updated);
+    if (currentUser) {
+      const target = updated.find((g) => g.id === goalId);
+      if (target) saveUserGoal(currentUser.uid, target);
+    }
   };
 
   // Actions Sessions Focus
   const addFocusSession = (session: Omit<FocusSession, 'id' | 'completedAt'>) => {
-    const newSession: FocusSession = {
-      ...session,
-      id: `focus_${Date.now()}`,
-      completedAt: new Date().toISOString(),
-    };
-    setFocusSessions((prev) => [newSession, ...prev]);
+    const newSession = EloraDB.addFocusSession(session);
+    setFocusSessions(EloraDB.getFocusSessions());
     if (currentUser) {
       saveUserFocusSession(currentUser.uid, newSession);
     }
@@ -426,19 +339,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Actions Connaissances
   const addKnowledgeDoc = (docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => {
-    const newDoc: KnowledgeDoc = {
-      ...docData,
-      id: `doc_${Date.now()}`,
-      addedAt: new Date().toISOString().split('T')[0],
-    };
-    setKnowledgeDocs((prev) => [newDoc, ...prev]);
+    const newDoc = EloraDB.addKnowledge(docData);
+    setKnowledgeDocs(EloraDB.getKnowledge());
     if (currentUser) {
       saveUserKnowledgeDoc(currentUser.uid, newDoc);
     }
   };
 
   const deleteKnowledgeDoc = (id: string) => {
-    setKnowledgeDocs((prev) => prev.filter((d) => d.id !== id));
+    const updated = EloraDB.deleteKnowledge(id);
+    setKnowledgeDocs(updated);
     if (currentUser) {
       deleteUserKnowledgeDoc(currentUser.uid, id);
     }
@@ -446,14 +356,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Actions Opportunités
   const toggleSaveOpportunity = (id: string) => {
-    setOpportunities((prev) =>
-      prev.map((opp) => (opp.id === id ? { ...opp, saved: !opp.saved } : opp))
-    );
+    const updated = EloraDB.toggleSaveOpportunity(id);
+    setOpportunities(updated);
   };
 
   const addOpportunityToPlanner = (opp: OpportunityItem) => {
     addTask({
-      title: `Préparer candidature : ${opp.title}`,
+      title: `Candidature : ${opp.title}`,
       priority: 'high',
       dueDate: opp.deadline,
       completed: false,
@@ -476,7 +385,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastActive: 'À l\'instant',
       messages: [],
     };
-    setConversations((prev) => [newConv, ...prev]);
+    const updated = [newConv, ...conversations];
+    EloraDB.saveConversations(updated);
+    setConversations(updated);
     setCurrentConversationId(newId);
     if (currentUser) {
       saveUserConversation(currentUser.uid, newConv);
@@ -484,7 +395,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newId;
   };
 
-  // Envoi de message IA avec streaming temps réel et pièces jointes
+  // Envoi de message IA avec streaming temps réel
   const sendMessage = async (
     text: string,
     options?: {
@@ -494,6 +405,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ) => {
     if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
+
+    const targetConvId = currentConversationId || conversations[0]?.id || `conv_${Date.now()}`;
 
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}_u`,
@@ -510,23 +423,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    // Injecter immédiatement le message utilisateur et le placeholder assistant
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === currentConversationId
+    setConversations((prev) => {
+      const exists = prev.some((c) => c.id === targetConvId);
+      if (!exists) {
+        return [
+          {
+            id: targetConvId,
+            title: text.slice(0, 32) || 'Nouvelle discussion',
+            lastActive: "À l'instant",
+            messages: [userMsg, initialAssistantMsg],
+          },
+          ...prev,
+        ];
+      }
+      return prev.map((c) =>
+        c.id === targetConvId
           ? {
               ...c,
               messages: [...c.messages, userMsg, initialAssistantMsg],
-              lastActive: 'À l\'instant',
+              lastActive: "À l'instant",
             }
           : c
-      )
-    );
+      );
+    });
 
     setIsGenerating(true);
 
     try {
-      // Préparation du prompt enrichi avec la mémoire active et les connaissances clés
       const activeMemoriesContext = memories
         .filter((m) => m.enabledForAI)
         .map((m) => `- ${m.key} : ${m.value}`)
@@ -539,9 +462,9 @@ Objectifs principaux :
 ${goals.map((g) => `- ${g.title} (${g.progressPercentage}% complété)`).join('\n')}
 
 Instructions :
-- Réponds avec clarté, pertinence, élégance et empathie intellectuelle.
+- Réponds avec clarté, pertinence, élégance et proactivité.
 - Formate tes réponses en Markdown soigné avec titres clairs, puces et blocs de code si utile.
-- Ne fabrique jamais de fausses données ou de faux accomplissements.`;
+- Sois direct et concis sans bavardage superflu.`;
 
       const aiResponse: AIResponse = await orchestrator.process({
         prompt: `${systemContext}\n\nDemande de l'utilisateur : ${text}`,
@@ -549,10 +472,9 @@ Instructions :
         localOnly: options?.localOnly,
         attachments: options?.attachments,
         onStreamChunk: (_chunk: string, accumulated: string) => {
-          // Mise à jour continue en streaming temps réel
           setConversations((prev) =>
             prev.map((c) => {
-              if (c.id !== currentConversationId) return c;
+              if (c.id !== targetConvId) return c;
               return {
                 ...c,
                 messages: c.messages.map((m) =>
@@ -564,10 +486,9 @@ Instructions :
         },
       });
 
-      // Finalisation des métadonnées officielles de la réponse
       setConversations((prev) => {
         const nextConvs = prev.map((c) => {
-          if (c.id !== currentConversationId) return c;
+          if (c.id !== targetConvId) return c;
           return {
             ...c,
             messages: c.messages.map((m) =>
@@ -587,9 +508,10 @@ Instructions :
           };
         });
 
-        // Persistance Cloud de la conversation mise à jour
+        EloraDB.saveConversations(nextConvs);
+
         if (currentUser) {
-          const currentConv = nextConvs.find((c) => c.id === currentConversationId);
+          const currentConv = nextConvs.find((c) => c.id === targetConvId);
           if (currentConv) saveUserConversation(currentUser.uid, currentConv);
         }
 
@@ -597,9 +519,9 @@ Instructions :
       });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== currentConversationId) return c;
+      setConversations((prev) => {
+        const nextConvs = prev.map((c) => {
+          if (c.id !== targetConvId) return c;
           return {
             ...c,
             messages: c.messages.map((m) =>
@@ -611,8 +533,10 @@ Instructions :
                 : m
             ),
           };
-        })
-      );
+        });
+        EloraDB.saveConversations(nextConvs);
+        return nextConvs;
+      });
     } finally {
       setIsGenerating(false);
     }

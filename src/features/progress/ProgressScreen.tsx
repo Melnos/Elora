@@ -59,75 +59,75 @@ export const ProgressScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Grille Bento Asymétrique des Métriques Réelles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {/* Métrique 1 : Tâches */}
-        <div className="p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm">
+      {/* Grille Bento Asymétrique des Métriques Réelles (4 Couleurs Apple Distinctes) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        {/* Métrique 1 : Tâches (Émeraude Vibrant) */}
+        <div className="p-7 rounded-3xl bg-gradient-to-br from-[var(--color-bg-surface)] to-emerald-500/10 border border-emerald-500/30 flex flex-col justify-between shadow-md hover:shadow-xl hover:translate-y-[-2px] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
               Tâches Concrétisées
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <CheckCircle2 size={16} />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shadow-inner">
+              <CheckCircle2 size={18} />
             </div>
           </div>
           <div>
             <div className="text-3xl font-black text-[var(--color-text-main)] font-mono">
               {completedTasks.length} <span className="text-sm font-medium text-[var(--color-text-muted)]">/ {totalTasks}</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Taux de complétion : <strong className="text-[var(--color-text-main)]">{taskCompletionRate}%</strong>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
+              Taux de complétion : <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{taskCompletionRate}%</strong>
             </p>
           </div>
         </div>
 
-        {/* Métrique 2 : Focus */}
-        <div className="p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm">
+        {/* Métrique 2 : Focus (Sunset Orange Électrique) */}
+        <div className="p-7 rounded-3xl bg-gradient-to-br from-[var(--color-bg-surface)] to-orange-500/10 border border-orange-500/30 flex flex-col justify-between shadow-md hover:shadow-xl hover:translate-y-[-2px] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#FF6A00]">
               Deep Work
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <Flame size={16} />
+            <div className="w-10 h-10 rounded-2xl bg-[#FF6A00]/15 text-[#FF6A00] flex items-center justify-center shadow-inner">
+              <Flame size={18} />
             </div>
           </div>
           <div>
             <div className="text-3xl font-black text-[var(--color-text-main)] font-mono">
               {totalFocusMinutes} <span className="text-sm font-medium text-[var(--color-text-muted)]">min</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
               {focusSessions.length} session(s) de concentration
             </p>
           </div>
         </div>
 
-        {/* Métrique 3 : Connaissances */}
-        <div className="p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm">
+        {/* Métrique 3 : Connaissances (Bleu Cyber Saphir) */}
+        <div className="p-7 rounded-3xl bg-gradient-to-br from-[var(--color-bg-surface)] to-blue-500/10 border border-blue-500/30 flex flex-col justify-between shadow-md hover:shadow-xl hover:translate-y-[-2px] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
               Bibliothèque
             </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <BookOpen size={16} />
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-500 flex items-center justify-center shadow-inner">
+              <BookOpen size={18} />
             </div>
           </div>
           <div>
             <div className="text-3xl font-black text-[var(--color-text-main)] font-mono">
               {knowledgeDocs.length}
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
               Ressources et fiches indexées
             </p>
           </div>
         </div>
 
-        {/* Métrique 4 : Objectifs */}
-        <div className="p-6 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm">
+        {/* Métrique 4 : Objectifs (Violet Royal Cosmique) */}
+        <div className="p-7 rounded-3xl bg-gradient-to-br from-[var(--color-bg-surface)] to-violet-500/10 border border-violet-500/30 flex flex-col justify-between shadow-md hover:shadow-xl hover:translate-y-[-2px] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-[11px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400">
               Trajectoire
             </span>
-            <div className="w-8 h-8 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-violet-500/15 text-violet-500 flex items-center justify-center shadow-inner">
               <Target size={16} />
             </div>
           </div>

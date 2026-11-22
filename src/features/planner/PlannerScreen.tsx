@@ -184,47 +184,50 @@ export const PlannerScreen: React.FC = () => {
             </button>
           </div>
 
-          {/* Formulaire d'ajout rapide (1 ligne) */}
+          {/* Formulaire d'ajout rapide (spacieux et propre) */}
           <form
             onSubmit={handleQuickAdd}
-            className="p-2 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex items-center gap-2 shadow-sm focus-within:border-[var(--color-accent)] transition-colors"
+            className="p-3.5 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-md focus-within:border-[#FF6A00] transition-all"
           >
             <input
               type="text"
               placeholder="Ajouter une action rapide (ex: Finaliser la soumission du hackathon)..."
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
-              className="flex-1 bg-transparent px-3 py-2 text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none"
+              className="flex-1 bg-transparent px-3 py-2 text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none"
             />
 
-            <select
-              value={quickPriority}
-              onChange={(e) => setQuickPriority(e.target.value as 'high' | 'medium' | 'low')}
-              className="bg-[var(--color-bg-base)] text-[var(--color-text-main)] text-xs rounded-xl px-2.5 py-1.5 border border-[var(--color-border-subtle)] focus:outline-none"
-            >
-              <option value="high">Urgent</option>
-              <option value="medium">Normal</option>
-              <option value="low">Secondaire</option>
-            </select>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <select
+                value={quickPriority}
+                onChange={(e) => setQuickPriority(e.target.value as 'high' | 'medium' | 'low')}
+                className="bg-[var(--color-bg-base)] text-[var(--color-text-main)] text-xs font-semibold rounded-2xl px-3 py-2 border border-[var(--color-border-subtle)] focus:outline-none"
+              >
+                <option value="high">🔴 Urgent</option>
+                <option value="medium">🟡 Normal</option>
+                <option value="low">⚪ Secondaire</option>
+              </select>
 
-            <button
-              type="submit"
-              disabled={!quickTitle.trim()}
-              className="p-2 rounded-xl bg-[var(--color-text-main)] text-[var(--color-bg-base)] hover:opacity-90 disabled:opacity-40 transition-opacity"
-              title="Ajouter la tâche"
-            >
-              <Plus size={16} />
-            </button>
+              <button
+                type="submit"
+                disabled={!quickTitle.trim()}
+                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white text-xs font-bold hover:opacity-90 disabled:opacity-40 transition-all shadow-md flex items-center gap-1.5 shrink-0"
+                title="Ajouter la tâche"
+              >
+                <Plus size={15} />
+                <span>Ajouter</span>
+              </button>
+            </div>
           </form>
 
-          {/* Filtres de catégorie */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {/* Filtres de catégorie avec espacement garanti */}
+          <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1">
             {categories.map((cat) => (
               <button
                 key={cat}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
                   filterCategory === cat
-                    ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                    ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
                     : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
                 }`}
                 onClick={() => setFilterCategory(cat)}
