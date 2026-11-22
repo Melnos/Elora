@@ -1,46 +1,57 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Monaco, Consolas, monospace;
 
-  /* Thème clair : Ivoire raffiné & surfaces douces */
+  /* Thème clair : Fond ivoire chaud, cartes lumineuses et couleurs vibrantes */
   --color-bg-base: #FAF8F5;
   --color-bg-surface: #FFFFFF;
-  --color-bg-surface-elevated: #F5F1EB;
-  --color-border-subtle: rgba(0, 0, 0, 0.07);
-  --color-border-strong: rgba(0, 0, 0, 0.15);
+  --color-bg-surface-elevated: #F5EFEB;
+  --color-border-subtle: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
 
   --color-text-main: #181716;
-  --color-text-muted: #7E7971;
+  --color-text-muted: #6B655C;
 
+  /* Palette de couleurs riches inspirée d'Apple */
   --color-accent: #C08A3E;
-  --color-accent-hover: #AA762E;
-  --color-accent-soft: rgba(192, 138, 62, 0.12);
+  --color-accent-hover: #A6732B;
+  --color-accent-soft: rgba(192, 138, 62, 0.14);
 
-  --shadow-bento: 0 4px 24px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
-  --shadow-bento-hover: 0 16px 36px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  --color-vibrant-orange: #FF6B35;
+  --color-vibrant-emerald: #10B981;
+  --color-vibrant-blue: #2563EB;
+  --color-vibrant-purple: #8B5CF6;
+  --color-vibrant-amber: #F59E0B;
+
+  --shadow-bento: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  --shadow-bento-hover: 0 16px 36px -4px rgba(0, 0, 0, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
 }
 
 html.dark, :root.dark {
-  /* Thème sombre : Noir profond & surfaces veloutées */
-  --color-bg-base: #0F0E0D;
-  --color-bg-surface: #181715;
-  --color-bg-surface-elevated: #22201D;
-  --color-border-subtle: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  /* Thème sombre : Noir d'encre profond & accents néons/lumineux */
+  --color-bg-base: #0B0A09;
+  --color-bg-surface: #151413;
+  --color-bg-surface-elevated: #1F1D1A;
+  --color-border-subtle: rgba(255, 255, 255, 0.09);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
 
   --color-text-main: #FAF8F5;
-  --color-text-muted: #958F85;
+  --color-text-muted: #9E978C;
 
-  --color-accent: #D8A55B;
-  --color-accent-hover: #E4B56F;
-  --color-accent-soft: rgba(216, 165, 91, 0.15);
+  --color-accent: #E5A955;
+  --color-accent-hover: #F2BD72;
+  --color-accent-soft: rgba(229, 169, 85, 0.18);
 
-  --shadow-bento: 0 4px 24px -2px rgba(0, 0, 0, 0.4);
-  --shadow-bento-hover: 0 16px 36px -4px rgba(0, 0, 0, 0.6);
+  --color-vibrant-orange: #FF7D4D;
+  --color-vibrant-emerald: #34D399;
+  --color-vibrant-blue: #3B82F6;
+  --color-vibrant-purple: #A78BFA;
+  --color-vibrant-amber: #FBBF24;
+
+  --shadow-bento: 0 4px 24px -2px rgba(0, 0, 0, 0.5);
+  --shadow-bento-hover: 0 16px 40px -4px rgba(0, 0, 0, 0.7);
 }
 
 * {
@@ -60,7 +71,7 @@ body {
 }
 
 /* ==========================================================================
-   STRUCTURE GÉNÉRALE DU SHELL APPLICATIF
+   SHELL APPLICATIF & LAYOUT PRINCIPAL
    ========================================================================== */
 .elora-app-shell {
   display: flex;
@@ -83,27 +94,31 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 84px; /* Espace pour la barre mobile flottante */
+  padding-bottom: 90px;
 }
 
 @media (min-width: 1024px) {
   .elora-content-viewport {
-    padding-bottom: 32px;
+    padding-bottom: 36px;
   }
 }
 
 /* ==========================================================================
-   TOPBAR ÉPURÉE & FLOTTANTE
+   TOPBAR FLOTTANTE HAUT DE GAMME
    ========================================================================== */
 .elora-topbar {
   height: 64px;
-  background-color: var(--color-bg-base);
+  background-color: rgba(250, 248, 245, 0.85);
   border-bottom: 1px solid var(--color-border-subtle);
   position: sticky;
   top: 0;
   z-index: 30;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .elora-topbar {
+  background-color: rgba(11, 10, 9, 0.85);
 }
 
 .topbar-inner {
@@ -126,10 +141,11 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background-color: var(--color-accent-soft);
+  background: linear-gradient(135deg, var(--color-accent), #a06e28);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 3px 10px rgba(192, 138, 62, 0.25);
 }
 
 .topbar-title-group {
@@ -197,7 +213,7 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background-color: #10b981;
+  background-color: var(--color-vibrant-emerald);
 }
 
 .topbar-user-pill .user-label {
@@ -210,8 +226,8 @@ body {
   height: 36px;
   padding: 0 0.95rem;
   border-radius: 9999px;
-  background-color: var(--color-text-main);
-  color: var(--color-bg-base);
+  background: linear-gradient(135deg, var(--color-accent), #a06e28);
+  color: white;
   font-size: 0.75rem;
   font-weight: 700;
   display: flex;
@@ -220,6 +236,7 @@ body {
   border: none;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  box-shadow: 0 4px 12px rgba(192, 138, 62, 0.25);
 }
 
 .topbar-auth-btn:hover {
@@ -328,7 +345,7 @@ body {
 
 .sidebar-nav-link.active {
   background-color: var(--color-bg-base);
-  color: var(--color-text-main);
+  color: var(--color-accent);
   font-weight: 700;
 }
 
@@ -354,7 +371,7 @@ body {
   padding: 0.15rem 0.45rem;
   border-radius: 9999px;
   background-color: var(--color-bg-surface-elevated);
-  color: var(--color-text-muted);
+  color: var(--color-accent);
 }
 
 .sidebar-bottom-card {
@@ -454,16 +471,20 @@ body {
 
 .bottom-bar-dock {
   pointer-events: auto;
-  background-color: var(--color-bg-surface);
+  background-color: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--color-border-subtle);
   border-radius: 9999px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+}
+
+.dark .bottom-bar-dock {
+  background-color: rgba(21, 20, 19, 0.9);
 }
 
 .dock-item {
@@ -471,7 +492,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 9999px;
   border: none;
   background: transparent;
@@ -481,12 +502,8 @@ body {
 }
 
 .dock-item.active {
-  color: var(--color-text-main);
-  background-color: var(--color-bg-base);
-}
-
-.dock-item-ai.active {
   color: var(--color-accent);
+  background-color: var(--color-bg-base);
 }
 
 .dock-icon-wrapper {
@@ -502,7 +519,7 @@ body {
 }
 
 /* ==========================================================================
-   BENTO GRID DESIGN SYSTEM (INSPIRÉ DE L'IMAGE APPLE)
+   BENTO GRID DESIGN SYSTEM (VIBRANT, COLORÉ ET ASYMÉTRIQUE)
    ========================================================================== */
 .bento-viewport {
   max-width: 1400px;
@@ -539,6 +556,8 @@ body {
 
 .bento-card-content {
   padding: 1.75rem;
+  position: relative;
+  z-index: 2;
 }
 
 @media (min-width: 768px) {
@@ -551,12 +570,19 @@ body {
 .bento-hero-span {
   grid-column: span 12;
   min-height: 320px;
-  background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-surface-elevated) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(245, 239, 235, 0.9) 100%);
+  border: 1px solid rgba(192, 138, 62, 0.2);
+}
+
+.dark .bento-hero-span {
+  background: linear-gradient(135deg, #181715 0%, #201d19 100%);
+  border: 1px solid rgba(229, 169, 85, 0.25);
 }
 
 .bento-focus-span {
   grid-column: span 12;
   min-height: 320px;
+  background: linear-gradient(135deg, var(--color-bg-surface) 0%, rgba(255, 107, 53, 0.05) 100%);
 }
 
 .bento-half-span {
@@ -566,6 +592,7 @@ body {
 
 .bento-full-span {
   grid-column: span 12;
+  background: linear-gradient(135deg, var(--color-bg-surface) 0%, rgba(16, 185, 129, 0.05) 100%);
 }
 
 @media (min-width: 1024px) {
@@ -580,15 +607,26 @@ body {
   }
 }
 
-/* Halo décoratif subtil */
+/* Halos colorés décoratifs */
 .bento-card-bg-glow {
   position: absolute;
-  top: -50px;
-  right: -50px;
-  width: 250px;
-  height: 250px;
+  top: -40px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
   border-radius: 9999px;
-  background: radial-gradient(circle, var(--color-accent-soft) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(192, 138, 62, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.bento-card-bg-glow-orange {
+  position: absolute;
+  bottom: -40px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -605,7 +643,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  color: var(--color-accent);
   margin-bottom: 1rem;
 }
 
@@ -615,12 +653,13 @@ body {
   gap: 0.4rem;
   padding: 0.3rem 0.75rem;
   border-radius: 9999px;
-  background-color: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+  color: var(--color-vibrant-emerald);
   font-size: 0.6875rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .bento-hero-title {
@@ -642,7 +681,7 @@ body {
   font-size: 0.875rem;
   line-height: 1.6;
   color: var(--color-text-muted);
-  max-w: 600px;
+  max-width: 600px;
 }
 
 .bento-hero-footer {
@@ -659,14 +698,14 @@ body {
   gap: 0.5rem;
   padding: 0.75rem 1.4rem;
   border-radius: 18px;
-  background-color: var(--color-text-main);
-  color: var(--color-bg-base);
+  background: linear-gradient(135deg, var(--color-accent), #a06e28);
+  color: white;
   font-size: 0.8125rem;
   font-weight: 700;
   border: none;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px rgba(192, 138, 62, 0.3);
 }
 
 .bento-btn-primary:hover {
@@ -691,7 +730,7 @@ body {
 }
 
 .bento-btn-secondary:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-accent);
   background-color: var(--color-bg-surface-elevated);
 }
 
@@ -915,7 +954,7 @@ body {
 }
 
 .quick-starter-pill:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-accent);
   transform: translateY(-1px);
 }
 
@@ -947,9 +986,14 @@ body {
 }
 
 .dialogue-row.user .dialogue-card {
-  background-color: var(--color-text-main);
-  color: var(--color-bg-base);
-  border-color: transparent;
+  background: linear-gradient(135deg, #1f1d1a 0%, #151412 100%);
+  color: #faf8f5;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .dialogue-row.user .dialogue-card {
+  background: linear-gradient(135deg, #2a2723 0%, #1f1d1a 100%);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .dialogue-card-header {
@@ -1051,14 +1095,15 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 9999px;
-  background-color: var(--color-text-main);
-  color: var(--color-bg-base);
+  background: linear-gradient(135deg, var(--color-accent), #a06e28);
+  color: white;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: opacity 0.2s ease;
+  box-shadow: 0 2px 8px rgba(192, 138, 62, 0.3);
 }
 
 .composer-send-btn:disabled {

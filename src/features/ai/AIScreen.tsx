@@ -312,6 +312,7 @@ export const AIScreen: React.FC = () => {
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
+              style={{ display: 'none' }}
               className="hidden"
               multiple
               accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf"
