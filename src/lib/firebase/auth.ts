@@ -105,54 +105,18 @@ export async function loginWithGoogle(): Promise<User> {
   }
 }
 
-// Écouteurs synchrones réactifs pour notification immédiate (Google, Email, Offline)
-const authListeners: Set<(user: User | null) => void> = new Set();
-
-function notifyAuthListeners(user: User | null): void {
-  authListeners.forEach((listener) => {
-    try {
-      listener(user);
-    } catch (e) {
-      console.warn('[Auth] Erreur listener:', e);
-    }
-  });
-}
-
-function saveAuthSession(user: User): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem('elora_auth_session', JSON.stringify({
-      uid: user.uid,
-      displayName: user.displayName,
-      email: user.email,
-    }));
-  } catch {}
-  notifyAuthListeners(user);
-}
-
-export function getSavedAuthSession(): User | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const data = localStorage.getItem('elora_auth_session');
-    return data ? (JSON.parse(data) as User) : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Déconnexion
  */
 export async function logoutUser(): Promise<void> {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem('elora_auth_session');
-  }
-  notifyAuthListeners(null);
   try {
     const auth = getFirebaseAuth();
     await signOut(auth);
   } catch {
     // Déconnexion locale
+  }
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('elora_auth_session');
   }
 }
 
@@ -172,32 +136,25 @@ export async function sendResetPassword(email: string): Promise<void> {
  * Écouteur d'état d'authentification réactif
  */
 export function subscribeToAuthState(callback: (user: User | null) => void): Unsubscribe {
-  authListeners.add(callback);
-
   const saved = getSavedAuthSession();
   if (saved) {
     callback(saved);
   }
 
-  let firebaseUnsub: Unsubscribe = () => {};
   try {
     const auth = getFirebaseAuth();
-    firebaseUnsub = onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, (user) => {
       if (user) {
         saveAuthSession(user);
+        callback(user);
       } else {
         const localSaved = getSavedAuthSession();
         callback(localSaved);
       }
     });
   } catch {
-    // Ignorer si Firebase indisponible
+    return () => { };
   }
-
-  return () => {
-    authListeners.delete(callback);
-    firebaseUnsub();
-  };
 }
 
 // Utilitaires de session locale
@@ -210,4 +167,25 @@ function createLocalUser(displayName: string, email: string): User {
     isAnonymous: false,
     providerData: [{ providerId: 'google.com', uid: email, displayName, email, photoURL: '', phoneNumber: '' }],
   } as unknown as User;
+}
+
+function saveAuthSession(user: User): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem('elora_auth_session', JSON.stringify({
+      uid: user.uid,
+      displayName: user.displayName,
+      email: user.email,
+    }));
+  } catch { }
+}
+
+export function getSavedAuthSession(): User | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const data = localStorage.getItem('elora_auth_session');
+    return data ? (JSON.parse(data) as User) : null;
+  } catch {
+    return null;
+  }
 }

@@ -25,11 +25,7 @@ export class CloudAIProvider {
       );
     }
 
-    // Récupération de la clé API via variable d'environnement Vite sécurisée
-    const apiKey =
-      import.meta.env.VITE_GEMINI_API_KEY ||
-      import.meta.env.VITE_FIREBASE_API_KEY ||
-      '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || '';
 
     // Construction du prompt enrichi avec pièces jointes si présentes
     let promptPayload = options.prompt;

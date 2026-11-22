@@ -406,8 +406,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   ) => {
     if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
 
-    const targetConvId = currentConversationId || conversations[0]?.id || `conv_${Date.now()}`;
-
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}_u`,
       role: 'user',
@@ -423,29 +421,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setConversations((prev) => {
-      const exists = prev.some((c) => c.id === targetConvId);
-      if (!exists) {
-        return [
-          {
-            id: targetConvId,
-            title: text.slice(0, 32) || 'Nouvelle discussion',
-            lastActive: "À l'instant",
-            messages: [userMsg, initialAssistantMsg],
-          },
-          ...prev,
-        ];
-      }
-      return prev.map((c) =>
-        c.id === targetConvId
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === currentConversationId
           ? {
-              ...c,
-              messages: [...c.messages, userMsg, initialAssistantMsg],
-              lastActive: "À l'instant",
-            }
+            ...c,
+            messages: [...c.messages, userMsg, initialAssistantMsg],
+            lastActive: 'À l\'instant',
+          }
           : c
-      );
-    });
+      )
+    );
 
     setIsGenerating(true);
 
@@ -474,7 +460,7 @@ Instructions :
         onStreamChunk: (_chunk: string, accumulated: string) => {
           setConversations((prev) =>
             prev.map((c) => {
-              if (c.id !== targetConvId) return c;
+              if (c.id !== currentConversationId) return c;
               return {
                 ...c,
                 messages: c.messages.map((m) =>
@@ -488,21 +474,21 @@ Instructions :
 
       setConversations((prev) => {
         const nextConvs = prev.map((c) => {
-          if (c.id !== targetConvId) return c;
+          if (c.id !== currentConversationId) return c;
           return {
             ...c,
             messages: c.messages.map((m) =>
               m.id === assistantMsgId
                 ? {
-                    ...m,
-                    content: aiResponse.text,
-                    inferenceSource:
-                      aiResponse.metadata.source === 'unavailable'
-                        ? undefined
-                        : aiResponse.metadata.source,
-                    modelName: aiResponse.metadata.modelName,
-                    durationMs: aiResponse.metadata.durationMs,
-                  }
+                  ...m,
+                  content: aiResponse.text,
+                  inferenceSource:
+                    aiResponse.metadata.source === 'unavailable'
+                      ? undefined
+                      : aiResponse.metadata.source,
+                  modelName: aiResponse.metadata.modelName,
+                  durationMs: aiResponse.metadata.durationMs,
+                }
                 : m
             ),
           };
@@ -511,7 +497,7 @@ Instructions :
         EloraDB.saveConversations(nextConvs);
 
         if (currentUser) {
-          const currentConv = nextConvs.find((c) => c.id === targetConvId);
+          const currentConv = nextConvs.find((c) => c.id === currentConversationId);
           if (currentConv) saveUserConversation(currentUser.uid, currentConv);
         }
 
@@ -521,15 +507,15 @@ Instructions :
       const errMsg = err instanceof Error ? err.message : String(err);
       setConversations((prev) => {
         const nextConvs = prev.map((c) => {
-          if (c.id !== targetConvId) return c;
+          if (c.id !== currentConversationId) return c;
           return {
             ...c,
             messages: c.messages.map((m) =>
               m.id === assistantMsgId
                 ? {
-                    ...m,
-                    content: `⚠️ **Information ELORA :**\n\n${errMsg}`,
-                  }
+                  ...m,
+                  content: `⚠️ **Information ELORA :**\n\n${errMsg}`,
+                }
                 : m
             ),
           };

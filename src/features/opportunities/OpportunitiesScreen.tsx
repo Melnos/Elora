@@ -65,55 +65,50 @@ export const OpportunitiesScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Filtres de catégorie d'opportunités avec espacement garanti */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-6">
+      {/* Barre de filtres */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-6">
         <button
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-            activeFilter === 'all'
-              ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
-              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
-          }`}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeFilter === 'all'
+            ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+            }`}
           onClick={() => setActiveFilter('all')}
         >
           Toutes ({opportunities.length})
         </button>
         <button
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-sm ${
-            activeFilter === 'saved'
-              ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
-              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
-          }`}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeFilter === 'saved'
+            ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+            }`}
           onClick={() => setActiveFilter('saved')}
         >
           <Bookmark size={13} />
           <span>Enregistrées ({opportunities.filter((o) => o.saved).length})</span>
         </button>
         <button
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-            activeFilter === 'hackathon'
-              ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
-              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
-          }`}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeFilter === 'hackathon'
+            ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+            }`}
           onClick={() => setActiveFilter('hackathon')}
         >
           Hackathons
         </button>
         <button
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-            activeFilter === 'scholarship'
-              ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
-              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
-          }`}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeFilter === 'scholarship'
+            ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+            }`}
           onClick={() => setActiveFilter('scholarship')}
         >
           Bourses
         </button>
         <button
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-            activeFilter === 'program'
-              ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
-              : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
-          }`}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeFilter === 'program'
+            ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+            : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
+            }`}
           onClick={() => setActiveFilter('program')}
         >
           Programmes
@@ -121,17 +116,12 @@ export const OpportunitiesScreen: React.FC = () => {
       </div>
 
       {/* Grille Bento des opportunités */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {filteredOpportunities.map((opp, idx) => (
           <div
             key={opp.id}
-            className={`p-7 md:p-8 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-[#FF6A00] transition-all duration-300 ${
-              idx === 0 && activeFilter === 'all'
-                ? 'lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] via-[var(--color-bg-surface)] to-amber-500/10 border-amber-500/30'
-                : idx % 2 === 1
-                ? 'bg-gradient-to-br from-[var(--color-bg-surface)] to-violet-500/5'
-                : 'bg-gradient-to-br from-[var(--color-bg-surface)] to-emerald-500/5'
-            }`}
+            className={`p-6 md:p-8 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between shadow-sm hover:border-[var(--color-border-strong)] transition-all ${idx === 0 && activeFilter === 'all' ? 'lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] to-[var(--color-bg-base)]' : ''
+              }`}
           >
             <div>
               {/* Header de carte */}
@@ -147,11 +137,10 @@ export const OpportunitiesScreen: React.FC = () => {
 
                 <button
                   onClick={() => toggleSaveOpportunity(opp.id)}
-                  className={`p-2 rounded-xl transition-colors ${
-                    opp.saved
-                      ? 'text-[var(--color-accent)] bg-[var(--color-accent)]/10'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-base)]'
-                  }`}
+                  className={`p-2 rounded-xl transition-colors ${opp.saved
+                    ? 'text-[var(--color-accent)] bg-[var(--color-accent)]/10'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-base)]'
+                    }`}
                   title={opp.saved ? 'Retirer des favoris' : 'Enregistrer'}
                 >
                   <Bookmark size={16} fill={opp.saved ? 'currentColor' : 'none'} />

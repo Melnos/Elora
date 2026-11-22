@@ -1,23 +1,18 @@
 /**
- * ELORA - Système de Base de Données Locale & Hybride (Client Database)
- * Gère le stockage persistant, fiable et réactif de toutes les entités :
- * - Profils & Authentification
- * - Tâches & Projets (Planner)
- * - Sessions Deep Work (Focus)
- * - Bibliothèque de Savoirs (Knowledge)
- * - Opportunités Vérifiées
- * - Conversations IA & Mémoire Personnelle
+ * ELORA - Database Layer (EloraDB)
+ * Persistance locale robuste avec initialisation depuis les données de cadrage (mockData).
+ * Tolérant aux erreurs de sérialisation et compatible hors ligne / SSR.
  */
 
 import type {
   UserProfile,
+  MemoryItem,
   TaskItem,
   GoalItem,
   FocusSession,
   KnowledgeDoc,
   OpportunityItem,
   Conversation,
-  MemoryItem,
 } from '../../types';
 
 import {
@@ -31,190 +26,217 @@ import {
   initialConversations,
 } from '../mockData';
 
-export class EloraDB {
-  private static PREFIX = 'elora_db_v2_';
+const KEYS = {
+  PROFILE: 'elora_db_profile',
+  MEMORIES: 'elora_db_memories',
+  TASKS: 'elora_db_tasks',
+  GOALS: 'elora_db_goals',
+  FOCUS: 'elora_db_focus',
+  KNOWLEDGE: 'elora_db_knowledge',
+  OPPORTUNITIES: 'elora_db_opportunities',
+  CONVERSATIONS: 'elora_db_conversations',
+} as const;
 
-  // Utilitaires de stockage persistant
-  private static getItem<T>(key: string, defaultValue: T): T {
-    if (typeof localStorage === 'undefined') return defaultValue;
-    try {
-      const data = localStorage.getItem(this.PREFIX + key);
-      return data ? JSON.parse(data) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
+function safeGet<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return fallback;
   }
-
-  private static setItem<T>(key: string, value: T): void {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.setItem(this.PREFIX + key, JSON.stringify(value));
-    } catch (err) {
-      console.error('[EloraDB] Erreur écriture :', key, err);
-    }
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.warn(`[EloraDB] Erreur lecture clé "${key}":`, err);
+    return fallback;
   }
+}
 
-  // --- PROFIL ---
-  public static getProfile(): UserProfile {
-    return this.getItem<UserProfile>('profile', initialProfile);
+function safeSet<T>(key: string, data: T): void {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.warn(`[EloraDB] Erreur écriture clé "${key}":`, err);
   }
+}
 
-  public static saveProfile(profile: UserProfile): void {
-    this.setItem('profile', profile);
-  }
+export const EloraDB = {
+  // Profil Utilisateur
+  getProfile(): UserProfile {
+    return safeGet<UserProfile>(KEYS.PROFILE, initialProfile);
+  },
+  saveProfile(profile: UserProfile): void {
+    safeSet(KEYS.PROFILE, profile);
+  },
 
-  // --- TÂCHES (PLANNER) ---
-  public static getTasks(): TaskItem[] {
-    return this.getItem<TaskItem[]>('tasks', initialTasks);
-  }
-
-  public static saveTasks(tasks: TaskItem[]): void {
-    this.setItem('tasks', tasks);
-  }
-
-  public static addTask(task: Omit<TaskItem, 'id'>): TaskItem {
-    const tasks = this.getTasks();
-    const newTask: TaskItem = {
-      ...task,
-      id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    };
-    const updated = [newTask, ...tasks];
-    this.saveTasks(updated);
-    return newTask;
-  }
-
-  public static toggleTask(id: string): TaskItem[] {
-    const tasks = this.getTasks();
-    const updated = tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
-    this.saveTasks(updated);
-    return updated;
-  }
-
-  public static deleteTask(id: string): TaskItem[] {
-    const tasks = this.getTasks();
-    const updated = tasks.filter((t) => t.id !== id);
-    this.saveTasks(updated);
-    return updated;
-  }
-
-  // --- OBJECTIFS & JALONS ---
-  public static getGoals(): GoalItem[] {
-    return this.getItem<GoalItem[]>('goals', initialGoals);
-  }
-
-  public static saveGoals(goals: GoalItem[]): void {
-    this.setItem('goals', goals);
-  }
-
-  public static toggleMilestone(goalId: string, milestoneId: string): GoalItem[] {
-    const goals = this.getGoals();
-    const updated = goals.map((g) => {
-      if (g.id === goalId) {
-        const milestones = g.milestones.map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
-        );
-        const completed = milestones.filter((m) => m.completed).length;
-        const progressPercentage = Math.round((completed / milestones.length) * 100);
-        return { ...g, milestones, progressPercentage };
-      }
-      return g;
-    });
-    this.saveGoals(updated);
-    return updated;
-  }
-
-  // --- SESSIONS FOCUS (DEEP WORK) ---
-  public static getFocusSessions(): FocusSession[] {
-    return this.getItem<FocusSession[]>('focus_sessions', initialFocusSessions);
-  }
-
-  public static addFocusSession(session: Omit<FocusSession, 'id' | 'completedAt'>): FocusSession {
-    const sessions = this.getFocusSessions();
-    const newSession: FocusSession = {
-      ...session,
-      id: `focus_${Date.now()}`,
-      completedAt: new Date().toISOString(),
-    };
-    const updated = [newSession, ...sessions];
-    this.setItem('focus_sessions', updated);
-    return newSession;
-  }
-
-  // --- CONNAISSANCES & SAVOIR ---
-  public static getKnowledge(): KnowledgeDoc[] {
-    return this.getItem<KnowledgeDoc[]>('knowledge', initialKnowledge);
-  }
-
-  public static addKnowledge(doc: Omit<KnowledgeDoc, 'id' | 'addedAt'>): KnowledgeDoc {
-    const docs = this.getKnowledge();
-    const newDoc: KnowledgeDoc = {
-      ...doc,
-      id: `doc_${Date.now()}`,
-      addedAt: new Date().toISOString().split('T')[0],
-    };
-    const updated = [newDoc, ...docs];
-    this.setItem('knowledge', updated);
-    return newDoc;
-  }
-
-  public static deleteKnowledge(id: string): KnowledgeDoc[] {
-    const docs = this.getKnowledge();
-    const updated = docs.filter((d) => d.id !== id);
-    this.setItem('knowledge', updated);
-    return updated;
-  }
-
-  // --- OPPORTUNITÉS ---
-  public static getOpportunities(): OpportunityItem[] {
-    return this.getItem<OpportunityItem[]>('opportunities', initialOpportunities);
-  }
-
-  public static toggleSaveOpportunity(id: string): OpportunityItem[] {
-    const opps = this.getOpportunities();
-    const updated = opps.map((o) => (o.id === id ? { ...o, saved: !o.saved } : o));
-    this.setItem('opportunities', updated);
-    return updated;
-  }
-
-  // --- MÉMOIRE PERSONNELLE ---
-  public static getMemories(): MemoryItem[] {
-    return this.getItem<MemoryItem[]>('memories', initialMemories);
-  }
-
-  public static addMemory(item: Omit<MemoryItem, 'id' | 'dateAdded'>): MemoryItem {
+  // Mémoire Personnelle
+  getMemories(): MemoryItem[] {
+    return safeGet<MemoryItem[]>(KEYS.MEMORIES, initialMemories);
+  },
+  saveMemories(memories: MemoryItem[]): void {
+    safeSet(KEYS.MEMORIES, memories);
+  },
+  addMemory(item: Omit<MemoryItem, 'id' | 'dateAdded'>): MemoryItem {
     const memories = this.getMemories();
     const newMem: MemoryItem = {
       ...item,
       id: `mem_${Date.now()}`,
       dateAdded: new Date().toISOString().split('T')[0],
     };
-    const updated = [newMem, ...memories];
-    this.setItem('memories', updated);
+    const next = [newMem, ...memories];
+    this.saveMemories(next);
     return newMem;
-  }
-
-  public static toggleMemory(id: string): MemoryItem[] {
+  },
+  toggleMemory(id: string): MemoryItem[] {
     const memories = this.getMemories();
-    const updated = memories.map((m) =>
+    const next = memories.map((m) =>
       m.id === id ? { ...m, enabledForAI: !m.enabledForAI } : m
     );
-    this.setItem('memories', updated);
-    return updated;
-  }
-
-  public static deleteMemory(id: string): MemoryItem[] {
+    this.saveMemories(next);
+    return next;
+  },
+  deleteMemory(id: string): MemoryItem[] {
     const memories = this.getMemories();
-    const updated = memories.filter((m) => m.id !== id);
-    this.setItem('memories', updated);
-    return updated;
-  }
+    const next = memories.filter((m) => m.id !== id);
+    this.saveMemories(next);
+    return next;
+  },
 
-  // --- CONVERSATIONS IA ---
-  public static getConversations(): Conversation[] {
-    return this.getItem<Conversation[]>('conversations', initialConversations);
-  }
+  // Tâches Planner
+  getTasks(): TaskItem[] {
+    return safeGet<TaskItem[]>(KEYS.TASKS, initialTasks);
+  },
+  saveTasks(tasks: TaskItem[]): void {
+    safeSet(KEYS.TASKS, tasks);
+  },
+  addTask(task: Omit<TaskItem, 'id'>): TaskItem {
+    const tasks = this.getTasks();
+    const newTask: TaskItem = {
+      ...task,
+      id: `task_${Date.now()}`,
+    };
+    const next = [newTask, ...tasks];
+    this.saveTasks(next);
+    return newTask;
+  },
+  toggleTask(id: string): TaskItem[] {
+    const tasks = this.getTasks();
+    const next = tasks.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t
+    );
+    this.saveTasks(next);
+    return next;
+  },
+  deleteTask(id: string): TaskItem[] {
+    const tasks = this.getTasks();
+    const next = tasks.filter((t) => t.id !== id);
+    this.saveTasks(next);
+    return next;
+  },
 
-  public static saveConversations(convs: Conversation[]): void {
-    this.setItem('conversations', convs);
-  }
-}
+  // Objectifs & Jalons Progress
+  getGoals(): GoalItem[] {
+    return safeGet<GoalItem[]>(KEYS.GOALS, initialGoals);
+  },
+  saveGoals(goals: GoalItem[]): void {
+    safeSet(KEYS.GOALS, goals);
+  },
+  toggleMilestone(goalId: string, milestoneId: string): GoalItem[] {
+    const goals = this.getGoals();
+    const next = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      const updatedMilestones = g.milestones.map((m) =>
+        m.id === milestoneId ? { ...m, completed: !m.completed } : m
+      );
+      const completedCount = updatedMilestones.filter((m) => m.completed).length;
+      const newPercentage = Math.round((completedCount / updatedMilestones.length) * 100);
+      return {
+        ...g,
+        milestones: updatedMilestones,
+        progressPercentage: newPercentage,
+        completed: newPercentage === 100,
+      };
+    });
+    this.saveGoals(next);
+    return next;
+  },
+
+  // Sessions Focus Deep Work
+  getFocusSessions(): FocusSession[] {
+    return safeGet<FocusSession[]>(KEYS.FOCUS, initialFocusSessions);
+  },
+  saveFocusSessions(sessions: FocusSession[]): void {
+    safeSet(KEYS.FOCUS, sessions);
+  },
+  addFocusSession(session: Omit<FocusSession, 'id' | 'completedAt'>): FocusSession {
+    const sessions = this.getFocusSessions();
+    const now = new Date();
+    const formatted = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+    const newSession: FocusSession = {
+      ...session,
+      id: `foc_${Date.now()}`,
+      completedAt: formatted,
+    };
+    const next = [newSession, ...sessions];
+    this.saveFocusSessions(next);
+    return newSession;
+  },
+
+  // Bibliothèque de Savoir Knowledge
+  getKnowledge(): KnowledgeDoc[] {
+    return safeGet<KnowledgeDoc[]>(KEYS.KNOWLEDGE, initialKnowledge);
+  },
+  saveKnowledge(docs: KnowledgeDoc[]): void {
+    safeSet(KEYS.KNOWLEDGE, docs);
+  },
+  addKnowledge(docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>): KnowledgeDoc {
+    const docs = this.getKnowledge();
+    const newDoc: KnowledgeDoc = {
+      ...docData,
+      id: `doc_${Date.now()}`,
+      addedAt: new Date().toISOString().split('T')[0],
+    };
+    const next = [newDoc, ...docs];
+    this.saveKnowledge(next);
+    return newDoc;
+  },
+  deleteKnowledge(id: string): KnowledgeDoc[] {
+    const docs = this.getKnowledge();
+    const next = docs.filter((d) => d.id !== id);
+    this.saveKnowledge(next);
+    return next;
+  },
+
+  // Opportunités
+  getOpportunities(): OpportunityItem[] {
+    return safeGet<OpportunityItem[]>(KEYS.OPPORTUNITIES, initialOpportunities);
+  },
+  saveOpportunities(opps: OpportunityItem[]): void {
+    safeSet(KEYS.OPPORTUNITIES, opps);
+  },
+  toggleSaveOpportunity(id: string): OpportunityItem[] {
+    const opps = this.getOpportunities();
+    const next = opps.map((o) =>
+      o.id === id ? { ...o, saved: !o.saved } : o
+    );
+    this.saveOpportunities(next);
+    return next;
+  },
+
+  // Discussions IA
+  getConversations(): Conversation[] {
+    return safeGet<Conversation[]>(KEYS.CONVERSATIONS, initialConversations);
+  },
+  saveConversations(convs: Conversation[]): void {
+    safeSet(KEYS.CONVERSATIONS, convs);
+  },
+
+  // Réinitialisation d'usine
+  resetAll(): void {
+    if (typeof localStorage === 'undefined') return;
+    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+  },
+};

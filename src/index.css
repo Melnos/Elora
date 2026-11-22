@@ -34,7 +34,8 @@
   --color-card-border: rgba(0, 0, 0, 0.08);
 }
 
-html.dark, :root.dark {
+html.dark,
+:root.dark {
   /* Thème sombre : Noir d'encre profond & Couleurs Électriques */
   --color-bg-base: #0B0A09;
   --color-bg-surface: #151413;
@@ -545,6 +546,7 @@ body {
 }
 
 @media (max-width: 640px) {
+
   .bento-viewport,
   .elora-page-shell {
     padding: 1.25rem 1rem 7rem 1rem;
@@ -561,6 +563,7 @@ body {
 }
 
 @media (max-width: 1023px) {
+
   .bento-layout-grid,
   .elora-bento-grid {
     grid-template-columns: 1fr;
@@ -600,7 +603,7 @@ body {
   grid-column: span 12;
   min-height: 320px;
   background: radial-gradient(circle at 90% 15%, rgba(255, 106, 0, 0.16), transparent 60%),
-              linear-gradient(135deg, #ffffff 0%, #fffbf7 45%, #fef2e6 100%);
+    linear-gradient(135deg, #ffffff 0%, #fffbf7 45%, #fef2e6 100%);
   border: 1px solid rgba(255, 106, 0, 0.28);
   box-shadow: 0 8px 30px rgba(255, 106, 0, 0.08);
   display: flex;
@@ -611,12 +614,13 @@ body {
 .dark .bento-hero-span,
 .dark .elora-hero-bento {
   background: radial-gradient(circle at 90% 15%, rgba(255, 106, 0, 0.28), transparent 60%),
-              linear-gradient(135deg, #181615 0%, #221c17 45%, #2d2016 100%);
+    linear-gradient(135deg, #181615 0%, #221c17 45%, #2d2016 100%);
   border: 1px solid rgba(255, 125, 30, 0.38);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
 }
 
 @media (min-width: 1024px) {
+
   .bento-hero-span,
   .elora-hero-bento {
     grid-column: span 7;
@@ -629,7 +633,7 @@ body {
   grid-column: span 12;
   min-height: 320px;
   background: radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.18), transparent 60%),
-              linear-gradient(135deg, #ffffff 0%, #f9f8ff 45%, #f0edff 100%);
+    linear-gradient(135deg, #ffffff 0%, #f9f8ff 45%, #f0edff 100%);
   border: 1px solid rgba(139, 92, 246, 0.28);
   box-shadow: 0 8px 30px rgba(139, 92, 246, 0.08);
   display: flex;
@@ -640,12 +644,13 @@ body {
 .dark .bento-focus-span,
 .dark .elora-focus-bento {
   background: radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.28), transparent 60%),
-              linear-gradient(135deg, #17151e 0%, #1e192a 45%, #271e3a 100%);
+    linear-gradient(135deg, #17151e 0%, #1e192a 45%, #271e3a 100%);
   border: 1px solid rgba(168, 85, 247, 0.35);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
 }
 
 @media (min-width: 1024px) {
+
   .bento-focus-span,
   .elora-focus-bento {
     grid-column: span 5;
@@ -658,7 +663,7 @@ body {
   grid-column: span 12;
   min-height: 290px;
   background: radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.1), transparent 60%),
-              var(--color-bg-surface);
+    var(--color-bg-surface);
   border: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
@@ -668,11 +673,12 @@ body {
 .dark .bento-half-span,
 .dark .elora-half-bento {
   background: radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.15), transparent 60%),
-              #16171b;
+    #16171b;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @media (min-width: 1024px) {
+
   .bento-half-span,
   .elora-half-bento {
     grid-column: span 6;
@@ -684,8 +690,8 @@ body {
 .elora-full-bento {
   grid-column: span 12;
   background: radial-gradient(circle at 5% 50%, rgba(14, 165, 233, 0.12), transparent 50%),
-              radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.12), transparent 50%),
-              linear-gradient(135deg, var(--color-bg-surface) 0%, rgba(14, 165, 233, 0.04) 100%);
+    radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.12), transparent 50%),
+    linear-gradient(135deg, var(--color-bg-surface) 0%, rgba(14, 165, 233, 0.04) 100%);
   border: 1px solid rgba(14, 165, 233, 0.28);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
 }
@@ -693,8 +699,8 @@ body {
 .dark .bento-full-span,
 .dark .elora-full-bento {
   background: radial-gradient(circle at 5% 50%, rgba(14, 165, 233, 0.2), transparent 50%),
-              radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.2), transparent 50%),
-              #14161c;
+    radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.2), transparent 50%),
+    #14161c;
   border: 1px solid rgba(14, 165, 233, 0.35);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
 }
@@ -711,6 +717,7 @@ body {
 }
 
 @media (min-width: 768px) {
+
   .bento-hero-title,
   .elora-headline {
     font-size: 2.85rem;
