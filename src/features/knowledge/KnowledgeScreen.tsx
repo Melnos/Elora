@@ -82,49 +82,49 @@ export const KnowledgeScreen: React.FC = () => {
   return (
     <div className="bento-viewport">
       {/* En-tête de la Bibliothèque */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
           <div className="bento-tag mb-2">
-            <BookOpen size={13} className="text-[#FF6A00]" />
+            <BookOpen size={13} className="text-[var(--color-accent)]" />
             <span>Bibliothèque Numérique</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--color-text-main)] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-text-main)] tracking-tight">
             Savoir & Ressources
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1 max-w-xl">
+          <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xl">
             Vos documents, synthèses techniques et fiches connectés à votre mémoire personnelle.
           </p>
         </div>
 
         <button
-          className="bento-btn-primary self-start md:self-auto shadow-lg"
+          className="bento-btn-primary self-start md:self-auto"
           onClick={() => setShowAddModal(true)}
         >
-          <Plus size={16} />
+          <Plus size={15} />
           <span>Ajouter une ressource</span>
         </button>
       </div>
 
       {/* Barre de Recherche et Sélecteurs de Collection */}
-      <div className="flex flex-col sm:flex-row items-center gap-3.5 mb-8">
-        <div className="relative w-full sm:w-96">
-          <Search size={16} className="absolute left-4 top-3.5 text-[var(--color-text-muted)]" />
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        <div className="relative w-full sm:w-80">
+          <Search size={15} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
           <input
             type="text"
             placeholder="Rechercher une note, un sujet, un tag..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] text-xs font-medium text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00] shadow-sm"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-border-strong)]"
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 sm:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto w-full pb-1 sm:pb-0">
           {collections.map((col) => (
             <button
               key={col}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shadow-sm ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCollection === col
-                  ? 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white shadow-md'
+                  ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
                   : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
               }`}
               onClick={() => setSelectedCollection(col)}
@@ -135,64 +135,62 @@ export const KnowledgeScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Grille Bento des Documents */}
+      {/* Grille des Documents */}
       {filteredDocs.length === 0 ? (
-        <div className="p-12 text-center rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] my-6 shadow-sm">
-          <BookOpen size={40} className="mx-auto text-[var(--color-text-muted)] opacity-40 mb-3" />
-          <h3 className="text-base font-bold text-[var(--color-text-main)]">Aucun document trouvé</h3>
+        <div className="p-10 text-center rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] my-6">
+          <BookOpen size={36} className="mx-auto text-[var(--color-text-muted)] opacity-40 mb-3" />
+          <h3 className="text-sm font-bold text-[var(--color-text-main)]">Aucun document trouvé</h3>
           <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-sm mx-auto">
             Essayez d'ajuster votre recherche ou ajoutez un nouveau document pour enrichir votre savoir.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDocs.map((doc, idx) => {
             const isFeatured = idx === 0;
             return (
               <div
                 key={doc.id}
-                className={`p-7 rounded-3xl bg-[var(--color-bg-surface)] border transition-all duration-300 flex flex-col justify-between shadow-xl cursor-pointer group hover:shadow-2xl hover:translate-y-[-2px] ${
-                  isFeatured
-                    ? 'md:col-span-2 lg:col-span-2 bg-gradient-to-br from-[var(--color-bg-surface)] via-[var(--color-bg-surface)] to-orange-500/15 border-2 border-[#FF6A00]/40'
-                    : 'border-[var(--color-border-subtle)] hover:border-[#FF6A00]/50'
+                className={`p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group cursor-pointer ${
+                  isFeatured ? 'md:col-span-2 lg:col-span-2 border-l-4 border-l-[var(--color-accent)]' : ''
                 }`}
                 onClick={() => setSelectedDoc(doc)}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-xl bg-[var(--color-bg-surface-elevated)] text-[#FF6A00] border border-[#FF6A00]/25 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)]">
                       {doc.collection}
                     </span>
-                    <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5 font-medium">
-                      <Clock size={12} />
+                    <span className="text-[11px] text-[var(--color-text-muted)] flex items-center gap-1">
+                      <Clock size={11} />
                       <span>{doc.addedAt}</span>
                     </span>
                   </div>
 
-                  <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text-main)] group-hover:text-[#FF6A00] transition-colors line-clamp-2 leading-snug">
+                  <h3 className="text-base font-bold text-[var(--color-text-main)] group-hover:text-[var(--color-accent)] transition-colors line-clamp-2">
                     {doc.title}
                   </h3>
 
-                  <p className="text-xs text-[var(--color-text-muted)] mt-2.5 line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2 line-clamp-3 leading-relaxed">
                     {doc.summary}
                   </p>
                 </div>
 
-                <div className="pt-5 mt-5 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
+                <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
                   <div className="flex items-center gap-1.5 overflow-hidden">
                     {doc.tags.slice(0, 3).map((t, tIdx) => (
                       <span
                         key={tIdx}
-                        className="text-[10px] font-semibold text-[var(--color-text-muted)] px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] truncate"
+                        className="text-[10px] text-[var(--color-text-muted)] px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] truncate"
                       >
                         #{t}
                       </span>
                     ))}
                   </div>
 
-                  <span className="text-xs font-bold text-[#FF6A00] group-hover:translate-x-1 transition-transform flex items-center gap-1 shrink-0 ml-2">
+                  <span className="text-xs font-semibold text-[var(--color-accent)] group-hover:translate-x-1 transition-transform flex items-center gap-1 shrink-0 ml-2">
                     <span>Consulter</span>
-                    <ArrowRight size={14} />
+                    <ArrowRight size={13} />
                   </span>
                 </div>
               </div>
@@ -203,32 +201,32 @@ export const KnowledgeScreen: React.FC = () => {
 
       {/* Modale d'aperçu du document */}
       {selectedDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-2xl p-6 md:p-8 flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-2xl p-6 md:p-8 flex flex-col overflow-hidden">
             <button
               onClick={() => setSelectedDoc(null)}
-              className="absolute top-5 right-5 p-2.5 rounded-2xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] transition-colors"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
 
             <div className="mb-4 pr-10">
-              <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-[#FF6A00]/20 text-[#FF6A00] border border-[#FF6A00]/30 inline-block mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--color-accent-bg)] text-[var(--color-accent)] border border-[var(--color-accent)]/20 inline-block mb-2">
                 {selectedDoc.collection}
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-text-main)] leading-snug">
+              <h2 className="text-xl font-bold text-[var(--color-text-main)] leading-snug">
                 {selectedDoc.title}
               </h2>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4 my-4 pr-2 text-xs sm:text-sm text-[var(--color-text-main)] leading-relaxed">
-              <div className="p-4 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)]">
-                <h4 className="text-xs font-bold text-[#FF6A00] uppercase tracking-wider mb-2">Synthèse</h4>
+            <div className="flex-1 overflow-y-auto space-y-4 my-3 pr-2 text-xs sm:text-sm text-[var(--color-text-main)] leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)]">
+                <h4 className="text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-wider mb-1">Synthèse</h4>
                 <p className="text-xs text-[var(--color-text-muted)]">{selectedDoc.summary}</p>
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-[var(--color-text-main)] uppercase tracking-wider mb-2">Points Clés</h4>
+                <h4 className="text-[11px] font-semibold text-[var(--color-text-main)] uppercase tracking-wider mb-1.5">Points Clés</h4>
                 <ul className="list-disc pl-5 space-y-1 text-xs text-[var(--color-text-muted)]">
                   {selectedDoc.keyInsights.map((insight, idx) => (
                     <li key={idx}>{insight}</li>
@@ -237,41 +235,41 @@ export const KnowledgeScreen: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-[var(--color-text-main)] uppercase tracking-wider mb-2">Contenu</h4>
-                <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] whitespace-pre-wrap font-sans text-xs">
+                <h4 className="text-[11px] font-semibold text-[var(--color-text-main)] uppercase tracking-wider mb-1.5">Contenu</h4>
+                <div className="p-3.5 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] whitespace-pre-wrap font-sans text-xs">
                   {selectedDoc.content}
                 </div>
               </div>
             </div>
 
             {/* Actions IA sur le document */}
-            <div className="pt-4 border-t border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3">
+            <div className="pt-3 border-t border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <button
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white text-xs font-black flex items-center gap-2 shadow-md cursor-pointer"
+                  className="bento-btn-primary py-2 px-3.5 text-xs"
                   onClick={() => handleAskAboutDoc(selectedDoc)}
                 >
-                  <Sparkles size={14} />
+                  <Sparkles size={13} />
                   <span>Analyser avec ELORA</span>
                 </button>
                 <button
-                  className="px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-[var(--color-text-main)] hover:border-[#FF6A00] flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] flex items-center gap-1.5 transition-all"
                   onClick={() => handleGenerateQuiz(selectedDoc)}
                 >
-                  <HelpCircle size={14} className="text-[#FF6A00]" />
+                  <HelpCircle size={13} className="text-[var(--color-accent)]" />
                   <span>Générer un quiz</span>
                 </button>
               </div>
 
               <button
-                className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
                 onClick={() => {
                   deleteKnowledgeDoc(selectedDoc.id);
                   setSelectedDoc(null);
                 }}
                 title="Supprimer ce document"
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             </div>
           </div>
@@ -280,94 +278,94 @@ export const KnowledgeScreen: React.FC = () => {
 
       {/* Modale d'ajout de ressource */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-2xl p-6 sm:p-8 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-2xl p-6 sm:p-7 overflow-hidden">
             <button
               onClick={() => setShowAddModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
 
-            <h3 className="text-xl font-black text-[var(--color-text-main)] mb-1">
+            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-1">
               Ajouter une ressource
             </h3>
-            <p className="text-xs text-[var(--color-text-muted)] mb-5">
+            <p className="text-xs text-[var(--color-text-muted)] mb-4">
               Enrichissez la mémoire documentaire d'ELORA avec vos fiches et notes.
             </p>
 
-            <form onSubmit={handleAddSubmit} className="space-y-4">
+            <form onSubmit={handleAddSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-main)] mb-1">Titre</label>
+                <label className="block text-xs font-semibold text-[var(--color-text-main)] mb-1">Titre</label>
                 <input
                   type="text"
                   required
                   placeholder="ex: Guide Firebase AI Logic"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-text-main)] mb-1">Collection</label>
+                  <label className="block text-xs font-semibold text-[var(--color-text-main)] mb-1">Collection</label>
                   <input
                     type="text"
                     placeholder="ex: Hackathon"
                     value={newCollection}
                     onChange={(e) => setNewCollection(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00]"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[var(--color-text-main)] mb-1">Tags (séparés par virgule)</label>
+                  <label className="block text-xs font-semibold text-[var(--color-text-main)] mb-1">Tags (virgules)</label>
                   <input
                     type="text"
-                    placeholder="Firebase, AI, React"
+                    placeholder="Firebase, AI"
                     value={newTags}
                     onChange={(e) => setNewTags(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00]"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-main)] mb-1">Résumé court</label>
+                <label className="block text-xs font-semibold text-[var(--color-text-main)] mb-1">Résumé court</label>
                 <input
                   type="text"
-                  placeholder="Brève description de la note..."
+                  placeholder="Brève description..."
                   value={newSummary}
                   onChange={(e) => setNewSummary(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[var(--color-text-main)] mb-1">Contenu complet</label>
+                <label className="block text-xs font-semibold text-[var(--color-text-main)] mb-1">Contenu complet</label>
                 <textarea
                   required
-                  rows={5}
-                  placeholder="Collez ici vos notes, extrait d'article, code ou documentation..."
+                  rows={4}
+                  placeholder="Notes, extrait d'article, code ou documentation..."
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[#FF6A00] resize-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)] resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3">
+              <div className="flex justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] text-white text-xs font-black shadow-md hover:shadow-orange-500/25 transition-all cursor-pointer"
+                  className="bento-btn-primary py-2 px-4 text-xs"
                 >
-                  Enregistrer la ressource
+                  Enregistrer
                 </button>
               </div>
             </form>

@@ -4,71 +4,102 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Monaco, Consolas, monospace;
 
-  /* Thème clair : Fond iOS Gris clair & Cartes Blanches lumineuses */
-  --color-bg-base: #F4F3F0;
+  /* Thème clair : Fond ivoire chaleureux & Cartes blanches pures */
+  --color-bg-base: #FAF8F5;
   --color-bg-surface: #FFFFFF;
-  --color-bg-surface-elevated: #EAE8E3;
-  --color-border-subtle: rgba(0, 0, 0, 0.08);
-  --color-border-strong: rgba(0, 0, 0, 0.16);
+  --color-bg-surface-elevated: #F2EFE9;
+  --color-border-subtle: #E8E4DC;
+  --color-border-strong: #D5CEBF;
 
-  --color-text-main: #141312;
-  --color-text-muted: #6E6860;
+  --color-text-main: #1C1A17;
+  --color-text-muted: #6B655C;
 
-  /* Couleurs de marque riches et vibrantes */
-  --color-gold: #C08A3E;
-  --color-gold-hover: #A6732B;
-  --color-gold-bg: rgba(192, 138, 62, 0.14);
+  /* Accent officiel ELORA : Or chaud noble */
+  --color-accent: #C08A3E;
+  --color-accent-hover: #A6732B;
+  --color-accent-bg: rgba(192, 138, 62, 0.10);
 
-  --color-orange: #FF6A00;
-  --color-orange-bg: rgba(255, 106, 0, 0.12);
+  /* Couleurs sémantiques fonctionnelles (utilisées avec modération) */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
 
-  --color-emerald: #10B981;
-  --color-emerald-bg: rgba(16, 185, 129, 0.12);
-
-  --color-blue: #0A84FF;
-  --color-blue-bg: rgba(10, 132, 255, 0.12);
-
-  --color-purple: #BF5AF2;
-  --color-purple-bg: rgba(191, 90, 242, 0.12);
-
-  --color-card-border: rgba(0, 0, 0, 0.08);
+  --color-card-border: #E8E4DC;
 }
 
 html.dark,
 :root.dark {
-  /* Thème sombre : Noir d'encre Apple Bento & Surfaces riches contrastées */
-  --color-bg-base: #000000;
-  --color-bg-surface: #18191D;
-  --color-bg-surface-elevated: #24262E;
-  --color-border-subtle: rgba(255, 255, 255, 0.12);
-  --color-border-strong: rgba(255, 255, 255, 0.22);
+  /* Thème sombre : Noir chaud profond & Surfaces raffinées */
+  --color-bg-base: #0F0E0D;
+  --color-bg-surface: #1E1C19;
+  --color-bg-surface-elevated: #282521;
+  --color-border-subtle: #2D2A26;
+  --color-border-strong: #3D3934;
 
-  --color-text-main: #FFFFFF;
-  --color-text-muted: #9E9EA4;
+  --color-text-main: #F5F2EB;
+  --color-text-muted: #9E978D;
 
-  --color-gold: #E5A955;
-  --color-gold-hover: #F2BD72;
-  --color-gold-bg: rgba(229, 169, 85, 0.2);
+  /* Accent officiel ELORA : Or ambré chaleureux */
+  --color-accent: #D49D4F;
+  --color-accent-hover: #E5B268;
+  --color-accent-bg: rgba(212, 157, 79, 0.14);
 
-  --color-orange: #FF6A00;
-  --color-orange-bg: rgba(255, 106, 0, 0.2);
+  /* Couleurs sémantiques fonctionnelles */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
 
-  --color-emerald: #10B981;
-  --color-emerald-bg: rgba(16, 185, 129, 0.2);
-
-  --color-blue: #0A84FF;
-  --color-blue-bg: rgba(10, 132, 255, 0.2);
-
-  --color-purple: #BF5AF2;
-  --color-purple-bg: rgba(191, 90, 242, 0.2);
-
-  --color-card-border: rgba(255, 255, 255, 0.12);
+  --color-card-border: #2D2A26;
 }
 
-* {
+/* ==========================================================================
+   RESET CSS ESSENTIEL & NORMALISATION
+   ========================================================================== */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+  border-style: solid;
+  border-width: 0;
+  box-sizing: border-box;
+}
+
+button {
+  background-color: transparent;
+  background-image: none;
+  cursor: pointer;
+  text-align: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input,
+textarea,
+select {
+  background-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus {
+  outline: none;
 }
 
 body {
@@ -571,23 +602,22 @@ body {
   }
 }
 
-/* Cartes Bento de Base */
+/* Cartes Bento de Base : Élégance, sobrieté et lisibilité */
 .bento-item,
 .elora-card {
-  border-radius: 30px;
+  border-radius: 24px;
   background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-card-border);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  padding: 2rem;
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.04);
+  padding: 1.75rem;
   position: relative;
   overflow: hidden;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .bento-item:hover,
 .elora-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
   border-color: var(--color-border-strong);
 }
 
@@ -597,60 +627,39 @@ body {
   height: 100%;
 }
 
-/* 1. Carte Hero (Briefing) : Sunset Orange & Amber Radiant Glow */
+/* 1. Carte Hero (Briefing) */
 .bento-hero-span,
 .elora-hero-bento {
   grid-column: span 12;
-  min-height: 320px;
-  background: radial-gradient(circle at 90% 15%, rgba(255, 106, 0, 0.16), transparent 60%),
-    linear-gradient(135deg, #ffffff 0%, #fffbf7 45%, #fef2e6 100%);
-  border: 1px solid rgba(255, 106, 0, 0.28);
-  box-shadow: 0 8px 30px rgba(255, 106, 0, 0.08);
+  min-height: 280px;
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-accent);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.dark .bento-hero-span,
-.dark .elora-hero-bento {
-  background: radial-gradient(circle at 90% 15%, rgba(255, 106, 0, 0.28), transparent 60%),
-    linear-gradient(135deg, #181615 0%, #221c17 45%, #2d2016 100%);
-  border: 1px solid rgba(255, 125, 30, 0.38);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
-}
-
 @media (min-width: 1024px) {
-
   .bento-hero-span,
   .elora-hero-bento {
     grid-column: span 7;
   }
 }
 
-/* 2. Carte Focus (Deep Work) : Deep Violet / Indigo Nebula Glow */
+/* 2. Carte Focus (Deep Work) */
 .bento-focus-span,
 .elora-focus-bento {
   grid-column: span 12;
-  min-height: 320px;
-  background: radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.18), transparent 60%),
-    linear-gradient(135deg, #ffffff 0%, #f9f8ff 45%, #f0edff 100%);
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.08);
+  min-height: 280px;
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.dark .bento-focus-span,
-.dark .elora-focus-bento {
-  background: radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.28), transparent 60%),
-    linear-gradient(135deg, #17151e 0%, #1e192a 45%, #271e3a 100%);
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
-}
-
 @media (min-width: 1024px) {
-
   .bento-focus-span,
   .elora-focus-bento {
     grid-column: span 5;
@@ -661,20 +670,27 @@ body {
 .bento-half-span,
 .elora-half-bento {
   grid-column: span 12;
-  min-height: 290px;
-  background: radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.1), transparent 60%),
-    var(--color-bg-surface);
+  min-height: 280px;
+  background-color: var(--color-bg-surface);
   border: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.dark .bento-half-span,
-.dark .elora-half-bento {
-  background: radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.15), transparent 60%),
-    #16171b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+@media (min-width: 1024px) {
+  .bento-half-span,
+  .elora-half-bento {
+    grid-column: span 6;
+  }
+}
+
+/* 4. Carte Pleine Largeur */
+.bento-full-span,
+.elora-full-bento {
+  grid-column: span 12;
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
 }
 
 @media (min-width: 1024px) {
@@ -685,42 +701,30 @@ body {
   }
 }
 
-/* 4. Carte Pleine Largeur (Opportunité en Vedette) : Cosmic Multi-Glow */
+/* 4. Carte Pleine Largeur (Opportunité en Vedette) */
 .bento-full-span,
 .elora-full-bento {
   grid-column: span 12;
-  background: radial-gradient(circle at 5% 50%, rgba(14, 165, 233, 0.12), transparent 50%),
-    radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.12), transparent 50%),
-    linear-gradient(135deg, var(--color-bg-surface) 0%, rgba(14, 165, 233, 0.04) 100%);
-  border: 1px solid rgba(14, 165, 233, 0.28);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-}
-
-.dark .bento-full-span,
-.dark .elora-full-bento {
-  background: radial-gradient(circle at 5% 50%, rgba(14, 165, 233, 0.2), transparent 50%),
-    radial-gradient(circle at 95% 50%, rgba(16, 185, 129, 0.2), transparent 50%),
-    #14161c;
-  border: 1px solid rgba(14, 165, 233, 0.35);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-accent);
 }
 
 /* Typographie Bento Apple */
 .bento-hero-title,
 .elora-headline {
-  font-size: 2.25rem;
-  line-height: 1.15;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--color-text-main);
-  margin: 0.85rem 0 0.5rem 0;
+  margin: 0.75rem 0 0.5rem 0;
 }
 
 @media (min-width: 768px) {
-
   .bento-hero-title,
   .elora-headline {
-    font-size: 2.85rem;
+    font-size: 2.5rem;
   }
 }
 
@@ -729,15 +733,15 @@ body {
   font-size: 0.9375rem;
   line-height: 1.6;
   color: var(--color-text-muted);
-  max-width: 540px;
+  max-width: 560px;
 }
 
 .bento-hero-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
 }
 
 /* Boutons d'Action Bento */
@@ -746,23 +750,23 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.85rem 1.65rem;
+  padding: 0.75rem 1.4rem;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #FF6A00 0%, #EE5A24 100%);
+  background-color: var(--color-accent);
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 18px rgba(255, 106, 0, 0.35);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(192, 138, 62, 0.25);
 }
 
 .bento-btn-primary:hover,
 .elora-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 26px rgba(255, 106, 0, 0.45);
-  opacity: 0.96;
+  background-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(192, 138, 62, 0.35);
 }
 
 .bento-btn-secondary,

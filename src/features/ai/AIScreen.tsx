@@ -54,21 +54,18 @@ export const AIScreen: React.FC = () => {
     if (['ts', 'tsx', 'js', 'jsx', 'py', 'json', 'html', 'css'].includes(ext || '')) {
       return {
         label: ext?.toUpperCase() || 'CODE',
-        icon: <FileCode size={13} className="text-blue-500" />,
-        bg: 'bg-blue-500/15 text-blue-500 border border-blue-500/25',
+        icon: <FileCode size={12} className="text-[var(--color-accent)]" />,
       };
     }
     if (['csv', 'xlsx', 'tsv'].includes(ext || '')) {
       return {
         label: 'TABLEUR',
-        icon: <FileSpreadsheet size={13} className="text-emerald-500" />,
-        bg: 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/25',
+        icon: <FileSpreadsheet size={12} className="text-emerald-500" />,
       };
     }
     return {
       label: ext?.toUpperCase() || 'DOC',
-      icon: <FileText size={13} className="text-amber-500" />,
-      bg: 'bg-amber-500/15 text-amber-500 border border-amber-500/25',
+      icon: <FileText size={12} className="text-[var(--color-accent)]" />,
     };
   };
 
@@ -140,17 +137,17 @@ export const AIScreen: React.FC = () => {
     {
       title: 'Priorités du Jour',
       prompt: 'Quelles sont mes 3 priorités d\'aujourd\'hui et comment m\'organiser ?',
-      icon: <Target size={16} className="text-[#FF6A00]" />,
+      icon: <Target size={15} className="text-[var(--color-accent)]" />,
     },
     {
       title: 'Stratégie Hackathon',
       prompt: 'Aide-moi à structurer mon plan d\'action pour remporter le Hackathon Firebase #BuildHybridAI.',
-      icon: <Sparkles size={16} className="text-amber-500" />,
+      icon: <Sparkles size={15} className="text-[var(--color-accent)]" />,
     },
     {
       title: 'Veille & Opportunités',
       prompt: 'Analyse mes opportunités sauvegardées et prépare un pitch de candidature sur-mesure.',
-      icon: <Compass size={16} className="text-blue-500" />,
+      icon: <Compass size={15} className="text-[var(--color-accent)]" />,
     },
   ];
 
@@ -158,30 +155,30 @@ export const AIScreen: React.FC = () => {
     <div className="ai-workspace-container bg-[var(--color-bg-base)]">
       {/* Panneau latéral des discussions */}
       <aside className={`ai-threads-sidebar ${showHistoryMobile ? 'open' : ''} bg-[var(--color-bg-surface)] border-r border-[var(--color-border-subtle)]`}>
-        <div className="threads-header p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+        <div className="threads-header p-3.5 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquare size={18} className="text-[#FF6A00]" />
-            <span className="text-sm font-bold text-[var(--color-text-main)]">Discussions</span>
+            <MessageSquare size={16} className="text-[var(--color-accent)]" />
+            <span className="text-xs font-bold text-[var(--color-text-main)]">Discussions</span>
           </div>
           <button
-            className="p-2 rounded-xl hover:bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] border border-[var(--color-border-subtle)] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] border border-[var(--color-border-subtle)] transition-colors"
             onClick={() => {
               createConversation();
               setShowHistoryMobile(false);
             }}
             title="Nouvelle conversation"
           >
-            <Plus size={16} />
+            <Plus size={15} />
           </button>
         </div>
 
-        <div className="threads-list flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div className="threads-list flex-1 overflow-y-auto p-2.5 space-y-1">
           {conversations.map((conv) => (
             <button
               key={conv.id}
-              className={`w-full text-left p-3 rounded-2xl transition-all cursor-pointer ${
+              className={`w-full text-left p-2.5 rounded-xl transition-all ${
                 conv.id === currentConversationId
-                  ? 'bg-[var(--color-bg-surface-elevated)] border border-[#FF6A00]/40 shadow-sm'
+                  ? 'bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)]'
                   : 'hover:bg-[var(--color-bg-surface-elevated)] border border-transparent'
               }`}
               onClick={() => {
@@ -190,12 +187,12 @@ export const AIScreen: React.FC = () => {
               }}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${conv.id === currentConversationId ? 'bg-[#FF6A00]' : 'bg-[var(--color-border-strong)]'}`} />
-                <span className="text-xs font-bold text-[var(--color-text-main)] truncate block">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${conv.id === currentConversationId ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-strong)]'}`} />
+                <span className="text-xs font-medium text-[var(--color-text-main)] truncate block">
                   {conv.title}
                 </span>
               </div>
-              <span className="text-[10px] text-[var(--color-text-muted)] mt-1 block pl-4">
+              <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block pl-3.5">
                 {conv.lastActive}
               </span>
             </button>
@@ -206,64 +203,63 @@ export const AIScreen: React.FC = () => {
       {/* Surface principale de conversation */}
       <section className="ai-chat-canvas flex-1 flex flex-col h-full min-w-0 bg-[var(--color-bg-base)] relative">
         {/* Barre supérieure du chat */}
-        <div className="chat-top-bar p-4 px-6 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)] backdrop-blur-md">
+        <div className="chat-top-bar p-3 px-5 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)]">
           <button
-            className="mobile-thread-toggle lg:hidden flex items-center gap-2 text-xs font-bold text-[var(--color-text-main)] px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] cursor-pointer"
+            className="mobile-thread-toggle lg:hidden flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-main)] px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)]"
             onClick={() => setShowHistoryMobile(!showHistoryMobile)}
           >
-            <MessageSquare size={15} />
+            <MessageSquare size={13} />
             <span>Historique ({conversations.length})</span>
           </button>
 
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] shadow-sm">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-[var(--color-text-main)] flex items-center gap-1.5">
-              <span>ELORA AI</span>
-              <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">• Gemini Nano & Cloud</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">
+              ELORA AI <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">• Gemini Nano & Cloud</span>
             </span>
           </div>
 
           <button
-            className="desktop-new-chat-btn hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-bold text-[var(--color-text-main)] hover:border-[#FF6A00] transition-colors cursor-pointer"
+            className="desktop-new-chat-btn hidden lg:flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors"
             onClick={() => createConversation()}
           >
-            <Plus size={14} />
+            <Plus size={13} />
             <span>Nouvelle discussion</span>
           </button>
         </div>
 
         {/* Défilement des messages */}
-        <div className="chat-stream-viewport flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
+        <div className="chat-stream-viewport flex-1 overflow-y-auto p-4 sm:p-6 pb-28">
           {!currentConversation || currentConversation.messages.length === 0 ? (
-            <div className="max-w-2xl mx-auto my-12 text-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#FF6A00]/20 to-amber-500/20 text-[#FF6A00] flex items-center justify-center mx-auto mb-6 border border-[#FF6A00]/30 shadow-xl shadow-orange-500/10">
-                <Sparkles size={40} className="animate-pulse" />
+            <div className="max-w-xl mx-auto my-10 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20">
+                <Sparkles size={28} />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-[var(--color-text-main)] tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text-main)] tracking-tight">
                 Intelligence Personnelle ELORA
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] max-w-lg mx-auto mt-2 leading-relaxed">
+              <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-1.5 leading-relaxed">
                 Connectée à vos projets, vos documents et vos opportunités. Traitement hybride confidentiel local (Gemini Nano) et Cloud (Firebase AI Logic).
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-8 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 text-left">
                 {quickStarters.map((starter, idx) => (
                   <button
                     key={idx}
-                    className="p-4 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[#FF6A00] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group shadow-sm"
+                    className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group"
                     onClick={() => {
                       setInputPrompt(starter.prompt);
                       textareaRef.current?.focus();
                     }}
                   >
-                    <div className="w-8 h-8 rounded-xl bg-[var(--color-bg-surface-elevated)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-surface-elevated)] flex items-center justify-center mb-2.5">
                       {starter.icon}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-[var(--color-text-main)] group-hover:text-[#FF6A00] transition-colors">
+                      <h4 className="text-xs font-semibold text-[var(--color-text-main)] group-hover:text-[var(--color-accent)] transition-colors">
                         {starter.title}
                       </h4>
-                      <p className="text-[11px] text-[var(--color-text-muted)] mt-1 line-clamp-2 leading-snug">
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5 line-clamp-2 leading-snug">
                         {starter.prompt}
                       </p>
                     </div>
@@ -272,7 +268,7 @@ export const AIScreen: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-2xl mx-auto space-y-4">
               {currentConversation.messages.map((msg) => {
                 const isAssistant = msg.role === 'assistant';
                 const isStreamingCurrent = isAssistant && !msg.content && isGenerating;
@@ -280,52 +276,52 @@ export const AIScreen: React.FC = () => {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex items-start gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                    className={`flex items-start gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                   >
                     {/* Avatar */}
-                    <div className="shrink-0 mt-1">
+                    <div className="shrink-0 mt-0.5">
                       {isAssistant ? (
-                        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#FF6A00] to-amber-500 text-white flex items-center justify-center shadow-md">
-                          <Bot size={18} />
+                        <div className="w-7 h-7 rounded-lg bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 text-[var(--color-accent)] flex items-center justify-center">
+                          <Bot size={15} />
                         </div>
                       ) : (
-                        <div className="w-9 h-9 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)] text-[var(--color-text-main)] flex items-center justify-center shadow-sm">
-                          <User size={18} />
+                        <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center justify-center">
+                          <User size={15} />
                         </div>
                       )}
                     </div>
 
                     {/* Bulle de Message */}
                     <div
-                      className={`max-w-[85%] sm:max-w-[78%] p-4 sm:p-5 rounded-3xl shadow-md ${
+                      className={`max-w-[85%] sm:max-w-[78%] p-3.5 sm:p-4 rounded-2xl ${
                         msg.role === 'user'
-                          ? 'bg-gradient-to-br from-[#2E2B27] to-[#1C1A18] text-white rounded-tr-sm border border-white/10'
-                          : 'bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)] rounded-tl-sm'
+                          ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                          : 'bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)]'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-4 mb-2">
-                        <span className={`text-[11px] font-black uppercase tracking-wider ${msg.role === 'user' ? 'text-amber-300' : 'text-[#FF6A00]'}`}>
+                      <div className="flex items-center justify-between gap-3 mb-1.5">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${msg.role === 'user' ? 'opacity-80' : 'text-[var(--color-accent)]'}`}>
                           {isAssistant ? 'ELORA' : 'Vous'}
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-[var(--color-text-muted)] opacity-80">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] opacity-70">
                             {msg.timestamp}
                           </span>
                           {isAssistant && msg.content && (
                             <>
                               <button
-                                className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
+                                className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
                                 onClick={() => handleSpeak(msg.id, msg.content)}
                                 title={speakingId === msg.id ? 'Arrêter la lecture' : 'Écouter'}
                               >
-                                {speakingId === msg.id ? <VolumeX size={13} className="text-[#FF6A00]" /> : <Volume2 size={13} />}
+                                {speakingId === msg.id ? <VolumeX size={12} className="text-[var(--color-accent)]" /> : <Volume2 size={12} />}
                               </button>
                               <button
-                                className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
+                                className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
                                 onClick={() => handleCopyText(msg.id, msg.content)}
                                 title="Copier"
                               >
-                                {copiedId === msg.id ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                                {copiedId === msg.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                               </button>
                             </>
                           )}
@@ -334,9 +330,9 @@ export const AIScreen: React.FC = () => {
 
                       <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
                         {isStreamingCurrent ? (
-                          <div className="flex items-center gap-2 py-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#FF6A00] animate-ping" />
-                            <span className="text-xs font-semibold text-[var(--color-text-muted)]">ELORA formule sa réponse...</span>
+                          <div className="flex items-center gap-2 py-1">
+                            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
+                            <span className="text-xs text-[var(--color-text-muted)]">ELORA formule sa réponse...</span>
                           </div>
                         ) : (
                           msg.content
@@ -353,23 +349,23 @@ export const AIScreen: React.FC = () => {
 
         {/* Fichiers joints en attente d'envoi */}
         {attachments.length > 0 && (
-          <div className="absolute bottom-20 left-4 right-4 max-w-3xl mx-auto p-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-xl z-20 flex flex-wrap gap-2 items-center">
-            <span className="text-xs font-bold text-[var(--color-text-muted)] mr-1">Fichiers à analyser :</span>
+          <div className="absolute bottom-16 left-4 right-4 max-w-2xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center">
+            <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1">Pièces jointes :</span>
             {attachments.map((att, i) => {
               const badge = getFileBadge(att.name);
               return (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-medium text-[var(--color-text-main)] shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)]"
                 >
                   {badge.icon}
-                  <span className="truncate max-w-[140px] font-mono text-[11px]">{att.name}</span>
+                  <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
                   <button
                     type="button"
                     onClick={() => removeAttachment(i)}
-                    className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-1 cursor-pointer"
+                    className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5"
                   >
-                    <X size={13} />
+                    <X size={12} />
                   </button>
                 </span>
               );
@@ -377,9 +373,8 @@ export const AIScreen: React.FC = () => {
           </div>
         )}
 
-        {/* Compositeur flottant Apple-grade */}
-        <div className="absolute bottom-5 left-4 right-4 max-w-3xl mx-auto z-20">
-          {/* Input fichier caché de façon STRICTE (jamais visible sur la page) */}
+        {/* Compositeur épuré */}
+        <div className="absolute bottom-4 left-4 right-4 max-w-2xl mx-auto z-20">
           <input
             type="file"
             ref={fileInputRef}
@@ -392,15 +387,15 @@ export const AIScreen: React.FC = () => {
 
           <form
             onSubmit={handleSend}
-            className="flex items-center gap-2 p-2 sm:p-2.5 rounded-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-strong)] focus-within:border-[#FF6A00] shadow-2xl backdrop-blur-xl transition-all"
+            className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-lg transition-all"
           >
             <button
               type="button"
-              className="p-2.5 rounded-full text-[var(--color-text-muted)] hover:text-[#FF6A00] hover:bg-[var(--color-bg-surface-elevated)] transition-all cursor-pointer shrink-0"
+              className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-surface-elevated)] transition-all shrink-0"
               onClick={() => fileInputRef.current?.click()}
-              title="Joindre un document ou un fichier de code"
+              title="Joindre un fichier"
             >
-              <Paperclip size={18} />
+              <Paperclip size={16} />
             </button>
 
             <textarea
@@ -415,20 +410,16 @@ export const AIScreen: React.FC = () => {
                 }
               }}
               placeholder="Écrivez votre message ou déposez un fichier..."
-              className="flex-1 bg-transparent py-2 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-32"
+              className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28"
             />
 
             <button
               type="submit"
               disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
-              className={`p-3 rounded-full text-white shadow-lg transition-all shrink-0 cursor-pointer ${
-                (!inputPrompt.trim() && attachments.length === 0) || isGenerating
-                  ? 'bg-neutral-600 opacity-40 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-[#FF6A00] to-[#EE5A24] hover:shadow-orange-500/30 hover:scale-105 active:scale-95'
-              }`}
-              title="Envoyer à ELORA"
+              className="bento-btn-primary p-2.5 rounded-full disabled:opacity-40 shrink-0"
+              title="Envoyer"
             >
-              <Send size={16} />
+              <Send size={14} />
             </button>
           </form>
         </div>
