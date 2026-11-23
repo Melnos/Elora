@@ -113,8 +113,24 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as NavTab;
+      if (tab && ['home', 'ai', 'knowledge', 'planner', 'opportunities', 'progress'].includes(tab)) {
+        return tab;
+      }
+    }
+    return 'home';
+  });
   const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTheme = params.get('theme') as ThemeMode;
+      if (urlTheme && ['light', 'dark'].includes(urlTheme)) {
+        return urlTheme;
+      }
+    }
     return (localStorage.getItem('elora_theme') as ThemeMode) || 'light';
   });
 

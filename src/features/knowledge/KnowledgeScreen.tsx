@@ -106,8 +106,8 @@ export const KnowledgeScreen: React.FC = () => {
       </div>
 
       {/* Barre de Recherche et Sélecteurs de Collection */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6">
-        <div className="relative w-full sm:w-80">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+        <div className="relative w-full sm:w-96 shrink-0">
           <Search size={15} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
           <input
             type="text"
@@ -124,7 +124,7 @@ export const KnowledgeScreen: React.FC = () => {
               key={col}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCollection === col
-                  ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                  ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
                   : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
               }`}
               onClick={() => setSelectedCollection(col)}
@@ -177,15 +177,20 @@ export const KnowledgeScreen: React.FC = () => {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    {doc.tags.slice(0, 3).map((t, tIdx) => (
+                  <div className="flex items-center gap-1.5 overflow-hidden flex-wrap">
+                    {doc.tags.slice(0, 2).map((t, tIdx) => (
                       <span
                         key={tIdx}
-                        className="text-[10px] text-[var(--color-text-muted)] px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] truncate"
+                        className="text-[10px] text-[var(--color-text-muted)] px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)]"
                       >
                         #{t}
                       </span>
                     ))}
+                    {doc.tags.length > 2 && (
+                      <span className="text-[10px] text-[var(--color-text-muted)] px-1.5 py-0.5">
+                        +{doc.tags.length - 2}
+                      </span>
+                    )}
                   </div>
 
                   <span className="text-xs font-semibold text-[var(--color-accent)] group-hover:translate-x-1 transition-transform flex items-center gap-1 shrink-0 ml-2">

@@ -18,6 +18,7 @@
   --color-accent: #C08A3E;
   --color-accent-hover: #A6732B;
   --color-accent-bg: rgba(192, 138, 62, 0.10);
+  --color-gold: #C08A3E;
 
   /* Couleurs sémantiques fonctionnelles (utilisées avec modération) */
   --color-success: #10B981;
@@ -43,63 +44,34 @@ html.dark,
   --color-accent: #D49D4F;
   --color-accent-hover: #E5B268;
   --color-accent-bg: rgba(212, 157, 79, 0.14);
-
-  /* Couleurs sémantiques fonctionnelles */
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-
-  --color-card-border: #2D2A26;
+  --color-gold: #D49D4F;
+  --color-gold-bg: rgba(212, 157, 79, 0.14);
 }
 
 /* ==========================================================================
-   RESET CSS ESSENTIEL & NORMALISATION
+   RESET CSS ESSENTIEL & NORMALISATION DANS LE CALQUE DE BASE
    ========================================================================== */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
 
-button,
-input,
-optgroup,
-select,
-textarea {
-  font-family: inherit;
-  font-size: 100%;
-  font-weight: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-  padding: 0;
-  border-style: solid;
-  border-width: 0;
-  box-sizing: border-box;
-}
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: 100%;
+    color: inherit;
+  }
 
-button {
-  background-color: transparent;
-  background-image: none;
-  cursor: pointer;
-  text-align: inherit;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-input,
-textarea,
-select {
-  background-color: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-input:focus,
-textarea:focus,
-select:focus,
-button:focus {
-  outline: none;
+  button {
+    cursor: pointer;
+    background-color: transparent;
+    border-style: solid;
+    border-width: 0;
+  }
 }
 
 body {
@@ -136,6 +108,13 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 96px;
+}
+
+.elora-content-viewport.ai-viewport {
+  overflow: hidden;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 1024px) {

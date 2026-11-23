@@ -133,6 +133,60 @@ export const AIScreen: React.FC = () => {
     }
   };
 
+  const formatInline = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={idx} className="font-bold text-[var(--color-text-main)]">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code key={idx} className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-elevated)] font-mono text-[11px] text-[var(--color-accent)]">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  const renderFormattedMessage = (content: string) => {
+    const lines = content.split('\n');
+    return lines.map((line, lineIdx) => {
+      if (line.startsWith('### ')) {
+        return (
+          <h4 key={lineIdx} className="font-bold text-sm text-[var(--color-text-main)] mt-2 mb-1">
+            {formatInline(line.slice(4))}
+          </h4>
+        );
+      }
+      if (line.startsWith('## ')) {
+        return (
+          <h3 key={lineIdx} className="font-extrabold text-base text-[var(--color-text-main)] mt-3 mb-1.5">
+            {formatInline(line.slice(3))}
+          </h3>
+        );
+      }
+      if (line.trim().match(/^(\*|-|\d+\.)\s/)) {
+        const itemText = line.trim().replace(/^(\*|-|\d+\.)\s+/, '');
+        return (
+          <div key={lineIdx} className="flex items-start gap-2 my-0.5 pl-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0 mt-2" />
+            <span className="flex-1 leading-relaxed">{formatInline(itemText)}</span>
+          </div>
+        );
+      }
+      if (line.trim() === '') {
+        return <div key={lineIdx} className="h-1.5" />;
+      }
+      return (
+        <p key={lineIdx} className="my-0.5 leading-relaxed">
+          {formatInline(line)}
+        </p>
+      );
+    });
+  };
+
   const quickStarters = [
     {
       title: 'Priorités du Jour',
@@ -328,14 +382,16 @@ export const AIScreen: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                      <div className="text-xs sm:text-sm leading-relaxed">
                         {isStreamingCurrent ? (
                           <div className="flex items-center gap-2 py-1">
                             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
                             <span className="text-xs text-[var(--color-text-muted)]">ELORA formule sa réponse...</span>
                           </div>
+                        ) : isAssistant ? (
+                          renderFormattedMessage(msg.content)
                         ) : (
-                          msg.content
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
                         )}
                       </div>
                     </div>
@@ -416,10 +472,10 @@ export const AIScreen: React.FC = () => {
             <button
               type="submit"
               disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
-              className="bento-btn-primary p-2.5 rounded-full disabled:opacity-40 shrink-0"
+              className="p-2.5 rounded-full bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 flex items-center justify-center shadow-sm cursor-pointer"
               title="Envoyer"
             >
-              <Send size={14} />
+              <Send size={15} />
             </button>
           </form>
         </div>

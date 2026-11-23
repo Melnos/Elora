@@ -15,7 +15,15 @@ import { OpportunitiesScreen } from '../../features/opportunities/OpportunitiesS
 import { ProgressScreen } from '../../features/progress/ProgressScreen';
 
 export const AppLayout: React.FC = () => {
-  const { activeTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
+  const { activeTab, setActiveTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['home', 'ai', 'knowledge', 'planner', 'opportunities', 'progress'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [setActiveTab]);
 
   const renderActiveScreen = () => {
     switch (activeTab) {
@@ -45,7 +53,7 @@ export const AppLayout: React.FC = () => {
       <div className="elora-main-wrapper">
         <Header />
 
-        <main className="elora-content-viewport">
+        <main className={`elora-content-viewport ${activeTab === 'ai' ? 'ai-viewport' : ''}`}>
           {renderActiveScreen()}
         </main>
       </div>

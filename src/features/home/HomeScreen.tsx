@@ -154,7 +154,7 @@ export const HomeScreen: React.FC = () => {
                         {t.completed && <Check size={13} className="text-emerald-600 dark:text-emerald-400" />}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium text-[var(--color-text-main)] block truncate">
+                        <span className="text-xs font-medium text-[var(--color-text-main)] block leading-snug">
                           {t.title}
                         </span>
                       </div>
@@ -168,7 +168,7 @@ export const HomeScreen: React.FC = () => {
               )}
             </div>
 
-            <div className="pt-3 mt-auto">
+            <div className="pt-3 mt-3">
               <button
                 className="w-full py-2 rounded-lg border border-dashed border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors"
                 onClick={() => setActiveTab('planner')}
@@ -237,7 +237,7 @@ export const HomeScreen: React.FC = () => {
               )}
             </div>
 
-            <div className="pt-3 mt-auto flex justify-end">
+            <div className="pt-3 mt-3 flex justify-end">
               <button
                 className="text-xs font-semibold text-[var(--color-accent)] hover:underline flex items-center gap-1"
                 onClick={() => setActiveTab('progress')}

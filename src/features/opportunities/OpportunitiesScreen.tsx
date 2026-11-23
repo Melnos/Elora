@@ -73,7 +73,7 @@ export const OpportunitiesScreen: React.FC = () => {
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             activeFilter === 'all'
-              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
               : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
           }`}
           onClick={() => setActiveFilter('all')}
@@ -83,7 +83,7 @@ export const OpportunitiesScreen: React.FC = () => {
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
             activeFilter === 'saved'
-              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
               : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
           }`}
           onClick={() => setActiveFilter('saved')}
@@ -94,7 +94,7 @@ export const OpportunitiesScreen: React.FC = () => {
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             activeFilter === 'hackathon'
-              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
               : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
           }`}
           onClick={() => setActiveFilter('hackathon')}
@@ -104,7 +104,7 @@ export const OpportunitiesScreen: React.FC = () => {
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             activeFilter === 'scholarship'
-              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
               : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
           }`}
           onClick={() => setActiveFilter('scholarship')}
@@ -114,7 +114,7 @@ export const OpportunitiesScreen: React.FC = () => {
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             activeFilter === 'program'
-              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+              ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)] border border-transparent shadow-sm'
               : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
           }`}
           onClick={() => setActiveFilter('program')}
