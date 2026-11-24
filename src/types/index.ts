@@ -121,6 +121,8 @@ export interface ChatMessage {
   referencedDocIds?: string[];
   sources?: ChatMessageSource[];
   proposedActions?: ChatProposedAction[];
+  fallbackOccurred?: boolean;
+  fallbackReason?: string;
 }
 
 export interface Conversation {

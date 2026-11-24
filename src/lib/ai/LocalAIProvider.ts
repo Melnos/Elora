@@ -61,32 +61,41 @@ export class LocalAIProvider {
         },
       };
     } catch (firebaseErr: unknown) {
-      // 2. Tenter un appel direct à l'API Chrome Prompt API si Firebase AI Logic renvoie une non-disponibilité
-      const win = typeof window !== 'undefined'
-        ? (window as unknown as {
-            ai?: {
-              languageModel?: {
-                create: () => Promise<{
-                  prompt: (p: string) => Promise<string>;
-                  promptStreaming?: (p: string) => AsyncIterable<string> | ReadableStream<string>;
-                }>;
-              };
-            };
-          })
-        : null;
+      // 2. Tenter un appel direct à l'API Chrome Prompt API (Gemini Nano natif)
+      const globalAI = typeof globalThis !== 'undefined'
+        ? (globalThis as unknown as { ai?: { languageModel?: any } }).ai
+        : undefined;
+      const winAI = typeof window !== 'undefined'
+        ? (window as unknown as { ai?: { languageModel?: any; assistant?: any } }).ai
+        : undefined;
+      const lm = globalAI?.languageModel || winAI?.languageModel || winAI?.assistant;
 
-      if (win?.ai?.languageModel?.create) {
+      if (lm && typeof lm.create === 'function') {
+        let session: any = null;
         try {
-          const session = await win.ai.languageModel.create();
+          session = await lm.create({
+            temperature: options.temperature ?? 0.7,
+            topK: 3,
+          });
+
           let text = '';
 
           if (options.onStreamChunk && typeof session.promptStreaming === 'function') {
             const stream = session.promptStreaming(promptPayload);
-            // Handling both AsyncIterable and ReadableStream
-            if (Symbol.asyncIterator in Object(stream)) {
-              for await (const chunk of stream as AsyncIterable<string>) {
-                text = chunk; // Chrome promptStreaming emits full accumulated text
-                options.onStreamChunk(chunk, text);
+            // Support AsyncIterable et ReadableStream natif Chrome
+            if (stream && typeof stream[Symbol.asyncIterator] === 'function') {
+              for await (const chunk of stream) {
+                // Dans Chrome Prompt API, chaque chunk émis est le texte cumulé complet
+                text = typeof chunk === 'string' ? chunk : String(chunk);
+                options.onStreamChunk(text, text);
+              }
+            } else if (stream && typeof stream.getReader === 'function') {
+              const reader = stream.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                text = typeof value === 'string' ? value : String(value);
+                options.onStreamChunk(text, text);
               }
             } else {
               text = await session.prompt(promptPayload);
@@ -103,7 +112,7 @@ export class LocalAIProvider {
             metadata: {
               source: 'on_device',
               modeRequested: options.mode || 'only_on_device',
-              modelName: 'Gemini Nano (Chrome Prompt API Direct)',
+              modelName: 'Gemini Nano (Chrome Built-in Prompt API)',
               durationMs,
               timestamp,
               fallbackOccurred: false,
@@ -114,6 +123,13 @@ export class LocalAIProvider {
           throw new Error(
             `[LocalAIProvider] Échec d'exécution sur le moteur local Gemini Nano : ${errDetail}`
           );
+        } finally {
+          // Libération obligatoire des ressources VRAM / GPU de la session
+          if (session && typeof session.destroy === 'function') {
+            try {
+              session.destroy();
+            } catch {}
+          }
         }
       }
 

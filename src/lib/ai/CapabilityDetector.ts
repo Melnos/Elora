@@ -29,14 +29,26 @@ export class CapabilityDetector {
     const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isChrome = /Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent);
+    const globalAI = typeof globalThis !== 'undefined' ? (globalThis as unknown as WindowWithAI).ai : undefined;
     const win = (typeof window !== 'undefined' ? window : {}) as WindowWithAI;
 
-    // Détection du fournisseur de modèle on-device
-    const lmProvider = win.ai?.languageModel || win.ai?.assistant;
+    // Détection du fournisseur de modèle on-device (support des spécifications Chrome 127 à 131+)
+    const lmProvider = globalAI?.languageModel || win.ai?.languageModel || win.ai?.assistant || win.model;
 
     let onDeviceStatus: OnDeviceAvailability = 'unsupported';
     let onDeviceDetails = 'API on-device non détectée dans cet environnement.';
     const recommendations: string[] = [];
+
+    // Diagnostic mémoire matérielle si exposé par le navigateur
+    const devMemory = typeof navigator !== 'undefined' && 'deviceMemory' in navigator
+      ? (navigator as unknown as { deviceMemory?: number }).deviceMemory
+      : undefined;
+
+    if (devMemory && devMemory < 16) {
+      recommendations.push(
+        `Mémoire système rapportée : ~${devMemory} Go. Activer impérativement 'BypassPerfRequirement' dans chrome://flags/#optimization-guide-on-device-model.`
+      );
+    }
 
     if (!isChrome) {
       onDeviceStatus = 'unsupported';

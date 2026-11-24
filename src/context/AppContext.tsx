@@ -725,6 +725,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   durationMs: aiResponse.metadata.durationMs,
                   sources: resolvedContext.referencedSources,
                   proposedActions: resolvedContext.proposedActions,
+                  fallbackOccurred: aiResponse.metadata.fallbackOccurred,
+                  fallbackReason: aiResponse.metadata.fallbackReason,
                 }
                 : m
             ),

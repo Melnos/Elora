@@ -74,7 +74,25 @@ export class TaskRouter {
       );
     }
 
-    // 4. Analyse de la tâche pour routage hybride intelligent
+    // 4. Mode explicite : Préférence Locale (prefer_on_device)
+    if (options.mode === 'prefer_on_device') {
+      if (caps.canRunLocal) {
+        return {
+          target: 'local',
+          effectiveMode: 'prefer_on_device',
+          reason: 'Préférence locale demandée : exécution sur Gemini Nano avec repli Cloud autorisé en cas d\'échec.',
+          fallbackToCloudAllowed: true,
+        };
+      }
+      return {
+        target: 'cloud',
+        effectiveMode: 'prefer_on_device',
+        reason: 'Préférence locale demandée mais Gemini Nano n\'est pas prêt : réorientation vers le Cloud Gemini Flash.',
+        fallbackToCloudAllowed: false,
+      };
+    }
+
+    // 5. Mode Auto / Hybride intelligent : Analyse de la complexité de la tâche
     const isHeavyTask =
       options.taskType === 'complex_reasoning' ||
       options.taskType === 'multimodal' ||
@@ -82,7 +100,7 @@ export class TaskRouter {
       (options.attachments && options.attachments.length > 0) ||
       options.prompt.length > 2000;
 
-    if (isHeavyTask && caps.networkOnline) {
+    if (isHeavyTask) {
       return {
         target: 'cloud',
         effectiveMode: 'prefer_in_cloud',
@@ -91,12 +109,12 @@ export class TaskRouter {
       };
     }
 
-    // 5. Tâche éligible au traitement on-device : exécution locale via Gemini Nano
+    // 6. Tâche légère éligible au traitement on-device
     if (caps.canRunLocal) {
       return {
         target: 'local',
         effectiveMode: 'prefer_on_device',
-        reason: "Tâche éligible au traitement on-device : exécution locale via Gemini Nano.",
+        reason: 'Tâche éligible au traitement on-device : exécution locale via Gemini Nano.',
         fallbackToCloudAllowed: true,
       };
     }

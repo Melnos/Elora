@@ -10,7 +10,8 @@ export type InferenceMode =
   | 'prefer_on_device'
   | 'only_on_device'
   | 'prefer_in_cloud'
-  | 'only_in_cloud';
+  | 'only_in_cloud'
+  | 'auto';
 
 export type OnDeviceAvailability =
   | 'readily' // Modèle téléchargé et prêt
@@ -84,6 +85,10 @@ export interface CapabilityReport {
   onDeviceStatus: OnDeviceAvailability;
   /** Explication lisible pour l'utilisateur */
   onDeviceDetails: string;
+  /** Détails d'environnement rétro-compatibles */
+  details?: string;
+  /** Mode recommandé rétro-compatible */
+  recommendedMode?: string;
   /** État du réseau (en ligne / hors ligne) */
   networkOnline: boolean;
   /** Capacité à exécuter du local immédiatement */
