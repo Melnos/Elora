@@ -19,13 +19,23 @@ export class CloudAIProvider {
     const timestamp = new Date().toISOString();
 
     // Vérification stricte de connectivité
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) {
       throw new Error(
         "ELORA est actuellement hors ligne. Connectez-vous à Internet pour activer l'intelligence Cloud."
       );
     }
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || '';
+    const proc = typeof globalThis !== 'undefined'
+      ? (globalThis as unknown as { process?: { env?: Record<string, string> } }).process
+      : undefined;
+
+    const apiKey =
+      (typeof import.meta !== 'undefined' && import.meta.env
+        ? import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY
+        : '') ||
+      proc?.env?.VITE_GEMINI_API_KEY ||
+      proc?.env?.VITE_FIREBASE_API_KEY ||
+      '';
 
     // Construction du prompt enrichi avec pièces jointes si présentes
     let promptPayload = options.prompt;
@@ -39,17 +49,18 @@ export class CloudAIProvider {
     // 1. Si une clé API Gemini directe est fournie (recommandé et vérifié avec statut 200)
     if (apiKey) {
       try {
-        const text = await this.generateViaGeminiREST(promptPayload, apiKey, options);
+        const restResult = await this.generateViaGeminiREST(promptPayload, apiKey, options);
         const durationMs = Math.round(performance.now() - startTime);
         return {
-          text,
+          text: restResult.text,
           metadata: {
             source: 'in_cloud',
             modeRequested: options.mode || 'only_in_cloud',
-            modelName: 'Gemini 3.5 Flash Lite (Cloud)',
+            modelName: `Google Gemini (${restResult.modelVersion})`,
             durationMs,
             timestamp,
             fallbackOccurred: false,
+            tokenCount: restResult.tokenCount,
           },
         };
       } catch (geminiErr) {
@@ -111,11 +122,17 @@ export class CloudAIProvider {
     prompt: string,
     apiKey: string,
     options: AIRequestOptions
-  ): Promise<string> {
+  ): Promise<{
+    text: string;
+    modelVersion: string;
+    tokenCount?: { promptTokens?: number; candidatesTokens?: number; totalTokens?: number };
+  }> {
     const candidateModels = [
       'gemini-3.5-flash-lite',
+      'gemini-3.5-flash',
       'gemini-3.8-flash',
       'gemini-flash-latest',
+      'gemini-3.7-flash',
     ];
     let lastError: Error | null = null;
 
@@ -140,12 +157,23 @@ export class CloudAIProvider {
         }
 
         const data = await response.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const text = parts.map((p: { text?: string }) => p.text || '').join('');
         if (text) {
           if (options.onStreamChunk) {
             options.onStreamChunk(text, text);
           }
-          return text;
+          return {
+            text,
+            modelVersion: data?.modelVersion || model,
+            tokenCount: data?.usageMetadata
+              ? {
+                  promptTokens: data.usageMetadata.promptTokenCount,
+                  candidatesTokens: data.usageMetadata.candidatesTokenCount,
+                  totalTokens: data.usageMetadata.totalTokenCount,
+                }
+              : undefined,
+          };
         }
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));

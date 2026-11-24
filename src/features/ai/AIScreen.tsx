@@ -475,7 +475,7 @@ export const AIScreen: React.FC = () => {
                               ) : (
                                 <>
                                   <Cloud size={9} />
-                                  <span>Cloud AI</span>
+                                  <span>Cloud{msg.modelName ? ` · ${msg.modelName.replace('Google Gemini (', '').replace(')', '').replace('Firebase AI Logic ', '')}` : ''}{msg.durationMs ? ` (${msg.durationMs}ms)` : ''}</span>
                                 </>
                               )}
                             </span>
