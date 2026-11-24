@@ -12,11 +12,13 @@ import {
   Flame,
   Check,
   CheckCircle2,
+  Target,
 } from 'lucide-react';
 
 export const PlannerScreen: React.FC = () => {
   const {
     tasks,
+    goals,
     addTask,
     toggleTaskCompleted,
     deleteTask,
@@ -282,6 +284,14 @@ export const PlannerScreen: React.FC = () => {
                         <span className="text-[10px] px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)]">
                           {t.category}
                         </span>
+                        {t.goalId && goals.find((g) => g.id === t.goalId) && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-[var(--color-accent-bg)] text-[var(--color-accent)] border border-[var(--color-accent)]/20 flex items-center gap-1">
+                            <Target size={10} />
+                            <span className="truncate max-w-[120px]">
+                              {goals.find((g) => g.id === t.goalId)?.title}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     </div>
 

@@ -15,26 +15,26 @@ import {
 
 export const HomeScreen: React.FC = () => {
   const {
-    profile,
     currentUser,
     tasks,
     goals,
     opportunities,
+    homeBriefing,
     setActiveTab,
     toggleTaskCompleted,
     addOpportunityToPlanner,
     sendMessage,
   } = useApp();
 
-  // Tâches prioritaires réelles (non complétées)
-  const pendingHighTasks = tasks
-    .filter((t) => !t.completed && (t.priority === 'high' || t.priority === 'medium'))
-    .slice(0, 3);
+  // Tâches prioritaires réelles résolues par le moteur contextuel
+  const pendingHighTasks = homeBriefing.urgentTasks.length > 0
+    ? homeBriefing.urgentTasks
+    : tasks.filter((t) => !t.completed).slice(0, 3);
 
-  const pendingAllCount = tasks.filter((t) => !t.completed).length;
+  const pendingAllCount = homeBriefing.metrics.tasksTotalCount - homeBriefing.metrics.tasksDoneCount;
 
   // Objectif principal actif réel
-  const primaryGoal = goals.find((g) => !g.completed) || goals[0];
+  const primaryGoal = homeBriefing.priorityGoal || goals.find((g) => !g.completed) || goals[0];
 
   // Opportunité en vedette réelle
   const featuredOpportunity = opportunities.find((o) => o.saved) || opportunities[0];
@@ -59,19 +59,11 @@ export const HomeScreen: React.FC = () => {
             </div>
 
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-[var(--color-text-main)] tracking-tight break-words">
-              Bonjour, {profile.name}.
+              {homeBriefing.greeting}.
             </h1>
 
             <p className="text-xs sm:text-sm md:text-base text-[var(--color-text-muted)] leading-relaxed break-words">
-              Votre cap actuel est orienté sur{' '}
-              <strong className="text-[var(--color-text-main)] font-semibold">« {profile.currentObjective} »</strong>.
-              {pendingHighTasks.length > 0 ? (
-                <>
-                  {' '}Vous avez <span className="text-[var(--color-accent)] font-bold">{pendingHighTasks.length} priorité(s) majeure(s)</span> à sécuriser aujourd'hui pour maintenir votre cadence d'avancement.
-                </>
-              ) : (
-                <> Vos priorités immédiates sont à jour. Un temps propice pour consolider vos acquis ou approfondir votre veille.</>
-              )}
+              {homeBriefing.summary}
             </p>
 
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-[var(--color-text-muted)]">

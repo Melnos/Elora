@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "npx jiti tests/ai/capability_detector.test.ts && npx jiti tests/ai/task_router.test.ts && npx jiti tests/ai/ai_orchestrator.test.ts && npx jiti tests/memory/memory_service.test.ts && npx jiti tests/auth_memory/auth_memory_security.test.ts",
+    "test": "npx jiti tests/ai/capability_detector.test.ts && npx jiti tests/ai/task_router.test.ts && npx jiti tests/ai/ai_orchestrator.test.ts && npx jiti tests/memory/memory_service.test.ts && npx jiti tests/auth_memory/auth_memory_security.test.ts && npx jiti tests/context/context_engine.test.ts",
     "test:live": "npx jiti tests/ai/live_inference.test.ts"
   },
   "dependencies": {

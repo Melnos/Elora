@@ -35,6 +35,8 @@ export const AIScreen: React.FC = () => {
     renameConversation,
     sendMessage,
     isGenerating,
+    executeProposedAction,
+    rejectProposedAction,
   } = useApp();
 
   const [inputPrompt, setInputPrompt] = useState('');
@@ -550,7 +552,87 @@ export const AIScreen: React.FC = () => {
                             <span className="text-xs text-[var(--color-text-muted)]">ELORA formule sa réponse...</span>
                           </div>
                         ) : isAssistant ? (
-                          renderFormattedMessage(msg.content, msg.id)
+                          <>
+                            {renderFormattedMessage(msg.content, msg.id)}
+
+                            {/* Sources mobilisées et citées par ContextEngine */}
+                            {msg.sources && msg.sources.length > 0 && (
+                              <div className="mt-4 pt-3 border-t border-[var(--color-border-subtle)]/60">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1.5">
+                                  Sources mobilisées ({msg.sources.length}) :
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {msg.sources.map((s, sIdx) => (
+                                    <span
+                                      key={sIdx}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-main)]"
+                                      title={s.snippet || s.title}
+                                    >
+                                      <span className="font-semibold text-[var(--color-accent)] uppercase">
+                                        [{s.type === 'doc' ? 'Doc' : s.type === 'task' ? 'Tâche' : s.type === 'goal' ? 'Objectif' : 'Source'}]
+                                      </span>
+                                      <span className="truncate max-w-[140px]">{s.title}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Propositions d'actions transversales (avec confirmation explicite) */}
+                            {msg.proposedActions && msg.proposedActions.length > 0 && (
+                              <div className="mt-4 pt-3 border-t border-[var(--color-border-subtle)]/60 space-y-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)] block">
+                                  Action transversale suggérée :
+                                </span>
+                                {msg.proposedActions.map((pa) => (
+                                  <div
+                                    key={pa.id}
+                                    className="p-3 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                                  >
+                                    <div className="min-w-0">
+                                      <h5 className="text-xs font-bold text-[var(--color-text-main)]">
+                                        {pa.title}
+                                      </h5>
+                                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                                        {pa.description}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                                      {pa.status === 'accepted' ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                                          <Check size={12} />
+                                          <span>Action validée</span>
+                                        </span>
+                                      ) : pa.status === 'rejected' ? (
+                                        <span className="text-[11px] text-[var(--color-text-muted)] italic px-2 py-1">
+                                          Ignorée
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            className="px-2.5 py-1 rounded-lg bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/30 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-bg-base)] transition-colors flex items-center gap-1 cursor-pointer"
+                                            onClick={() => executeProposedAction(pa, msg.id)}
+                                          >
+                                            <Check size={12} />
+                                            <span>Confirmer</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="px-2 py-1 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
+                                            onClick={() => rejectProposedAction(pa.id, msg.id)}
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                         )}

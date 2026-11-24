@@ -22,7 +22,7 @@ export interface MemoryItem {
   key: string;
   value: string;
   source: string;
-  dateAdded: string;
+  dateAdded?: string;
   enabledForAI: boolean;
   status?: 'active' | 'candidate' | 'archived';
   userId?: string;
@@ -89,6 +89,23 @@ export interface OpportunityItem {
   saved: boolean;
 }
 
+export interface ChatMessageSource {
+  id: string;
+  type: 'doc' | 'task' | 'goal' | 'memory' | 'opportunity';
+  title: string;
+  category?: string;
+  snippet?: string;
+}
+
+export interface ChatProposedAction {
+  id: string;
+  type: 'create_task' | 'complete_milestone' | 'validate_memory' | 'update_goal';
+  title: string;
+  description: string;
+  payload: Record<string, unknown>;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -98,6 +115,8 @@ export interface ChatMessage {
   modelName?: string;
   durationMs?: number;
   referencedDocIds?: string[];
+  sources?: ChatMessageSource[];
+  proposedActions?: ChatProposedAction[];
 }
 
 export interface Conversation {

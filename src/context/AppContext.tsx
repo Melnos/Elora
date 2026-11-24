@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import type {
   NavTab,
@@ -18,6 +18,8 @@ import { MemoryService } from '../lib/memory/MemoryService';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
 import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
 import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment } from '../lib/ai/types';
+import { ContextEngine } from '../lib/context/ContextEngine';
+import type { HomeBriefing, ProposedAction } from '../lib/context/types';
 import { subscribeToAuthState, logoutUser, getSavedAuthSession } from '../lib/firebase/auth';
 import {
   syncUserProfile,
@@ -89,8 +91,14 @@ interface AppContextType {
 
   // Opportunités
   opportunities: OpportunityItem[];
+  matchedOpportunities: OpportunityItem[];
   toggleSaveOpportunity: (id: string) => void;
   addOpportunityToPlanner: (opp: OpportunityItem) => void;
+
+  // Intelligence Transversale & Briefing (ContextEngine)
+  homeBriefing: HomeBriefing;
+  executeProposedAction: (action: ProposedAction, messageId?: string) => void;
+  rejectProposedAction: (actionId: string, messageId?: string) => void;
 
   // Conversations IA
   conversations: Conversation[];
@@ -466,7 +474,110 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  // Envoi de message IA avec streaming temps réel
+  // Briefing transversal dynamique & Rapprochement des opportunités
+  const homeBriefing = useMemo(
+    () =>
+      ContextEngine.generateHomeBriefing({
+        profile,
+        memories,
+        goals,
+        tasks,
+        focusSessions,
+      }),
+    [profile, memories, goals, tasks, focusSessions]
+  );
+
+  const matchedOpportunities = useMemo(
+    () => ContextEngine.matchOpportunities(profile, memories, opportunities),
+    [profile, memories, opportunities]
+  );
+
+  // Exécution d'une action transversale proposée (sur validation explicite)
+  const executeProposedAction = (action: ProposedAction, messageId?: string) => {
+    if (action.type === 'create_task') {
+      const p = action.payload as {
+        title?: string;
+        dueDate?: string;
+        priority?: 'high' | 'medium' | 'low';
+        category?: string;
+        goalId?: string;
+      };
+      addTask({
+        title: p.title || action.title,
+        dueDate: p.dueDate || new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+        priority: p.priority || 'medium',
+        completed: false,
+        category: p.category || 'Projet',
+        goalId: p.goalId,
+      });
+    } else if (action.type === 'complete_milestone') {
+      const p = action.payload as { goalId: string; milestoneId: string };
+      if (p.goalId && p.milestoneId) {
+        toggleMilestone(p.goalId, p.milestoneId);
+      }
+    } else if (action.type === 'validate_memory') {
+      const p = action.payload as { id: string };
+      if (p.id && currentUser) {
+        MemoryService.updateMemory(currentUser.uid, p.id, { status: 'active', enabledForAI: true });
+        setMemories(MemoryService.getMemories(currentUser.uid));
+      }
+    }
+
+    // Mise à jour du statut de l'action dans les conversations
+    setConversations((prev) => {
+      const next = prev.map((c) => {
+        if (c.id !== currentConversationId) return c;
+        return {
+          ...c,
+          messages: c.messages.map((m) => {
+            if (messageId && m.id !== messageId) return m;
+            if (!m.proposedActions) return m;
+            return {
+              ...m,
+              proposedActions: m.proposedActions.map((pa) =>
+                pa.id === action.id ? { ...pa, status: 'accepted' as const } : pa
+              ),
+            };
+          }),
+        };
+      });
+      EloraDB.saveConversations(next);
+      if (currentUser) {
+        const currentConv = next.find((c) => c.id === currentConversationId);
+        if (currentConv) saveUserConversation(currentUser.uid, currentConv);
+      }
+      return next;
+    });
+  };
+
+  const rejectProposedAction = (actionId: string, messageId?: string) => {
+    setConversations((prev) => {
+      const next = prev.map((c) => {
+        if (c.id !== currentConversationId) return c;
+        return {
+          ...c,
+          messages: c.messages.map((m) => {
+            if (messageId && m.id !== messageId) return m;
+            if (!m.proposedActions) return m;
+            return {
+              ...m,
+              proposedActions: m.proposedActions.map((pa) =>
+                pa.id === actionId ? { ...pa, status: 'rejected' as const } : pa
+              ),
+            };
+          }),
+        };
+      });
+      EloraDB.saveConversations(next);
+      if (currentUser) {
+        const currentConv = next.find((c) => c.id === currentConversationId);
+        if (currentConv) saveUserConversation(currentUser.uid, currentConv);
+      }
+      return next;
+    });
+  };
+
+  // Envoi de message IA avec streaming temps réel et résolution transversale ContextEngine
   const sendMessage = async (
     text: string,
     options?: {
@@ -507,24 +618,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
 
     try {
-      const memoryPayload = MemoryService.getActiveContextForAI(
-        currentUser?.uid || 'local_user',
-        text
+      // Résolution du contexte par le moteur transversal ContextEngine
+      const resolvedContext = ContextEngine.buildContext(
+        {
+          prompt: text,
+          userId: currentUser?.uid || 'local_user',
+          allowProposedActions: true,
+        },
+        {
+          profile,
+          memories,
+          goals,
+          tasks,
+          docs: knowledgeDocs,
+          focusSessions,
+          conversations,
+        }
       );
-      const activeMemoriesContext = memoryPayload.systemContextBlock;
-
-      const systemContext = `Tu es ELORA, un environnement d'intelligence personnelle hybride conçu pour accompagner ${profile.name}.
-${activeMemoriesContext || 'Aucune mémoire spécifique active pour cette demande.'}
-Objectifs principaux :
-${goals.map((g) => `- ${g.title} (${g.progressPercentage}% complété)`).join('\n')}
-
-Instructions :
-- Réponds avec clarté, pertinence, élégance et proactivité.
-- Formate tes réponses en Markdown soigné avec titres clairs, puces et blocs de code si utile.
-- Sois direct et concis sans bavardage superflu.`;
 
       const aiResponse: AIResponse = await orchestrator.process({
-        prompt: `${systemContext}\n\nDemande de l'utilisateur : ${text}`,
+        prompt: `${resolvedContext.systemPromptBlock}\n\nDemande de l'utilisateur : ${text}`,
         mode: options?.mode,
         localOnly: options?.localOnly,
         attachments: options?.attachments,
@@ -559,6 +672,8 @@ Instructions :
                       : aiResponse.metadata.source,
                   modelName: aiResponse.metadata.modelName,
                   durationMs: aiResponse.metadata.durationMs,
+                  sources: resolvedContext.referencedSources,
+                  proposedActions: resolvedContext.proposedActions,
                 }
                 : m
             ),
@@ -636,8 +751,12 @@ Instructions :
         addKnowledgeDoc,
         deleteKnowledgeDoc,
         opportunities,
+        matchedOpportunities,
         toggleSaveOpportunity,
         addOpportunityToPlanner,
+        homeBriefing,
+        executeProposedAction,
+        rejectProposedAction,
         conversations,
         currentConversationId,
         setCurrentConversationId,

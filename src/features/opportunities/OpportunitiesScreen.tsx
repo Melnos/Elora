@@ -15,6 +15,7 @@ import type { OpportunityItem } from '../../types';
 export const OpportunitiesScreen: React.FC = () => {
   const {
     opportunities,
+    matchedOpportunities,
     toggleSaveOpportunity,
     addOpportunityToPlanner,
     setActiveTab,
@@ -24,7 +25,9 @@ export const OpportunitiesScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'saved' | 'hackathon' | 'scholarship' | 'program'>('all');
   const [plannerAddedId, setPlannerAddedId] = useState<string | null>(null);
 
-  const filteredOpportunities = opportunities.filter((opp) => {
+  const displayList = matchedOpportunities.length > 0 ? matchedOpportunities : opportunities;
+
+  const filteredOpportunities = displayList.filter((opp) => {
     if (activeFilter === 'saved') return opp.saved;
     if (activeFilter === 'hackathon') return opp.type === 'hackathon';
     if (activeFilter === 'scholarship') return opp.type === 'scholarship';

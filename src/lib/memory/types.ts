@@ -45,6 +45,8 @@ export interface MemoryItem {
   confidence: number;
   /** Date de création ISO */
   createdAt: string;
+  /** Date d'ajout rétro-compatible */
+  dateAdded?: string;
   /** Dernière date de mise à jour ISO */
   updatedAt: string;
   /** Références éventuelles vers des documents Knowledge ou Tâches */
