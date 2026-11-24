@@ -14,6 +14,7 @@ import type {
   ChatMessage,
 } from '../types';
 import { EloraDB } from '../lib/db/database';
+import { MemoryService } from '../lib/memory/MemoryService';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
 import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
 import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment } from '../lib/ai/types';
@@ -30,6 +31,7 @@ import {
   saveUserKnowledgeDoc,
   deleteUserKnowledgeDoc,
   saveUserConversation,
+  deleteUserConversation,
   processOfflineQueue,
 } from '../lib/firebase/firestore';
 
@@ -95,6 +97,8 @@ interface AppContextType {
   currentConversationId: string;
   setCurrentConversationId: (id: string) => void;
   createConversation: (initialTitle?: string) => string;
+  deleteConversation: (id: string) => void;
+  renameConversation: (id: string, newTitle: string) => void;
   sendMessage: (
     text: string,
     options?: {
@@ -207,6 +211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         if (cloudData.memories.length > 0) {
           setMemories(cloudData.memories);
+          MemoryService.syncFromFirestore(currentUser.uid, cloudData.memories as any);
         }
         if (cloudData.knowledgeDocs.length > 0) {
           setKnowledgeDocs(cloudData.knowledgeDocs);
@@ -272,23 +277,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Actions Mémoire
   const addMemory = (item: Omit<MemoryItem, 'id' | 'dateAdded'>) => {
     const newMem = EloraDB.addMemory(item);
+    MemoryService.addMemory(currentUser?.uid || 'local_user', {
+      category: item.category as any,
+      key: item.key,
+      value: item.value,
+      enabledForAI: item.enabledForAI,
+      source: (item.source as any) || 'user_explicit',
+    });
     setMemories(EloraDB.getMemories());
     if (currentUser) {
-      saveUserMemory(currentUser.uid, newMem);
+      saveUserMemory(currentUser.uid, {
+        ...newMem,
+        userId: currentUser.uid,
+        status: 'active',
+      });
     }
   };
 
   const toggleMemoryAI = (id: string) => {
     const updated = EloraDB.toggleMemory(id);
     setMemories(updated);
-    if (currentUser) {
-      const target = updated.find((m) => m.id === id);
-      if (target) saveUserMemory(currentUser.uid, target);
+    const target = updated.find((m) => m.id === id);
+    if (target) {
+      MemoryService.updateMemory(currentUser?.uid || 'local_user', id, {
+        enabledForAI: target.enabledForAI,
+      });
+      if (currentUser) {
+        saveUserMemory(currentUser.uid, target);
+      }
     }
   };
 
   const deleteMemory = (id: string) => {
     const updated = EloraDB.deleteMemory(id);
+    MemoryService.deleteMemory(currentUser?.uid || 'local_user', id);
     setMemories(updated);
     if (currentUser) {
       deleteUserMemory(currentUser.uid, id);
@@ -411,6 +433,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newId;
   };
 
+  const deleteConversation = (id: string) => {
+    setConversations((prev) => {
+      const filtered = prev.filter((c) => c.id !== id);
+      const nextConvs = filtered.length > 0 ? filtered : [{
+        id: `conv_${Date.now()}`,
+        title: 'Nouvelle conversation',
+        lastActive: 'À l\'instant',
+        messages: [],
+      }];
+      EloraDB.saveConversations(nextConvs);
+      if (currentConversationId === id) {
+        setCurrentConversationId(nextConvs[0].id);
+      }
+      return nextConvs;
+    });
+    if (currentUser) {
+      deleteUserConversation(currentUser.uid, id);
+    }
+  };
+
+  const renameConversation = (id: string, newTitle: string) => {
+    if (!newTitle.trim()) return;
+    setConversations((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, title: newTitle.trim() } : c));
+      EloraDB.saveConversations(updated);
+      const conv = updated.find((c) => c.id === id);
+      if (currentUser && conv) {
+        saveUserConversation(currentUser.uid, conv);
+      }
+      return updated;
+    });
+  };
+
   // Envoi de message IA avec streaming temps réel
   const sendMessage = async (
     text: string,
@@ -452,14 +507,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
 
     try {
-      const activeMemoriesContext = memories
-        .filter((m) => m.enabledForAI)
-        .map((m) => `- ${m.key} : ${m.value}`)
-        .join('\n');
+      const memoryPayload = MemoryService.getActiveContextForAI(
+        currentUser?.uid || 'local_user',
+        text
+      );
+      const activeMemoriesContext = memoryPayload.systemContextBlock;
 
       const systemContext = `Tu es ELORA, un environnement d'intelligence personnelle hybride conçu pour accompagner ${profile.name}.
-Contexte mémorisé de l'utilisateur :
-${activeMemoriesContext || 'Aucune mémoire active pour le moment.'}
+${activeMemoriesContext || 'Aucune mémoire spécifique active pour cette demande.'}
 Objectifs principaux :
 ${goals.map((g) => `- ${g.title} (${g.progressPercentage}% complété)`).join('\n')}
 
@@ -587,6 +642,8 @@ Instructions :
         currentConversationId,
         setCurrentConversationId,
         createConversation,
+        deleteConversation,
+        renameConversation,
         sendMessage,
         isGenerating,
         caps,

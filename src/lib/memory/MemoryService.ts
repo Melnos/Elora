@@ -193,16 +193,47 @@ export class MemoryService {
   }
 
   /**
+   * Synchronisation et fusion des mémoires depuis Cloud Firestore.
+   */
+  public static syncFromFirestore(userId: string, remoteItems: MemoryItem[]): MemoryItem[] {
+    if (!userId || !remoteItems) return this.getAll(userId);
+    const localItems = this.getAll(userId);
+    const itemMap = new Map<string, MemoryItem>();
+
+    for (const item of localItems) {
+      itemMap.set(item.id, item);
+    }
+
+    for (const item of remoteItems) {
+      const existing = itemMap.get(item.id);
+      if (!existing || (item.updatedAt && (!existing.updatedAt || item.updatedAt >= existing.updatedAt))) {
+        itemMap.set(item.id, item);
+      }
+    }
+
+    const merged = Array.from(itemMap.values()).sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+    );
+    this.saveAll(userId, merged);
+    return merged;
+  }
+
+  /**
    * Extrait le bloc de contexte structuré à injecter dans le prompt système d'ELORA.
    * RÈGLE D'OR : N'inclut QUE les mémoires 'active' ayant 'enabledForAI: true'.
+   * Récupération contextuelle intelligente : filtre par pertinence sémantique si le prompt est fourni.
    */
-  public static getActiveContextForAI(userId: string): MemoryContextPayload {
-    const activeItems = this.getMemories(userId, {
+  public static getActiveContextForAI(
+    userId: string,
+    currentPrompt?: string,
+    maxItems: number = 8
+  ): MemoryContextPayload {
+    const allActive = this.getMemories(userId, {
       status: 'active',
       enabledForAI: true,
     });
 
-    if (activeItems.length === 0) {
+    if (allActive.length === 0) {
       return {
         systemContextBlock: '',
         itemCount: 0,
@@ -210,9 +241,44 @@ export class MemoryService {
       };
     }
 
+    let selectedItems = allActive;
+
+    // Récupération contextuelle intelligente : si prompt présent et trop de mémoires, filtrer par pertinence
+    if (currentPrompt && allActive.length > maxItems) {
+      const promptLower = currentPrompt.toLowerCase();
+      const keywords = promptLower
+        .replace(/[^\w\sàâäéèêëîïôöùûüç]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+
+      const anchors: MemoryItem[] = [];
+      const others: { item: MemoryItem; score: number }[] = [];
+
+      for (const m of allActive) {
+        if (m.category === 'profile' || m.category === 'objective') {
+          anchors.push(m);
+        } else {
+          let score = 0;
+          const searchStr = `${m.key} ${m.value} ${m.category}`.toLowerCase();
+          for (const kw of keywords) {
+            if (searchStr.includes(kw)) {
+              score += 2;
+            }
+          }
+          others.push({ item: m, score });
+        }
+      }
+
+      others.sort((a, b) => b.score - a.score);
+      const remainingSlots = Math.max(0, maxItems - anchors.length);
+      const topOthers = others.slice(0, remainingSlots).map((o) => o.item);
+
+      selectedItems = [...anchors, ...topOthers];
+    }
+
     // Regroupement par catégorie pour lisibilité optimale par le modèle
     const grouped = new Map<MemoryCategory, MemoryItem[]>();
-    for (const item of activeItems) {
+    for (const item of selectedItems) {
       const list = grouped.get(item.category) || [];
       list.push(item);
       grouped.set(item.category, list);
@@ -248,7 +314,7 @@ export class MemoryService {
 
     return {
       systemContextBlock: lines.join('\n'),
-      itemCount: activeItems.length,
+      itemCount: selectedItems.length,
       categoriesIncluded,
     };
   }

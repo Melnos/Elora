@@ -26,6 +26,10 @@ export interface MemoryItem {
   enabledForAI: boolean;
   status?: 'active' | 'candidate' | 'archived';
   userId?: string;
+  confidence?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  relatedEntityIds?: string[];
 }
 
 export interface TaskItem {

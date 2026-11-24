@@ -20,6 +20,8 @@ import {
   Target,
   Zap,
   Cloud,
+  Trash2,
+  Edit3,
 } from 'lucide-react';
 import type { AIRequestAttachment } from '../../lib/ai/types';
 
@@ -29,6 +31,8 @@ export const AIScreen: React.FC = () => {
     currentConversationId,
     setCurrentConversationId,
     createConversation,
+    deleteConversation,
+    renameConversation,
     sendMessage,
     isGenerating,
   } = useApp();
@@ -333,28 +337,60 @@ export const AIScreen: React.FC = () => {
 
         <div className="threads-list flex-1 overflow-y-auto p-2.5 space-y-1">
           {conversations.map((conv) => (
-            <button
+            <div
               key={conv.id}
-              className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer ${
+              className={`w-full group flex items-center justify-between p-2.5 rounded-xl transition-all ${
                 conv.id === currentConversationId
                   ? 'bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)]'
                   : 'hover:bg-[var(--color-bg-surface-elevated)] border border-transparent'
               }`}
-              onClick={() => {
-                setCurrentConversationId(conv.id);
-                setShowHistoryMobile(false);
-              }}
             >
-              <div className="flex items-center gap-2">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${conv.id === currentConversationId ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-strong)]'}`} />
-                <span className="text-xs font-medium text-[var(--color-text-main)] truncate block">
-                  {conv.title}
+              <button
+                className="flex-1 text-left min-w-0 cursor-pointer"
+                onClick={() => {
+                  setCurrentConversationId(conv.id);
+                  setShowHistoryMobile(false);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${conv.id === currentConversationId ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-strong)]'}`} />
+                  <span className="text-xs font-medium text-[var(--color-text-main)] truncate block">
+                    {conv.title}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block pl-3.5">
+                  {conv.lastActive}
                 </span>
+              </button>
+
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 ml-1">
+                <button
+                  className="p-1 rounded hover:bg-[var(--color-bg-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] cursor-pointer"
+                  title="Renommer la discussion"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newTitle = window.prompt('Nouveau titre de la discussion :', conv.title);
+                    if (newTitle) renameConversation(conv.id, newTitle);
+                  }}
+                >
+                  <Edit3 size={11} />
+                </button>
+                {conversations.length > 1 && (
+                  <button
+                    className="p-1 rounded hover:bg-rose-500/10 text-[var(--color-text-muted)] hover:text-rose-500 cursor-pointer"
+                    title="Supprimer la discussion"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Supprimer cette discussion ?')) {
+                        deleteConversation(conv.id);
+                      }
+                    }}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
               </div>
-              <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block pl-3.5">
-                {conv.lastActive}
-              </span>
-            </button>
+            </div>
           ))}
         </div>
       </aside>

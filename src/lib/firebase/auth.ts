@@ -54,67 +54,43 @@ export function formatAuthError(errorCode: string): string {
  * Connexion par Email et Mot de passe
  */
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
-  try {
-    const auth = getFirebaseAuth();
-    const credential = await signInWithEmailAndPassword(auth, email.trim(), pass);
-    saveAuthSession(credential.user);
-    return credential.user;
-  } catch (err) {
-    // Si la clé Firebase de démo n'est pas activée sur la console, session locale immédiate
-    const fallbackUser = createLocalUser(email.split('@')[0], email.trim());
-    saveAuthSession(fallbackUser);
-    return fallbackUser;
-  }
+  const auth = getFirebaseAuth();
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  saveAuthSession(credential.user);
+  return credential.user;
 }
 
 /**
  * Inscription par Email et Mot de passe
  */
 export async function signupWithEmail(email: string, pass: string, displayName?: string): Promise<User> {
-  try {
-    const auth = getFirebaseAuth();
-    const credential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-    if (displayName && credential.user) {
-      await updateProfile(credential.user, { displayName });
-    }
-    saveAuthSession(credential.user);
-    return credential.user;
-  } catch (err) {
-    const fallbackUser = createLocalUser(displayName || email.split('@')[0], email.trim());
-    saveAuthSession(fallbackUser);
-    return fallbackUser;
+  const auth = getFirebaseAuth();
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+  if (displayName && credential.user) {
+    await updateProfile(credential.user, { displayName });
   }
+  saveAuthSession(credential.user);
+  return credential.user;
 }
 
 /**
- * Connexion avec Google (avec bascule automatique en session vérifiée)
+ * Connexion avec Google
  */
 export async function loginWithGoogle(): Promise<User> {
-  try {
-    const auth = getFirebaseAuth();
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const credential = await signInWithPopup(auth, provider);
-    saveAuthSession(credential.user);
-    return credential.user;
-  } catch (popupErr) {
-    console.warn('[Auth] Google Popup non disponible sur ce domaine, activation session Google vérifiée :', popupErr);
-    const googleUser = createLocalUser('Djima (Google)', 'djima.melnos@gmail.com');
-    saveAuthSession(googleUser);
-    return googleUser;
-  }
+  const auth = getFirebaseAuth();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const credential = await signInWithPopup(auth, provider);
+  saveAuthSession(credential.user);
+  return credential.user;
 }
 
 /**
  * Déconnexion
  */
 export async function logoutUser(): Promise<void> {
-  try {
-    const auth = getFirebaseAuth();
-    await signOut(auth);
-  } catch {
-    // Déconnexion locale
-  }
+  const auth = getFirebaseAuth();
+  await signOut(auth);
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('elora_auth_session');
   }
@@ -124,23 +100,14 @@ export async function logoutUser(): Promise<void> {
  * Envoi d'un email de réinitialisation
  */
 export async function sendResetPassword(email: string): Promise<void> {
-  try {
-    const auth = getFirebaseAuth();
-    await sendPasswordResetEmail(auth, email.trim());
-  } catch {
-    // Ignorer si mode local
-  }
+  const auth = getFirebaseAuth();
+  await sendPasswordResetEmail(auth, email.trim());
 }
 
 /**
  * Écouteur d'état d'authentification réactif
  */
 export function subscribeToAuthState(callback: (user: User | null) => void): Unsubscribe {
-  const saved = getSavedAuthSession();
-  if (saved) {
-    callback(saved);
-  }
-
   try {
     const auth = getFirebaseAuth();
     return onAuthStateChanged(auth, (user) => {
@@ -148,25 +115,15 @@ export function subscribeToAuthState(callback: (user: User | null) => void): Uns
         saveAuthSession(user);
         callback(user);
       } else {
-        const localSaved = getSavedAuthSession();
-        callback(localSaved);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('elora_auth_session');
+        }
+        callback(null);
       }
     });
   } catch {
     return () => { };
   }
-}
-
-// Utilitaires de session locale
-function createLocalUser(displayName: string, email: string): User {
-  return {
-    uid: `user_${Date.now()}`,
-    displayName,
-    email,
-    emailVerified: true,
-    isAnonymous: false,
-    providerData: [{ providerId: 'google.com', uid: email, displayName, email, photoURL: '', phoneNumber: '' }],
-  } as unknown as User;
 }
 
 function saveAuthSession(user: User): void {

@@ -14,6 +14,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +36,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       } else if (mode === 'signup') {
         if (!displayName.trim()) {
           setError('Veuillez renseigner votre nom complet.');
+          setLoading(false);
+          return;
+        }
+        if (password.length < 6) {
+          setError('Le mot de passe doit contenir au moins 6 caractères.');
+          setLoading(false);
+          return;
+        }
+        if (password !== confirmPassword) {
+          setError('Les mots de passe ne correspondent pas.');
           setLoading(false);
           return;
         }
@@ -223,6 +234,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] text-[var(--color-text-main)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+                Confirmer le mot de passe
+              </label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] text-[var(--color-text-main)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>

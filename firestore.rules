@@ -50,6 +50,8 @@ service cloud.firestore {
     //   - status: string (optional, 0..50)
     //   - dateAdded: string (optional, 0..50)
     //   - enabledForAI: bool (required)
+    //   - confidence: number (optional, 0..1)
+    //   - relatedEntityIds: list of strings (optional, max 20 items)
     //   - createdAt: string or timestamp (optional)
     //   - updatedAt: string or timestamp (optional)
     //
@@ -212,7 +214,7 @@ service cloud.firestore {
     // Validateur pour une mémoire personnelle (Memories)
     function isValidMemory(data, userId) {
       return data is map &&
-        data.keys().hasOnly(['id', 'userId', 'category', 'key', 'value', 'source', 'status', 'dateAdded', 'enabledForAI', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'category', 'key', 'value', 'source', 'status', 'dateAdded', 'enabledForAI', 'confidence', 'relatedEntityIds', 'createdAt', 'updatedAt']) &&
         isValidRequiredString(data, 'id', 1, 100) &&
         (!('userId' in data) || data.userId == userId) &&
         (data.category in ['profile', 'preference', 'knowledge', 'objective', 'project', 'habit', 'constraint', 'context', 'skill']) &&
@@ -222,6 +224,8 @@ service cloud.firestore {
         isValidOptionalString(data, 'status', 0, 50) &&
         isValidOptionalString(data, 'dateAdded', 0, 50) &&
         (data.enabledForAI is bool) &&
+        (!('confidence' in data) || (data.confidence is number && data.confidence >= 0 && data.confidence <= 100)) &&
+        isValidOptionalList(data, 'relatedEntityIds', 20) &&
         isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
         isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
     }

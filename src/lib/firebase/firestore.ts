@@ -245,6 +245,19 @@ export async function saveUserConversation(uid: string, conversation: Conversati
 }
 
 /**
+ * Suppression d'une conversation
+ */
+export async function deleteUserConversation(uid: string, convId: string): Promise<void> {
+  if (!navigator.onLine) return;
+  try {
+    const convRef = doc(getDB(), 'users', uid, 'conversations', convId);
+    await deleteDoc(convRef);
+  } catch (err) {
+    console.warn('[Firestore] Erreur suppression conversation :', err);
+  }
+}
+
+/**
  * Dépilage et synchronisation des éléments en attente (OfflineQueue)
  */
 export async function processOfflineQueue(uid: string): Promise<number> {
