@@ -64,16 +64,16 @@ export const HomeScreen: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-6 mt-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-6 mt-auto">
               <button
-                className="bento-btn-primary"
+                className="bento-btn-primary w-full sm:w-auto justify-center"
                 onClick={() => setActiveTab('ai')}
               >
                 <Sparkles size={15} />
                 <span>Consulter ELORA</span>
               </button>
               <button
-                className="px-4 py-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
+                className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
                 onClick={() => setActiveTab('planner')}
               >
                 <span>Accéder au Planner</span>
@@ -273,9 +273,9 @@ export const HomeScreen: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full md:w-auto">
                   <button
-                    className="px-4 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
+                    className="w-full sm:w-auto justify-center px-4 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
                     onClick={() => {
                       addOpportunityToPlanner(featuredOpportunity);
                       setActiveTab('planner');
@@ -285,7 +285,7 @@ export const HomeScreen: React.FC = () => {
                     <span>Ajouter au Planner</span>
                   </button>
                   <button
-                    className="bento-btn-primary"
+                    className="bento-btn-primary w-full sm:w-auto justify-center"
                     onClick={() => setActiveTab('ai')}
                   >
                     <Sparkles size={13} />

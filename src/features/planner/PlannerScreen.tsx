@@ -175,7 +175,7 @@ export const PlannerScreen: React.FC = () => {
             </div>
 
             <button
-              className="bento-btn-primary self-start md:self-auto shrink-0"
+              className="bento-btn-primary w-full md:w-auto justify-center shrink-0"
               onClick={async () => {
                 setActiveTab('ai');
                 await sendMessage(
@@ -191,9 +191,9 @@ export const PlannerScreen: React.FC = () => {
           {/* Formulaire d'ajout rapide */}
           <form
             onSubmit={handleQuickAdd}
-            className="p-3.5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 focus-within:border-[var(--color-border-strong)] transition-all"
+            className="p-3 sm:p-3.5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 focus-within:border-[var(--color-border-strong)] transition-all"
           >
-            <div className="flex items-center gap-2.5 flex-1 px-2">
+            <div className="flex items-center gap-2.5 flex-1 px-1 sm:px-2">
               <Plus size={16} className="text-[var(--color-accent)] shrink-0" />
               <input
                 type="text"
@@ -204,11 +204,11 @@ export const PlannerScreen: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 justify-end shrink-0">
+            <div className="flex items-center gap-2 justify-end shrink-0 w-full sm:w-auto">
               <select
                 value={quickPriority}
                 onChange={(e) => setQuickPriority(e.target.value as 'high' | 'medium' | 'low')}
-                className="bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] text-xs font-medium rounded-xl px-3 py-2 border border-[var(--color-border-subtle)] focus:outline-none cursor-pointer"
+                className="bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] text-xs font-medium rounded-xl px-3 py-2 border border-[var(--color-border-subtle)] focus:outline-none cursor-pointer flex-1 sm:flex-initial"
               >
                 <option value="high">Urgent</option>
                 <option value="medium">Normal</option>
@@ -218,7 +218,7 @@ export const PlannerScreen: React.FC = () => {
               <button
                 type="submit"
                 disabled={!quickTitle.trim()}
-                className="py-2 px-4 rounded-full bg-[var(--color-accent)] text-white font-bold text-xs hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="py-2 px-4 rounded-xl sm:rounded-full bg-[var(--color-accent)] text-white font-bold text-xs hover:opacity-90 disabled:opacity-40 transition-opacity flex-1 sm:flex-initial text-center justify-center flex items-center"
               >
                 <span>Ajouter</span>
               </button>
@@ -226,7 +226,7 @@ export const PlannerScreen: React.FC = () => {
           </form>
 
           {/* Filtres de catégorie */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -356,8 +356,8 @@ export const PlannerScreen: React.FC = () => {
 
       {/* VUE 2 : STUDIO DEEP WORK (FOCUS MODE) */}
       {activeTabMode === 'focus' && (
-        <div className="max-w-xl mx-auto py-4">
-          <div className="p-8 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-center shadow-sm">
+        <div className="max-w-xl mx-auto py-2 sm:py-4">
+          <div className="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-center shadow-sm">
             {focusSuccessNotice && (
               <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2">
                 <CheckCircle2 size={16} />
@@ -365,13 +365,13 @@ export const PlannerScreen: React.FC = () => {
               </div>
             )}
 
-            <div className="bento-tag mx-auto mb-5">
+            <div className="bento-tag mx-auto mb-4 sm:mb-5">
               <Flame size={13} className="text-[var(--color-accent)]" />
               <span>Studio de Concentration</span>
             </div>
 
-            <div className="mb-6 max-w-sm mx-auto">
-              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-2">
+            <div className="mb-5 sm:mb-6 max-w-sm mx-auto">
+              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1.5 sm:mb-2">
                 Objectif de cette session :
               </label>
               <input
@@ -379,23 +379,23 @@ export const PlannerScreen: React.FC = () => {
                 value={focusGoal}
                 onChange={(e) => setFocusGoal(e.target.value)}
                 placeholder="Sur quoi vous concentrez-vous ?"
-                className="w-full text-center text-xs font-semibold text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl py-2.5 px-3 focus:outline-none"
+                className="w-full text-center text-xs font-semibold text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl py-2 sm:py-2.5 px-3 focus:outline-none"
               />
             </div>
 
             {/* Cadran sobre du Chronomètre */}
-            <div className="relative inline-flex items-center justify-center w-48 h-48 rounded-full border-2 border-[var(--color-border-strong)] bg-[var(--color-bg-base)] mb-6">
-              <span className="text-4xl font-extrabold text-[var(--color-text-main)] font-mono tracking-tight">
+            <div className="relative inline-flex items-center justify-center w-36 h-36 sm:w-48 sm:h-48 rounded-full border-2 border-[var(--color-border-strong)] bg-[var(--color-bg-base)] mb-5 sm:mb-6">
+              <span className="text-3xl sm:text-4xl font-extrabold text-[var(--color-text-main)] font-mono tracking-tight">
                 {formatTimer(focusSecondsLeft)}
               </span>
             </div>
 
             {/* Présélections de durée */}
-            <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-5 sm:mb-6">
               {[15, 25, 45, 60].map((mins) => (
                 <button
                   key={mins}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                     focusDurationMinutes === mins && !isFocusRunning
                       ? 'bg-[var(--color-accent)] text-white'
                       : 'bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'

@@ -1,4 +1,4 @@
-﻿$pages = @(
+$pages = @(
   @{ name = 'home.png'; tab = 'home'; modal = '' },
   @{ name = 'ai.png'; tab = 'ai'; modal = '' },
   @{ name = 'progress.png'; tab = 'progress'; modal = '' },

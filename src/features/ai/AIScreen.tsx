@@ -207,6 +207,14 @@ export const AIScreen: React.FC = () => {
 
   return (
     <div className="ai-workspace-container bg-[var(--color-bg-base)]">
+      {/* Fond sombre pour fermer l'historique sur mobile */}
+      {showHistoryMobile && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-24 lg:hidden"
+          onClick={() => setShowHistoryMobile(false)}
+        />
+      )}
+
       {/* Panneau latéral des discussions */}
       <aside className={`ai-threads-sidebar ${showHistoryMobile ? 'open' : ''} bg-[var(--color-bg-surface)] border-r border-[var(--color-border-subtle)]`}>
         <div className="threads-header p-3.5 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
@@ -283,7 +291,7 @@ export const AIScreen: React.FC = () => {
         </div>
 
         {/* Défilement des messages */}
-        <div className="chat-stream-viewport flex-1 overflow-y-auto p-4 sm:p-6 pb-28">
+        <div className="chat-stream-viewport flex-1 overflow-y-auto p-4 sm:p-6 pb-36 lg:pb-28">
           {!currentConversation || currentConversation.messages.length === 0 ? (
             <div className="max-w-xl mx-auto my-10 text-center">
               <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20">
@@ -405,7 +413,7 @@ export const AIScreen: React.FC = () => {
 
         {/* Fichiers joints en attente d'envoi */}
         {attachments.length > 0 && (
-          <div className="absolute bottom-16 left-4 right-4 max-w-2xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center">
+          <div className="absolute bottom-[136px] lg:bottom-16 left-4 right-4 max-w-2xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center">
             <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1">Pièces jointes :</span>
             {attachments.map((att, i) => {
               const badge = getFileBadge(att.name);
@@ -430,7 +438,7 @@ export const AIScreen: React.FC = () => {
         )}
 
         {/* Compositeur épuré */}
-        <div className="absolute bottom-4 left-4 right-4 max-w-2xl mx-auto z-20">
+        <div className="absolute bottom-[76px] lg:bottom-4 left-4 right-4 max-w-2xl mx-auto z-20">
           <input
             type="file"
             ref={fileInputRef}

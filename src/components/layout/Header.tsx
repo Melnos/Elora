@@ -42,19 +42,19 @@ export const Header: React.FC = () => {
     <header className="elora-topbar">
       <div className="topbar-inner">
         {/* Titre et Espace actif */}
-        <div className="topbar-branding">
-          <div className="topbar-logo-badge">
+        <div className="topbar-branding min-w-0 flex-1 mr-2">
+          <div className="topbar-logo-badge shrink-0">
             <Sparkles size={16} className="text-[var(--color-accent)]" />
           </div>
-          <div className="topbar-title-group">
-            <span className="topbar-app-name">ELORA</span>
-            <span className="topbar-separator">/</span>
-            <span className="topbar-space-name">{getPageTitle()}</span>
+          <div className="topbar-title-group min-w-0">
+            <span className="topbar-app-name shrink-0">ELORA</span>
+            <span className="topbar-separator shrink-0">/</span>
+            <span className="topbar-space-name truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">{getPageTitle()}</span>
           </div>
         </div>
 
         {/* Contrôles utilisateur épurés */}
-        <div className="topbar-actions">
+        <div className="topbar-actions shrink-0">
           {/* Thème clair / sombre */}
           <button
             className="topbar-btn"
@@ -81,7 +81,7 @@ export const Header: React.FC = () => {
               title={`Connecté : ${currentUser.displayName || profile.name}`}
             >
               <div className="user-dot active" />
-              <span className="user-label">{currentUser.displayName || profile.name.split(' ')[0]}</span>
+              <span className="user-label truncate max-w-[80px] xs:max-w-none">{currentUser.displayName || profile.name.split(' ')[0]}</span>
             </button>
           ) : (
             <button
@@ -90,7 +90,7 @@ export const Header: React.FC = () => {
               title="Connexion ou synchronisation Cloud"
             >
               <LogIn size={15} />
-              <span>Connexion</span>
+              <span className="hidden xs:inline">Connexion</span>
             </button>
           )}
         </div>

@@ -53,7 +53,7 @@ export const ProgressScreen: React.FC = () => {
         </div>
 
         <button
-          className="bento-btn-primary self-start md:self-auto"
+          className="bento-btn-primary w-full md:w-auto justify-center self-start md:self-auto"
           onClick={handleAskProgressReview}
         >
           <Sparkles size={14} />
@@ -61,83 +61,83 @@ export const ProgressScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Grille des 4 Grandes Métriques (Sobres et Épurées) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Grille des 4 Grandes Métriques (Grille 2x2 intelligente sur mobile) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {/* Métrique 1 : Tâches */}
-        <div className="p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[140px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[115px] sm:min-h-[140px]">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider truncate">
               Tâches Concrétisées
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center">
-              <CheckCircle2 size={16} />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
+              <CheckCircle2 size={15} />
             </div>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
-              {completedTasks.length} <span className="text-sm font-normal text-[var(--color-text-muted)]">/ {totalTasks}</span>
+            <div className="text-xl sm:text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
+              {completedTasks.length} <span className="text-xs sm:text-sm font-normal text-[var(--color-text-muted)]">/ {totalTasks}</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Taux de complétion : <strong className="text-[var(--color-text-main)]">{taskCompletionRate}%</strong>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5 sm:mt-1 truncate">
+              Complétion : <strong className="text-[var(--color-text-main)]">{taskCompletionRate}%</strong>
             </p>
           </div>
         </div>
 
         {/* Métrique 2 : Focus */}
-        <div className="p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[140px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[115px] sm:min-h-[140px]">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider truncate">
               Deep Work
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center">
-              <Flame size={16} />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
+              <Flame size={15} />
             </div>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
-              {totalFocusMinutes} <span className="text-sm font-normal text-[var(--color-text-muted)]">min</span>
+            <div className="text-xl sm:text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
+              {totalFocusMinutes} <span className="text-xs sm:text-sm font-normal text-[var(--color-text-muted)]">min</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {focusSessions.length} session(s) de concentration
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5 sm:mt-1 truncate">
+              {focusSessions.length} session(s)
             </p>
           </div>
         </div>
 
         {/* Métrique 3 : Connaissances */}
-        <div className="p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[140px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[115px] sm:min-h-[140px]">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider truncate">
               Bibliothèque
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center">
-              <BookOpen size={16} />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
+              <BookOpen size={15} />
             </div>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
+            <div className="text-xl sm:text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
               {knowledgeDocs.length}
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Ressources et fiches indexées
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5 sm:mt-1 truncate">
+              Ressources indexées
             </p>
           </div>
         </div>
 
         {/* Métrique 4 : Objectifs */}
-        <div className="p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[140px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col justify-between min-h-[115px] sm:min-h-[140px]">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider truncate">
               Trajectoire
             </span>
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center">
-              <Target size={16} />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-[var(--color-bg-surface-elevated)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
+              <Target size={15} />
             </div>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
+            <div className="text-xl sm:text-3xl font-extrabold text-[var(--color-text-main)] font-mono">
               {goals.length}
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5 sm:mt-1 truncate">
               Objectif(s) actif(s)
             </p>
           </div>

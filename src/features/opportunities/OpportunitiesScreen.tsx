@@ -69,7 +69,7 @@ export const OpportunitiesScreen: React.FC = () => {
       </div>
 
       {/* Barre de Filtres */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-4">
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
         <button
           className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             activeFilter === 'all'
@@ -196,7 +196,7 @@ export const OpportunitiesScreen: React.FC = () => {
               </div>
 
               {/* Pied de carte avec actions */}
-              <div className="pt-4 mt-3 border-t border-[var(--color-border-subtle)] flex flex-wrap items-center justify-between gap-3">
+              <div className="pt-4 mt-3 border-t border-[var(--color-border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
                   <Calendar size={13} />
                   <span>
@@ -204,9 +204,9 @@ export const OpportunitiesScreen: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
                   <button
-                    className="px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
+                    className="flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-1.5"
                     onClick={() => handleAddToPlannerWithFeedback(opp)}
                   >
                     {plannerAddedId === opp.id ? (
@@ -223,7 +223,7 @@ export const OpportunitiesScreen: React.FC = () => {
                   </button>
 
                   <button
-                    className="bento-btn-primary py-1.5 px-3.5 text-xs"
+                    className="bento-btn-primary flex-1 sm:flex-initial justify-center py-1.5 px-3.5 text-xs text-center"
                     onClick={() => handleAskAIPrep(opp)}
                   >
                     <Sparkles size={13} />
@@ -234,7 +234,7 @@ export const OpportunitiesScreen: React.FC = () => {
                     href={opp.officialUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-1.5 rounded-lg border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] transition-colors"
+                    className="p-1.5 rounded-lg border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] transition-colors shrink-0 flex items-center justify-center"
                     title="Consulter le site officiel"
                   >
                     <ExternalLink size={14} />
