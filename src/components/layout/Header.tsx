@@ -8,7 +8,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  isScrolled?: boolean;
+  isCompact?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  isScrolled: propIsScrolled,
+  isCompact: propIsCompact,
+}) => {
   const {
     theme,
     setTheme,
@@ -19,12 +27,17 @@ export const Header: React.FC = () => {
     activeTab,
   } = useApp();
 
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
+  const [internalIsScrolled, setInternalIsScrolled] = useState(false);
+  const [internalIsCompact, setInternalIsCompact] = useState(false);
   const lastScrollY = useRef(0);
 
+  const isScrolled = propIsScrolled !== undefined ? propIsScrolled : internalIsScrolled;
+  const isCompact = propIsCompact !== undefined ? propIsCompact : internalIsCompact;
+
   useEffect(() => {
-    // Écouter le scroll sur le conteneur principal de défilement ainsi que window
+    // Si contrôlé par props, pas besoin d'écouteurs internes
+    if (propIsScrolled !== undefined) return;
+
     const getScrollContainer = () => {
       return document.querySelector('.elora-content-viewport') as HTMLElement | null;
     };
@@ -33,22 +46,18 @@ export const Header: React.FC = () => {
       const container = getScrollContainer();
       const currentScrollY = container ? container.scrollTop : window.scrollY;
 
-      // Détection de l'état défilé (dépassement du haut de page)
       if (currentScrollY > 15) {
-        setIsScrolled(true);
+        setInternalIsScrolled(true);
       } else {
-        setIsScrolled(false);
-        setIsCompact(false);
+        setInternalIsScrolled(false);
+        setInternalIsCompact(false);
       }
 
-      // Détection direction : descente vs montée
       if (currentScrollY > 50) {
         if (currentScrollY > lastScrollY.current + 3) {
-          // Descente : passer en version compacte
-          setIsCompact(true);
+          setInternalIsCompact(true);
         } else if (currentScrollY < lastScrollY.current - 4) {
-          // Montée : redéployer l'en-tête complet
-          setIsCompact(false);
+          setInternalIsCompact(false);
         }
       }
 
@@ -67,7 +76,7 @@ export const Header: React.FC = () => {
       }
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [activeTab]);
+  }, [activeTab, propIsScrolled]);
 
   const getPageTitle = () => {
     switch (activeTab) {

@@ -24,6 +24,42 @@ export const AppLayout: React.FC = () => {
     setIsDiagnosticOpen,
   } = useApp();
 
+  const [headerState, setHeaderState] = React.useState<{ isScrolled: boolean; isCompact: boolean }>({
+    isScrolled: false,
+    isCompact: false,
+  });
+  const lastScrollY = React.useRef(0);
+
+  // Réinitialiser l'état du header au changement d'onglet
+  React.useEffect(() => {
+    setHeaderState({ isScrolled: false, isCompact: false });
+    lastScrollY.current = 0;
+  }, [activeTab]);
+
+  const handleViewportScroll = (e: React.UIEvent<HTMLElement>) => {
+    const currentScrollY = e.currentTarget.scrollTop;
+    const isScrolled = currentScrollY > 15;
+    let isCompact = headerState.isCompact;
+
+    if (currentScrollY > 50) {
+      if (currentScrollY > lastScrollY.current + 3) {
+        // Défilement vers le bas : passer en mode compact
+        isCompact = true;
+      } else if (currentScrollY < lastScrollY.current - 4) {
+        // Défilement vers le haut : redéployer l'en-tête complet
+        isCompact = false;
+      }
+    } else {
+      // Haut de page : toujours complet
+      isCompact = false;
+    }
+
+    lastScrollY.current = currentScrollY;
+    if (headerState.isScrolled !== isScrolled || headerState.isCompact !== isCompact) {
+      setHeaderState({ isScrolled, isCompact });
+    }
+  };
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
@@ -62,9 +98,12 @@ export const AppLayout: React.FC = () => {
 
       {/* Conteneur principal */}
       <div className="elora-main-wrapper">
-        <Header />
+        <Header isScrolled={headerState.isScrolled} isCompact={headerState.isCompact} />
 
-        <main className={`elora-content-viewport ${activeTab === 'ai' ? 'ai-viewport' : ''}`}>
+        <main
+          onScroll={handleViewportScroll}
+          className={`elora-content-viewport ${activeTab === 'ai' ? 'ai-viewport' : ''}`}
+        >
           {renderActiveScreen()}
         </main>
       </div>
