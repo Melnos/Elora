@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Moon,
@@ -18,6 +18,56 @@ export const Header: React.FC = () => {
     profile,
     activeTab,
   } = useApp();
+
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    // Écouter le scroll sur le conteneur principal de défilement ainsi que window
+    const getScrollContainer = () => {
+      return document.querySelector('.elora-content-viewport') as HTMLElement | null;
+    };
+
+    const handleScroll = () => {
+      const container = getScrollContainer();
+      const currentScrollY = container ? container.scrollTop : window.scrollY;
+
+      // Détection de l'état défilé (dépassement du haut de page)
+      if (currentScrollY > 15) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+        setIsCompact(false);
+      }
+
+      // Détection direction : descente vs montée
+      if (currentScrollY > 50) {
+        if (currentScrollY > lastScrollY.current + 3) {
+          // Descente : passer en version compacte
+          setIsCompact(true);
+        } else if (currentScrollY < lastScrollY.current - 4) {
+          // Montée : redéployer l'en-tête complet
+          setIsCompact(false);
+        }
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    const container = getScrollContainer();
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true });
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeTab]);
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -39,12 +89,12 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="elora-topbar">
+    <header className={`elora-topbar ${isScrolled ? 'scrolled' : ''} ${isCompact ? 'compact' : ''}`}>
       <div className="topbar-inner">
         {/* Titre et Espace actif */}
         <div className="topbar-branding min-w-0 flex-1 mr-2">
           <div className="topbar-logo-badge shrink-0">
-            <Sparkles size={16} className="text-[var(--color-accent)]" />
+            <Sparkles size={isCompact ? 14 : 16} className="text-[var(--color-accent)]" />
           </div>
           <div className="topbar-title-group min-w-0">
             <span className="topbar-app-name shrink-0">ELORA</span>
@@ -61,7 +111,7 @@ export const Header: React.FC = () => {
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             title={`Basculer en thème ${theme === 'dark' ? 'clair' : 'sombre'}`}
           >
-            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            {theme === 'dark' ? <Sun size={isCompact ? 15 : 17} /> : <Moon size={isCompact ? 15 : 17} />}
           </button>
 
           {/* Paramètres & Mémoire Personnelle */}
@@ -70,7 +120,7 @@ export const Header: React.FC = () => {
             onClick={() => setIsSettingsOpen(true)}
             title="Paramètres et Mémoire Personnelle"
           >
-            <Settings size={17} />
+            <Settings size={isCompact ? 15 : 17} />
           </button>
 
           {/* Profil / Connexion */}
@@ -89,7 +139,7 @@ export const Header: React.FC = () => {
               onClick={() => setIsAuthModalOpen(true)}
               title="Connexion ou synchronisation Cloud"
             >
-              <LogIn size={15} />
+              <LogIn size={isCompact ? 13 : 15} />
               <span className="hidden xs:inline">Connexion</span>
             </button>
           )}
