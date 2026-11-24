@@ -1047,7 +1047,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background-color: var(--color-emerald);
+  background-color: var(--color-accent);
 }
 
 .desktop-new-chat-btn {

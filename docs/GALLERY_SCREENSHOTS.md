@@ -10,12 +10,12 @@ Toutes les interfaces de l'environnement ELORA ont été harmonisées selon la n
 ## 🌟 Liens Publics Directs (Accessibles Immédiatement)
 
 ### 1. Espace Personnel (Home)
-- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wCAejOxgTglY/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/wCAejOxgTglY/home.png)
-- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/waAtjUx6T2Yv/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/waAtjUx6T2Yv/home.png)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wMAwjIxFS1AN/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/wMAwjIxFS1AN/home.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wVAWjuxPSVb0/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/wVAwjuxPSVb0/home.png)
 
 ### 2. Intelligence ELORA (IA & Chat Hybride)
-- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wtAPj9x7TuVv/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wtAPj9x7TuVv/ai.png)
-- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wWAzjcx9TwQb/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wWAzjcx9TwQb/ai.png)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wGASjfxqSfgs/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wGASjfxqSfgs/ai.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wHAbjjxZSbY5/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wHAbjjxZSbY5/ai.png)
 
 ### 3. Bilan Réel & Progression (Progress)
 - **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wjASjExzTSHs/progress.png) | [Lien Direct Image](https://tmpfiles.org/dl/wjASjExzTSHs/progress.png)

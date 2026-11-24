@@ -57,18 +57,18 @@ export const AIScreen: React.FC = () => {
     if (['ts', 'tsx', 'js', 'jsx', 'py', 'json', 'html', 'css', 'sql'].includes(ext || '')) {
       return {
         label: ext?.toUpperCase() || 'CODE',
-        icon: <FileCode size={12} className="text-[var(--color-accent)]" />,
+        icon: <FileCode size={12} className="text-[var(--color-accent)] shrink-0" />,
       };
     }
     if (['csv', 'xlsx', 'tsv'].includes(ext || '')) {
       return {
         label: 'TABLEUR',
-        icon: <FileSpreadsheet size={12} className="text-[var(--color-accent)]" />,
+        icon: <FileSpreadsheet size={12} className="text-[var(--color-accent)] shrink-0" />,
       };
     }
     return {
       label: ext?.toUpperCase() || 'DOC',
-      icon: <FileText size={12} className="text-[var(--color-accent)]" />,
+      icon: <FileText size={12} className="text-[var(--color-accent)] shrink-0" />,
     };
   };
 
@@ -150,7 +150,7 @@ export const AIScreen: React.FC = () => {
       }
       if (part.startsWith('`') && part.endsWith('`')) {
         return (
-          <code key={idx} className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-elevated)] font-mono text-[11px] text-[var(--color-accent)] border border-[var(--color-border-subtle)]">
+          <code key={idx} className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-elevated)] font-mono text-[11px] text-[var(--color-accent)] border border-[var(--color-border-subtle)] break-all">
             {part.slice(1, -1)}
           </code>
         );
@@ -161,7 +161,6 @@ export const AIScreen: React.FC = () => {
 
   // Rendu structuré haute-fidélité des messages (Code blocks, Blockquotes, Tables, Listes)
   const renderFormattedMessage = (content: string, msgId: string) => {
-    // Découpage en blocs de code markdown ```lang ... ```
     const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
     const segments: React.ReactNode[] = [];
     let lastIndex = 0;
@@ -179,8 +178,8 @@ export const AIScreen: React.FC = () => {
       const codeKey = `${msgId}-code-${blockCounter}`;
 
       segments.push(
-        <div key={codeKey} className="my-3 rounded-xl overflow-hidden border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]">
-          <div className="flex items-center justify-between px-3.5 py-1.5 bg-[var(--color-bg-surface-elevated)] border-b border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] font-mono">
+        <div key={codeKey} className="my-3 rounded-xl overflow-hidden border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] max-w-full min-w-0">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--color-bg-surface-elevated)] border-b border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] font-mono">
             <span className="font-semibold uppercase tracking-wider">{language}</span>
             <button
               onClick={() => handleCopyCode(codeKey, code)}
@@ -200,7 +199,7 @@ export const AIScreen: React.FC = () => {
               )}
             </button>
           </div>
-          <pre className="p-3.5 text-xs font-mono text-[var(--color-text-main)] overflow-x-auto leading-relaxed">
+          <pre className="p-3 sm:p-3.5 text-xs font-mono text-[var(--color-text-main)] overflow-x-auto max-w-full leading-relaxed">
             <code>{code}</code>
           </pre>
         </div>
@@ -215,20 +214,20 @@ export const AIScreen: React.FC = () => {
       segments.push(renderTextSegment(remainingText || content, `${msgId}-txt-end`));
     }
 
-    return <div>{segments}</div>;
+    return <div className="space-y-2 min-w-0 max-w-full">{segments}</div>;
   };
 
   const renderTextSegment = (text: string, keyPrefix: string) => {
     const lines = text.split('\n');
     return (
-      <div key={keyPrefix} className="space-y-1">
+      <div key={keyPrefix} className="space-y-1 min-w-0 max-w-full">
         {lines.map((line, idx) => {
           const trimmed = line.trim();
 
           // Titre niveau 3
           if (line.startsWith('### ')) {
             return (
-              <h4 key={idx} className="font-bold text-sm text-[var(--color-text-main)] mt-2.5 mb-1">
+              <h4 key={idx} className="font-bold text-sm text-[var(--color-text-main)] mt-2.5 mb-1 break-words [overflow-wrap:anywhere]">
                 {formatInline(line.slice(4))}
               </h4>
             );
@@ -237,7 +236,7 @@ export const AIScreen: React.FC = () => {
           // Titre niveau 2
           if (line.startsWith('## ')) {
             return (
-              <h3 key={idx} className="font-extrabold text-base text-[var(--color-text-main)] mt-3 mb-1.5">
+              <h3 key={idx} className="font-extrabold text-base text-[var(--color-text-main)] mt-3 mb-1.5 break-words [overflow-wrap:anywhere]">
                 {formatInline(line.slice(3))}
               </h3>
             );
@@ -246,7 +245,7 @@ export const AIScreen: React.FC = () => {
           // Citation / Bloc de réflexion
           if (line.startsWith('> ')) {
             return (
-              <blockquote key={idx} className="pl-3 py-1 my-1.5 border-l-2 border-l-[var(--color-accent)] text-xs italic text-[var(--color-text-muted)] bg-[var(--color-accent-bg)] rounded-r-lg">
+              <blockquote key={idx} className="pl-3 py-1 my-1.5 border-l-2 border-l-[var(--color-accent)] text-xs italic text-[var(--color-text-muted)] bg-[var(--color-accent-bg)] rounded-r-lg break-words [overflow-wrap:anywhere] max-w-full">
                 {formatInline(line.slice(2))}
               </blockquote>
             );
@@ -256,9 +255,9 @@ export const AIScreen: React.FC = () => {
           if (trimmed.match(/^(\*|-|\d+\.)\s/)) {
             const itemText = trimmed.replace(/^(\*|-|\d+\.)\s+/, '');
             return (
-              <div key={idx} className="flex items-start gap-2 my-0.5 pl-1 text-xs sm:text-sm">
+              <div key={idx} className="flex items-start gap-2 my-0.5 pl-1 text-xs sm:text-sm min-w-0 max-w-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0 mt-2" />
-                <span className="flex-1 leading-relaxed">{formatInline(itemText)}</span>
+                <span className="flex-1 leading-relaxed break-words [overflow-wrap:anywhere]">{formatInline(itemText)}</span>
               </div>
             );
           }
@@ -270,7 +269,7 @@ export const AIScreen: React.FC = () => {
 
           // Paragraphe classique
           return (
-            <p key={idx} className="my-0.5 leading-relaxed text-xs sm:text-sm">
+            <p key={idx} className="my-0.5 leading-relaxed text-xs sm:text-sm break-words [overflow-wrap:anywhere] max-w-full">
               {formatInline(line)}
             </p>
           );
@@ -304,7 +303,7 @@ export const AIScreen: React.FC = () => {
   ];
 
   return (
-    <div className="ai-workspace-container bg-[var(--color-bg-base)]">
+    <div className="ai-workspace-container bg-[var(--color-bg-base)] w-full overflow-hidden">
       {/* Fond sombre pour fermer l'historique sur mobile */}
       {showHistoryMobile && (
         <div
@@ -361,26 +360,26 @@ export const AIScreen: React.FC = () => {
       </aside>
 
       {/* Surface principale de conversation */}
-      <section className="ai-chat-canvas flex-1 flex flex-col h-full min-w-0 bg-[var(--color-bg-base)] relative">
+      <section className="ai-chat-canvas flex-1 flex flex-col h-full min-w-0 bg-[var(--color-bg-base)] relative overflow-hidden">
         {/* Barre supérieure du chat */}
-        <div className="chat-top-bar p-3 px-4 sm:px-6 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)]">
+        <div className="chat-top-bar p-3 px-3.5 sm:px-6 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)] shrink-0 gap-2">
           <button
-            className="mobile-thread-toggle lg:hidden flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-main)] px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] cursor-pointer"
+            className="mobile-thread-toggle lg:hidden flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-main)] px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] cursor-pointer shrink-0"
             onClick={() => setShowHistoryMobile(!showHistoryMobile)}
           >
             <MessageSquare size={13} />
             <span>Historique ({conversations.length})</span>
           </button>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)]">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shrink-0" />
             <span className="text-xs font-semibold text-[var(--color-text-main)]">
-              ELORA AI <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">• Moteur Hybride Local & Cloud</span>
+              ELORA AI <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">• Assistant Hybride (Local & Cloud)</span>
             </span>
           </div>
 
           <button
-            className="desktop-new-chat-btn hidden lg:flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors cursor-pointer"
+            className="desktop-new-chat-btn hidden lg:flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors cursor-pointer shrink-0"
             onClick={() => createConversation()}
           >
             <Plus size={13} />
@@ -388,25 +387,25 @@ export const AIScreen: React.FC = () => {
           </button>
         </div>
 
-        {/* Défilement des messages */}
-        <div className="chat-stream-viewport flex-1 overflow-y-auto p-4 sm:p-6 pb-36 lg:pb-28">
+        {/* Défilement des messages (Largeur enrichie et lecture aérée) */}
+        <div className="chat-stream-viewport flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 pb-40 lg:pb-32">
           {!currentConversation || currentConversation.messages.length === 0 ? (
-            <div className="max-w-xl mx-auto my-10 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20">
+            <div className="max-w-2xl mx-auto my-8 sm:my-12 text-center px-2">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20 shadow-xs">
                 <Sparkles size={26} />
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text-main)] tracking-tight">
                 Intelligence Personnelle ELORA
               </h2>
-              <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto mt-1.5 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] max-w-lg mx-auto mt-2 leading-relaxed">
                 Connectée à vos projets, vos documents et vos opportunités. Traitement hybride confidentiel local (Gemini Nano) et Cloud (Firebase AI Logic).
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 text-left">
                 {quickStarters.map((starter, idx) => (
                   <button
                     key={idx}
-                    className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group cursor-pointer"
+                    className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
                     onClick={() => {
                       setInputPrompt(starter.prompt);
                       textareaRef.current?.focus();
@@ -428,7 +427,7 @@ export const AIScreen: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="max-w-2xl mx-auto space-y-4">
+            <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 px-1 sm:px-4">
               {currentConversation.messages.map((msg) => {
                 const isAssistant = msg.role === 'assistant';
                 const isStreamingCurrent = isAssistant && !msg.content && isGenerating;
@@ -437,16 +436,16 @@ export const AIScreen: React.FC = () => {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex items-start gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                    className={`w-full min-w-0 flex items-start gap-2 sm:gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                   >
                     {/* Avatar sobre */}
                     <div className="shrink-0 mt-0.5">
                       {isAssistant ? (
-                        <div className="w-7 h-7 rounded-lg bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 text-[var(--color-accent)] flex items-center justify-center">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 text-[var(--color-accent)] flex items-center justify-center">
                           <Bot size={15} />
                         </div>
                       ) : (
-                        <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center justify-center">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center justify-center">
                           <User size={15} />
                         </div>
                       )}
@@ -454,36 +453,36 @@ export const AIScreen: React.FC = () => {
 
                     {/* Bulle de Message */}
                     <div
-                      className={`max-w-[85%] sm:max-w-[78%] p-3.5 sm:p-4 rounded-2xl ${
+                      className={`min-w-0 [overflow-wrap:anywhere] ${
                         msg.role === 'user'
-                          ? 'bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
-                          : 'bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)] shadow-xs'
+                          ? 'max-w-[85%] sm:max-w-[78%] p-3.5 sm:p-4 rounded-2xl bg-[var(--color-text-main)] text-[var(--color-bg-base)]'
+                          : 'flex-1 max-w-[calc(100%-2.25rem)] sm:max-w-[90%] lg:max-w-[88%] p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)] shadow-xs'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${msg.role === 'user' ? 'opacity-80' : 'text-[var(--color-accent)]'}`}>
+                      <div className="flex items-center justify-between gap-3 mb-2 pb-1 border-b border-[var(--color-border-subtle)]/40">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 ${msg.role === 'user' ? 'opacity-80' : 'text-[var(--color-accent)]'}`}>
                             {isAssistant ? 'ELORA' : 'Vous'}
                           </span>
                           {/* Badge de provenance réelle */}
                           {isAssistant && msg.inferenceSource && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center gap-1">
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center gap-1 shrink-0">
                               {isLocalSource ? (
                                 <>
                                   <Zap size={9} className="text-[var(--color-accent)]" />
-                                  <span>Nano Local</span>
+                                  <span>Nano Local{msg.durationMs ? ` (${msg.durationMs}ms)` : ''}</span>
                                 </>
                               ) : (
                                 <>
                                   <Cloud size={9} />
-                                  <span>Cloud</span>
+                                  <span>Cloud AI</span>
                                 </>
                               )}
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[10px] opacity-70">
                             {msg.timestamp}
                           </span>
@@ -508,7 +507,7 @@ export const AIScreen: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="text-xs sm:text-sm leading-relaxed">
+                      <div className="text-xs sm:text-sm leading-relaxed min-w-0 max-w-full">
                         {isStreamingCurrent ? (
                           <div className="flex items-center gap-2 py-1">
                             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-ping" />
@@ -517,7 +516,7 @@ export const AIScreen: React.FC = () => {
                         ) : isAssistant ? (
                           renderFormattedMessage(msg.content, msg.id)
                         ) : (
-                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                          <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                         )}
                       </div>
                     </div>
@@ -531,21 +530,21 @@ export const AIScreen: React.FC = () => {
 
         {/* Fichiers joints en attente d'envoi */}
         {attachments.length > 0 && (
-          <div className="absolute bottom-[136px] lg:bottom-16 left-4 right-4 max-w-2xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1">Pièces jointes :</span>
+          <div className="absolute bottom-[136px] lg:bottom-16 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center min-w-0">
+            <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1 shrink-0">Pièces jointes :</span>
             {attachments.map((att, i) => {
               const badge = getFileBadge(att.name);
               return (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)]"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] max-w-full"
                 >
                   {badge.icon}
                   <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
                   <button
                     type="button"
                     onClick={() => removeAttachment(i)}
-                    className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer"
+                    className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer shrink-0"
                   >
                     <X size={12} />
                   </button>
@@ -556,11 +555,11 @@ export const AIScreen: React.FC = () => {
         )}
 
         {/* Dock de suggestions rapides contextuelles */}
-        <div className="absolute bottom-[130px] lg:bottom-[68px] left-4 right-4 max-w-2xl mx-auto z-15 flex items-center gap-1.5 overflow-x-auto no-scrollbar pointer-events-auto">
+        <div className="absolute bottom-[130px] lg:bottom-[68px] left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-15 flex items-center gap-1.5 overflow-x-auto no-scrollbar pointer-events-auto">
           {contextualPrompts.map((cp, idx) => (
             <button
               key={idx}
-              className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[var(--color-bg-surface)]/95 border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors whitespace-nowrap shadow-xs backdrop-blur-xs cursor-pointer"
+              className="text-[10px] sm:text-[11px] font-medium px-2.5 sm:px-3 py-1 rounded-full bg-[var(--color-bg-surface)]/95 border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors whitespace-nowrap shadow-2xs backdrop-blur-xs cursor-pointer"
               onClick={() => {
                 setInputPrompt(cp.prompt);
                 textareaRef.current?.focus();
@@ -572,7 +571,7 @@ export const AIScreen: React.FC = () => {
         </div>
 
         {/* Compositeur épuré & accessible */}
-        <div className="absolute bottom-[76px] lg:bottom-4 left-4 right-4 max-w-2xl mx-auto z-20">
+        <div className="absolute bottom-[74px] lg:bottom-4 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-20 min-w-0">
           <input
             type="file"
             ref={fileInputRef}
@@ -585,7 +584,7 @@ export const AIScreen: React.FC = () => {
 
           <form
             onSubmit={handleSend}
-            className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-md transition-all"
+            className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-md transition-all min-w-0"
           >
             <button
               type="button"
@@ -608,7 +607,7 @@ export const AIScreen: React.FC = () => {
                 }
               }}
               placeholder="Écrivez votre message ou déposez un fichier..."
-              className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28"
+              className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28 min-w-0"
             />
 
             <button
