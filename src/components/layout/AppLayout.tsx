@@ -15,7 +15,14 @@ import { OpportunitiesScreen } from '../../features/opportunities/OpportunitiesS
 import { ProgressScreen } from '../../features/progress/ProgressScreen';
 
 export const AppLayout: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
+  const {
+    activeTab,
+    setActiveTab,
+    isAuthModalOpen,
+    setIsAuthModalOpen,
+    setIsSettingsOpen,
+    setIsDiagnosticOpen,
+  } = useApp();
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -23,7 +30,11 @@ export const AppLayout: React.FC = () => {
     if (tab && ['home', 'ai', 'knowledge', 'planner', 'opportunities', 'progress'].includes(tab)) {
       setActiveTab(tab as any);
     }
-  }, [setActiveTab]);
+    const modal = params.get('modal');
+    if (modal === 'auth') setIsAuthModalOpen(true);
+    if (modal === 'settings') setIsSettingsOpen(true);
+    if (modal === 'diagnostic') setIsDiagnosticOpen(true);
+  }, [setActiveTab, setIsAuthModalOpen, setIsSettingsOpen, setIsDiagnosticOpen]);
 
   const renderActiveScreen = () => {
     switch (activeTab) {
