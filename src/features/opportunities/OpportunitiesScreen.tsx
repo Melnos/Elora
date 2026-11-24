@@ -62,7 +62,7 @@ export const OpportunitiesScreen: React.FC = () => {
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20 self-start md:self-auto">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-accent-bg)] text-[var(--color-accent)] text-xs font-semibold border border-[var(--color-accent)]/20 self-start md:self-auto">
           <ShieldCheck size={14} />
           <span>Informations 100% Vérifiées</span>
         </div>
@@ -132,7 +132,7 @@ export const OpportunitiesScreen: React.FC = () => {
             <div
               key={opp.id}
               className={`p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] flex flex-col justify-between transition-all ${
-                isFeatured ? 'lg:col-span-2 border-l-4 border-l-[var(--color-accent)]' : ''
+                isFeatured ? 'lg:col-span-2 border-l-2 border-l-[var(--color-accent)]' : ''
               }`}
             >
               <div>
@@ -148,7 +148,7 @@ export const OpportunitiesScreen: React.FC = () => {
                     <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)]">
                       {opp.type}
                     </span>
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="text-[10px] font-semibold text-[var(--color-accent)] font-mono">
                       {opp.matchScore}% de compatibilité
                     </span>
                   </div>
@@ -211,8 +211,8 @@ export const OpportunitiesScreen: React.FC = () => {
                   >
                     {plannerAddedId === opp.id ? (
                       <>
-                        <Check size={13} className="text-emerald-500" />
-                        <span className="text-emerald-500">Ajouté !</span>
+                        <Check size={13} className="text-[var(--color-accent)]" />
+                        <span className="text-[var(--color-accent)]">Ajouté !</span>
                       </>
                     ) : (
                       <>

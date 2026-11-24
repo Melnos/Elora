@@ -263,11 +263,11 @@ export const PlannerScreen: React.FC = () => {
                     className="p-4 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex items-start justify-between gap-3 group"
                   >
                     <button
-                      className="w-5 h-5 rounded-md border border-[var(--color-border-strong)] flex items-center justify-center shrink-0 hover:border-emerald-500 transition-colors mt-0.5"
+                      className="w-5 h-5 rounded-md border border-[var(--color-border-strong)] flex items-center justify-center shrink-0 hover:border-[var(--color-accent)] transition-colors mt-0.5"
                       onClick={() => toggleTaskCompleted(t.id)}
                       title="Marquer comme terminée"
                     >
-                      {t.completed && <Check size={13} className="text-emerald-500" />}
+                      {t.completed && <Check size={13} className="text-[var(--color-accent)]" />}
                     </button>
 
                     <div className="flex-1 min-w-0">
@@ -289,10 +289,10 @@ export const PlannerScreen: React.FC = () => {
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
                           t.priority === 'high'
-                            ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
+                            ? 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
                             : t.priority === 'medium'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                            : 'bg-neutral-500/10 text-neutral-600 dark:text-neutral-400 border border-neutral-500/20'
+                            ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)] border border-[var(--color-accent)]/20'
+                            : 'bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]'
                         }`}
                       >
                         {t.priority === 'high' ? 'Urgent' : t.priority === 'medium' ? 'Normal' : 'Secondaire'}
@@ -313,7 +313,7 @@ export const PlannerScreen: React.FC = () => {
             {/* Colonne Terminées */}
             <div className="space-y-3">
               <span className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider flex items-center gap-2 px-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
                 Terminées ({completedTasks.length})
               </span>
 
@@ -328,11 +328,11 @@ export const PlannerScreen: React.FC = () => {
                     className="p-4 rounded-2xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] flex items-start justify-between gap-3 group transition-all"
                   >
                     <button
-                      className="w-5 h-5 rounded-md bg-emerald-500/20 border border-emerald-500 flex items-center justify-center shrink-0 mt-0.5"
+                      className="w-5 h-5 rounded-md bg-[var(--color-accent-bg)] border border-[var(--color-accent)] flex items-center justify-center shrink-0 mt-0.5"
                       onClick={() => toggleTaskCompleted(t.id)}
                       title="Rouvrir la tâche"
                     >
-                      <Check size={13} className="text-emerald-500" />
+                      <Check size={13} className="text-[var(--color-accent)]" />
                     </button>
 
                     <div className="flex-1 min-w-0 text-xs text-[var(--color-text-main)] opacity-85 leading-snug">
@@ -359,7 +359,7 @@ export const PlannerScreen: React.FC = () => {
         <div className="max-w-xl mx-auto py-2 sm:py-4">
           <div className="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-center shadow-sm">
             {focusSuccessNotice && (
-              <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2">
+              <div className="mb-6 p-3 rounded-xl bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 text-[var(--color-accent)] text-xs font-semibold flex items-center justify-center gap-2">
                 <CheckCircle2 size={16} />
                 <span>{focusSuccessNotice}</span>
               </div>
@@ -413,7 +413,7 @@ export const PlannerScreen: React.FC = () => {
               {isFocusRunning ? (
                 <button
                   onClick={handlePauseFocus}
-                  className="px-6 py-2.5 rounded-full bg-amber-500 text-white font-semibold text-xs flex items-center gap-2 hover:opacity-90"
+                  className="px-6 py-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)] text-[var(--color-text-main)] font-semibold text-xs flex items-center gap-2 hover:bg-[var(--color-bg-surface)] transition-all"
                 >
                   <Pause size={15} />
                   <span>Mettre en pause</span>

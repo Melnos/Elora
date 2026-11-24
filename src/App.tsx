@@ -54,8 +54,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               maxWidth: '560px',
               width: '100%',
               background: '#151413',
-              border: '1px solid rgba(255, 106, 0, 0.4)',
-              borderRadius: '28px',
+              border: '1px solid rgba(197, 154, 88, 0.3)',
+              borderRadius: '24px',
               padding: '2.5rem',
               textAlign: 'center',
               boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
@@ -66,8 +66,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 width: '56px',
                 height: '56px',
                 borderRadius: '16px',
-                background: 'rgba(255, 106, 0, 0.15)',
-                color: '#FF6A00',
+                background: 'rgba(197, 154, 88, 0.12)',
+                color: '#C59A58',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <button
               onClick={this.handleReset}
               style={{
-                background: 'linear-gradient(135deg, #FF6A00 0%, #EE5A24 100%)',
+                background: '#C59A58',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '9999px',
@@ -112,7 +112,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 fontSize: '0.875rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(255, 106, 0, 0.35)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
               }}
             >
               Réinitialiser le cache et recharger

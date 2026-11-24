@@ -1,62 +1,47 @@
-# Galerie Visuelle Officielle — ELORA (Version Actuelle Post-Phase 1B)
+# Galerie Visuelle Officielle — ELORA (Phase 2 : Épuration & Direction Artistique Noble)
 
-Toutes les pages et modales de l'application ont été capturées dans leur version actuelle après la **Refonte Responsive Globale (Phase 1 & 1B)** :
-- **Desktop ($1440\times 900\,\text{px}$)**
-- **Mobile ($390\times 844\,\text{px}$)**
-- **Tests Viewports validés :** 360×800, 430×932, 768×1024, 1280×800.
+Toutes les interfaces de l'environnement ELORA ont été harmonisées selon la nouvelle identité visuelle professionnelle haut de gamme :
+- **Design System :** Élimination intégrale des néons et saturations excessives. Palette ivoire/noir chaud obsidian feutré (`#0F0E0D`), accent bronze/or noble (`#C59A58`), typographie épurée.
+- **Desktop ($1280 \times 900\,\text{px}$)**
+- **Mobile ($390 \times 844\,\text{px}$)**
 
 ---
 
-## 🌟 Priorités Essentielles (Home, IA, Progress)
+## 🌟 Liens Publics Directs (Accessibles Immédiatement)
 
 ### 1. Espace Personnel (Home)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wQA6jh4AmbEN/home.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/home.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/wsALjP4zPhDH/home.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/home.png)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wCAejOxgTglY/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/wCAejOxgTglY/home.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/waAtjUx6T2Yv/home.png) | [Lien Direct Image](https://tmpfiles.org/dl/waAtjUx6T2Yv/home.png)
 
 ### 2. Intelligence ELORA (IA & Chat Hybride)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wlAAj94vPAeW/ai.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/ai.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/whADj34AP12d/ai.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/ai.png)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wtAPj9x7TuVv/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wtAPj9x7TuVv/ai.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wWAzjcx9TwQb/ai.png) | [Lien Direct Image](https://tmpfiles.org/dl/wWAzjcx9TwQb/ai.png)
 
-### 3. Évolution & Bilan (Progress)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wXAEj747Pvys/progress.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/progress.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/wHAhjP4FPmhl/progress.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/progress.png)
+### 3. Bilan Réel & Progression (Progress)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wjASjExzTSHs/progress.png) | [Lien Direct Image](https://tmpfiles.org/dl/wjASjExzTSHs/progress.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wfA3jrxETdRc/progress.png) | [Lien Direct Image](https://tmpfiles.org/dl/wfA3jrxETdRc/progress.png)
 
----
+### 4. Planner & Deep Work (Planner)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/w6Atj9x2TtdT/planner.png) | [Lien Direct Image](https://tmpfiles.org/dl/w6Atj9x2TtdT/planner.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wXAejVxhTcm0/planner.png) | [Lien Direct Image](https://tmpfiles.org/dl/wXAejVxhTcm0/planner.png)
 
-## 📅 Autres Espaces de Travail
-
-### 4. Organisation & Focus (Planner)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wAAhjJ4qPOYN/planner.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/planner.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/w3Apjm4CPkPR/planner.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/planner.png)
-
-### 5. Bibliothèque & Savoir (Knowledge)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wHAfjA4PPizy/knowledge.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/knowledge.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/wWA5jF4xPNxe/knowledge.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/knowledge.png)
+### 5. Savoir & Ressources (Knowledge)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/wdAyjVxxTGWn/knowledge.png) | [Lien Direct Image](https://tmpfiles.org/dl/wdAyjVxxTGWn/knowledge.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wjAEjyxKTmN1/knowledge.png) | [Lien Direct Image](https://tmpfiles.org/dl/wjAEjyxKTmN1/knowledge.png)
 
 ### 6. Opportunités & Concours (Opportunities)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wkA2j04APCR4/opportunities.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/opportunities.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/w3Asj64bqBMt/opportunities.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/opportunities.png)
+- **Desktop (1280×900)** : [Voir la capture Desktop](https://tmpfiles.org/w5AojPxETpbK/opportunities.png) | [Lien Direct Image](https://tmpfiles.org/dl/w5AojPxETpbK/opportunities.png)
+- **Mobile (390×844)** : [Voir la capture Mobile](https://tmpfiles.org/wzAmj5xDTS8M/opportunities.png) | [Lien Direct Image](https://tmpfiles.org/dl/wzAmj5xDTS8M/opportunities.png)
 
 ---
 
-## 🔐 Modales & Panneaux de Contrôle
-
-### 7. Page de Connexion & Synchronisation Cloud (AuthModal)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wzAgjuNmZtc0/auth_connexion.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/auth_connexion.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/wIAHjJNPZw7O/auth_connexion.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/auth_connexion.png)
-
-### 8. Paramètres & Mémoire Personnelle (SettingsModal)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/wvASjwNkZeHB/settings_parametres.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/settings_parametres.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/whAijvNtZIy6/settings_parametres.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/settings_parametres.png)
-
-### 9. Banc de Test & Diagnostic IA Hybride (DiagnosticModal)
-- **Desktop (1440×900)** : [Ouvrir l'image](https://tmpfiles.org/w3AyjhNiZL5f/diagnostic_ia.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/desktop/diagnostic_ia.png)
-- **Mobile (390×844)** : [Ouvrir l'image](https://tmpfiles.org/wsAljMNUZaXZ/diagnostic_ia.png) | [Lien Permanent GitHub](https://raw.githubusercontent.com/Melnos/Elora/main/docs/screenshots/mobile/diagnostic_ia.png)
-
----
-
-## 📁 Accès Fichiers Locaux dans le Workspace
-
-- **Dossier Desktop :** [docs/screenshots/desktop/](file:///c:/Users/djima/Mel%20projet/Elora/docs/screenshots/desktop)
-- **Dossier Mobile :** [docs/screenshots/mobile/](file:///c:/Users/djima/Mel%20projet/Elora/docs/screenshots/mobile)
-- **Dossier Tests Viewports :** [docs/screenshots/tests/](file:///c:/Users/djima/Mel%20projet/Elora/docs/screenshots/tests)
+## 📌 Modifications Clés Apportées
+1. **Éradication totale des couleurs criardes et néons :** Suppression des halos `#FF6A00`, des bordures fluorescentes, des gradients violents et des pilules multicolores (vert/orange/bleu/violet dans Progress).
+2. **Palette feutrée Quiet Luxury :** Noir chaud profond `#0F0E0D`, surfaces `#181715`, élévations `#22201D`, bordures subtiles `#2B2824` et or ambré sobre `#C59A58`.
+3. **Refonte complète de l'Espace IA :**
+   - Mise en forme soignée du code avec coloration monochrome, nom du langage et bouton de copie avec retour d'état.
+   - Puces de prompts contextuels au-dessus du compositeur (`Guide Firebase AI Logic`, `Objectif Hackathon`, `Priorités Planner`).
+   - Badges discrets indiquant la provenance réelle du modèle (`Nano Local` vs `Cloud`).
+   - Alignement parfait du compositeur flottant et scrolling sans superposition sur mobile et desktop.
+4. **Refonte éditoriale de Home :** Structure asymétrique narrative centrée sur le grand briefing d'alignement, les priorités contextuelles et la trajectoire stratégique.
+5. **Harmonisation de Progress, Planner, Knowledge et Opportunities :** Nettoyage des bordures, typographie équilibrée, boutons sobres et formulaires parfaitement cadrés.

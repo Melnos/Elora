@@ -1,0 +1,50 @@
+{
+  "desktop/home.png": {
+    "pageUrl": "https://tmpfiles.org/wCAejOxgTglY/home.png",
+    "directUrl": "https://tmpfiles.org/dl/wCAejOxgTglY/home.png"
+  },
+  "desktop/ai.png": {
+    "pageUrl": "https://tmpfiles.org/wtAPj9x7TuVv/ai.png",
+    "directUrl": "https://tmpfiles.org/dl/wtAPj9x7TuVv/ai.png"
+  },
+  "desktop/progress.png": {
+    "pageUrl": "https://tmpfiles.org/wjASjExzTSHs/progress.png",
+    "directUrl": "https://tmpfiles.org/dl/wjASjExzTSHs/progress.png"
+  },
+  "desktop/planner.png": {
+    "pageUrl": "https://tmpfiles.org/w6Atj9x2TtdT/planner.png",
+    "directUrl": "https://tmpfiles.org/dl/w6Atj9x2TtdT/planner.png"
+  },
+  "desktop/knowledge.png": {
+    "pageUrl": "https://tmpfiles.org/wdAyjVxxTGWn/knowledge.png",
+    "directUrl": "https://tmpfiles.org/dl/wdAyjVxxTGWn/knowledge.png"
+  },
+  "desktop/opportunities.png": {
+    "pageUrl": "https://tmpfiles.org/w5AojPxETpbK/opportunities.png",
+    "directUrl": "https://tmpfiles.org/dl/w5AojPxETpbK/opportunities.png"
+  },
+  "mobile/home.png": {
+    "pageUrl": "https://tmpfiles.org/waAtjUx6T2Yv/home.png",
+    "directUrl": "https://tmpfiles.org/dl/waAtjUx6T2Yv/home.png"
+  },
+  "mobile/ai.png": {
+    "pageUrl": "https://tmpfiles.org/wWAzjcx9TwQb/ai.png",
+    "directUrl": "https://tmpfiles.org/dl/wWAzjcx9TwQb/ai.png"
+  },
+  "mobile/progress.png": {
+    "pageUrl": "https://tmpfiles.org/wfA3jrxETdRc/progress.png",
+    "directUrl": "https://tmpfiles.org/dl/wfA3jrxETdRc/progress.png"
+  },
+  "mobile/planner.png": {
+    "pageUrl": "https://tmpfiles.org/wXAejVxhTcm0/planner.png",
+    "directUrl": "https://tmpfiles.org/dl/wXAejVxhTcm0/planner.png"
+  },
+  "mobile/knowledge.png": {
+    "pageUrl": "https://tmpfiles.org/wjAEjyxKTmN1/knowledge.png",
+    "directUrl": "https://tmpfiles.org/dl/wjAEjyxKTmN1/knowledge.png"
+  },
+  "mobile/opportunities.png": {
+    "pageUrl": "https://tmpfiles.org/wzAmj5xDTS8M/opportunities.png",
+    "directUrl": "https://tmpfiles.org/dl/wzAmj5xDTS8M/opportunities.png"
+  }
+}

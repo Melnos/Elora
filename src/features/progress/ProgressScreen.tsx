@@ -207,7 +207,7 @@ export const ProgressScreen: React.FC = () => {
                         <div
                           className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                             m.completed
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
+                              ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white'
                               : 'border-[var(--color-border-strong)] bg-[var(--color-bg-base)]'
                           }`}
                         >
