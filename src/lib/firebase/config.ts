@@ -20,6 +20,28 @@ export const firebaseConfig = {
 
 // Initialisation idempotente du singleton FirebaseApp
 export function getFirebaseApp(): FirebaseApp {
+  // Bridge W3C / Chrome Prompt API pour Firebase AI Logic (ChromeAdapterImpl)
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win = window as any;
+    if (!win.LanguageModel && win.ai?.languageModel) {
+      win.LanguageModel = win.ai.languageModel;
+    }
+    if (win.LanguageModel && !win.LanguageModel.availability && win.LanguageModel.capabilities) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      win.LanguageModel.availability = async (options?: any) => {
+        try {
+          const caps = await win.LanguageModel.capabilities(options);
+          if (caps.available === 'readily') return 'available';
+          if (caps.available === 'after-download') return 'downloadable';
+          return 'unavailable';
+        } catch {
+          return 'unavailable';
+        }
+      };
+    }
+  }
+
   if (getApps().length > 0) {
     return getApp();
   }

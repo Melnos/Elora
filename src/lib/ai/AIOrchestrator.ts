@@ -114,6 +114,7 @@ export class AIOrchestrator {
         durationMs,
         timestamp,
         fallbackOccurred: !isLocal,
+        sdkProvider: 'firebase_ai_logic',
         fallbackReason: isLocal
           ? undefined
           : 'Moteur local non prêt ou conditions non satisfaites, Firebase AI Logic a utilisé le Cloud.',

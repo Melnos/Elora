@@ -46,29 +46,8 @@ export class CloudAIProvider {
       promptPayload = `${promptPayload}\n\n${attachmentContext}`;
     }
 
-    // 1. Si une clé API Gemini directe est fournie (recommandé et vérifié avec statut 200)
-    if (apiKey) {
-      try {
-        const restResult = await this.generateViaGeminiREST(promptPayload, apiKey, options);
-        const durationMs = Math.round(performance.now() - startTime);
-        return {
-          text: restResult.text,
-          metadata: {
-            source: 'in_cloud',
-            modeRequested: options.mode || 'only_in_cloud',
-            modelName: `Google Gemini (${restResult.modelVersion})`,
-            durationMs,
-            timestamp,
-            fallbackOccurred: false,
-            tokenCount: restResult.tokenCount,
-          },
-        };
-      } catch (geminiErr) {
-        console.warn('[CloudAIProvider] Échec Gemini REST, repli Firebase AI Logic :', geminiErr);
-      }
-    }
-
-    // 2. Repli / alternative : Firebase AI Logic (SDK officiel du hackathon)
+    // 1. Voie d'architecture principale : Firebase AI Logic (SDK Officiel du Hackathon #BuildHybridAI)
+    let firebaseError: Error | null = null;
     try {
       const ai = getFirebaseAI();
       const cloudModel = getGenerativeModel(ai, {
@@ -83,6 +62,7 @@ export class CloudAIProvider {
       });
 
       let text = '';
+      let certifiedSource: 'in_cloud' | 'on_device' = 'in_cloud';
 
       if (options.onStreamChunk) {
         const streamResult = await cloudModel.generateContentStream(promptPayload);
@@ -91,9 +71,16 @@ export class CloudAIProvider {
           text += chunkText;
           options.onStreamChunk(chunkText, text);
         }
+        const finalResp = await streamResult.response;
+        if (finalResp.inferenceSource === InferenceSource.ON_DEVICE) {
+          certifiedSource = 'on_device';
+        }
       } else {
         const result = await cloudModel.generateContent(promptPayload);
         text = result.response.text();
+        if (result.response.inferenceSource === InferenceSource.ON_DEVICE) {
+          certifiedSource = 'on_device';
+        }
       }
 
       const durationMs = Math.round(performance.now() - startTime);
@@ -101,18 +88,47 @@ export class CloudAIProvider {
       return {
         text,
         metadata: {
-          source: InferenceSource.IN_CLOUD ? 'in_cloud' : 'in_cloud',
+          source: certifiedSource,
           modeRequested: options.mode || 'only_in_cloud',
           modelName: 'Gemini 3.5 Flash Lite (Firebase AI Logic Cloud)',
           durationMs,
           timestamp,
           fallbackOccurred: false,
+          sdkProvider: 'firebase_ai_logic',
         },
       };
-    } catch (firebaseErr: unknown) {
-      const msg = firebaseErr instanceof Error ? firebaseErr.message : String(firebaseErr);
-      throw new Error(`[CloudAIProvider] Échec de l'appel Cloud : ${msg}`);
+    } catch (fbErr: unknown) {
+      firebaseError = fbErr instanceof Error ? fbErr : new Error(String(fbErr));
+      console.warn('[CloudAIProvider] Note Firebase AI Logic (backend/App Check) :', firebaseError.message);
     }
+
+    // 2. Filet de résilience en environnement de développement / test si une clé directe est fournie
+    if (apiKey) {
+      try {
+        const restResult = await this.generateViaGeminiREST(promptPayload, apiKey, options);
+        const durationMs = Math.round(performance.now() - startTime);
+        return {
+          text: restResult.text,
+          metadata: {
+            source: 'in_cloud',
+            modeRequested: options.mode || 'only_in_cloud',
+            modelName: `Google Gemini (${restResult.modelVersion}) [Repli Résilience]`,
+            durationMs,
+            timestamp,
+            fallbackOccurred: true,
+            fallbackReason: `Inférence Cloud via connecteur de secours (${firebaseError?.message || 'Firebase AI Logic hors portée'})`,
+            sdkProvider: 'gemini_direct_fallback',
+            tokenCount: restResult.tokenCount,
+          },
+        };
+      } catch (geminiErr) {
+        console.warn('[CloudAIProvider] Échec repli Gemini REST :', geminiErr);
+      }
+    }
+
+    throw new Error(
+      `[CloudAIProvider] Échec de l'appel Cloud : ${firebaseError?.message || "Impossible de contacter l'intelligence Cloud."}`
+    );
   }
 
   /**

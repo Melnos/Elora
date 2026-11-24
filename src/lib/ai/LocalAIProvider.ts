@@ -35,6 +35,7 @@ export class LocalAIProvider {
       });
 
       let text = '';
+      let certifiedSource: 'on_device' | 'in_cloud' = 'on_device';
       if (options.onStreamChunk) {
         const streamResult = await localModel.generateContentStream(promptPayload);
         for await (const chunk of streamResult.stream) {
@@ -42,9 +43,16 @@ export class LocalAIProvider {
           text += chunkText;
           options.onStreamChunk(chunkText, text);
         }
+        const finalResp = await streamResult.response;
+        if (finalResp.inferenceSource === InferenceSource.IN_CLOUD) {
+          certifiedSource = 'in_cloud';
+        }
       } else {
         const result = await localModel.generateContent(promptPayload);
         text = result.response.text();
+        if (result.response.inferenceSource === InferenceSource.IN_CLOUD) {
+          certifiedSource = 'in_cloud';
+        }
       }
 
       const durationMs = Math.round(performance.now() - startTime);
@@ -52,12 +60,13 @@ export class LocalAIProvider {
       return {
         text,
         metadata: {
-          source: InferenceSource.ON_DEVICE ? 'on_device' : 'on_device',
+          source: certifiedSource,
           modeRequested: options.mode || 'only_on_device',
           modelName: 'Gemini Nano (Firebase AI Logic On-Device)',
           durationMs,
           timestamp,
           fallbackOccurred: false,
+          sdkProvider: 'firebase_ai_logic',
         },
       };
     } catch (firebaseErr: unknown) {
@@ -116,6 +125,7 @@ export class LocalAIProvider {
               durationMs,
               timestamp,
               fallbackOccurred: false,
+              sdkProvider: 'chrome_prompt_api',
             },
           };
         } catch (directErr: unknown) {

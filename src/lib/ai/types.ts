@@ -34,6 +34,8 @@ export interface InferenceMetadata {
   fallbackOccurred: boolean;
   /** Détails éventuels sur le repli */
   fallbackReason?: string;
+  /** Fournisseur SDK d'exécution sous-jacent */
+  sdkProvider?: 'firebase_ai_logic' | 'gemini_direct_fallback' | 'chrome_prompt_api';
   /** Tokens consommés si disponibles */
   tokenCount?: {
     promptTokens?: number;
