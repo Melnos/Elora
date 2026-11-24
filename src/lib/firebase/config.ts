@@ -6,7 +6,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { initializeAppCheck, CustomProvider, type AppCheck } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from 'firebase/app-check';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 
 function readEnvVar(key: string, fallback: string): string {
@@ -59,33 +59,50 @@ export function getFirebaseFirestore(): Firestore {
   return firestoreInstance;
 }
 
-// App Check singleton
+export function isFirebaseConfigValid(): boolean {
+  return Boolean(
+    firebaseConfig.apiKey &&
+      firebaseConfig.apiKey !== 'AIzaSyDemoKeyForBuildHybridAIChallengeOnly1234' &&
+      firebaseConfig.projectId &&
+      firebaseConfig.appId &&
+      firebaseConfig.appId !== '1:123456789012:web:abcdef1234567890'
+  );
+}
+
+// App Check singleton (reCAPTCHA Enterprise + Debug Provider officiel en dev)
 let appCheckInstance: AppCheck | null = null;
 export function getFirebaseAppCheck(): AppCheck | null {
   if (typeof window === 'undefined') return null;
-  if (!appCheckInstance) {
-    try {
-      const app = getFirebaseApp();
-      // En environnement de dev ou hackathon, activer le debug token si disponible
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-      }
-      appCheckInstance = initializeAppCheck(app, {
-        provider: new CustomProvider({
-          getToken: () => {
-            return Promise.resolve({
-              token: 'elora-debug-app-check-token',
-              expireTimeMillis: Date.now() + 60 * 60 * 1000,
-            });
-          },
-        }),
-        isTokenAutoRefreshEnabled: true,
-      });
-    } catch {
-      // Si App Check a déjà été initialisé ou n'est pas requis en local
-    }
+  if (appCheckInstance) return appCheckInstance;
+
+  if (!isFirebaseConfigValid()) {
+    return null;
   }
+
+  const siteKey = readEnvVar('VITE_FIREBASE_APPCHECK_SITE_KEY', '').trim();
+  if (!siteKey || siteKey.startsWith('votre_')) {
+    // Aucune attestation simulée : si la clé de site reCAPTCHA Enterprise est absente, ne pas initialiser App Check.
+    return null;
+  }
+
+  try {
+    const app = getFirebaseApp();
+
+    // Mécanisme officiel Firebase App Check Debug Provider en développement local.
+    // Ne jamais hardcoder ni versionner le token de débogage.
+    if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+
+    appCheckInstance = initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(siteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    console.warn('[AppCheck] Initialisation impossible :', err instanceof Error ? err.message : String(err));
+  }
+
   return appCheckInstance;
 }
 
@@ -94,6 +111,7 @@ let aiInstance: AI | null = null;
 export function getFirebaseAI(): AI {
   if (!aiInstance) {
     const app = getFirebaseApp();
+    getFirebaseAppCheck();
     aiInstance = getAI(app, { backend: new GoogleAIBackend() });
   }
   return aiInstance;
