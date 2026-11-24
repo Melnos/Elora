@@ -172,11 +172,10 @@ export const HomeScreen: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
-                      <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                        t.priority === 'high'
-                          ? 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
-                          : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]'
-                      }`}>
+                      <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md uppercase tracking-wider ${t.priority === 'high'
+                        ? 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
+                        : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]'
+                        }`}>
                         {t.priority === 'high' ? 'Urgent' : 'Normal'}
                       </span>
 

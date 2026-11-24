@@ -8,7 +8,7 @@
  */
 
 import { CapabilityDetector } from './CapabilityDetector';
-import type { AIRequestOptions, InferenceMode } from './types';
+import type { AIRequestOptions, InferenceMode, CapabilityReport } from './types';
 
 export interface RouteDecision {
   /** Décision de ciblage : local ou cloud */
@@ -24,9 +24,10 @@ export interface RouteDecision {
 export class TaskRouter {
   /**
    * Évalue la requête et détermine la voie d'inférence optimale et conforme.
+   * Accepte un rapport de capacités injecté (pour tests unitaires et DI).
    */
-  public static async route(options: AIRequestOptions): Promise<RouteDecision> {
-    const caps = await CapabilityDetector.detect();
+  public static async route(options: AIRequestOptions, injectedCaps?: CapabilityReport): Promise<RouteDecision> {
+    const caps = injectedCaps || await CapabilityDetector.detect();
 
     // 1. Exigence stricte de confidentialité (Local-Only)
     if (options.localOnly || options.mode === 'only_on_device') {
@@ -73,26 +74,29 @@ export class TaskRouter {
       );
     }
 
-    // 4. Analyse de la tâche pour routage hybride intelligent (Principle 4: Local d'abord quand pertinent)
-    const isLightweightTask =
-      options.taskType === 'simple_summary' ||
-      (options.prompt.length < 300 && options.taskType !== 'complex_reasoning' && options.taskType !== 'multimodal');
+    // 4. Analyse de la tâche pour routage hybride intelligent
+    const isHeavyTask =
+      options.taskType === 'complex_reasoning' ||
+      options.taskType === 'multimodal' ||
+      options.taskType === 'heavy_reasoning' ||
+      (options.attachments && options.attachments.length > 0) ||
+      options.prompt.length > 2000;
 
-    if (isLightweightTask && caps.canRunLocal) {
+    if (isHeavyTask && caps.networkOnline) {
       return {
-        target: 'local',
-        effectiveMode: 'prefer_on_device',
-        reason: "Tâche légère : priorité à l'inférence locale pour rapidité, confidentialité et coût zéro.",
-        fallbackToCloudAllowed: true,
+        target: 'cloud',
+        effectiveMode: 'prefer_in_cloud',
+        reason: 'Tâche complexe ou volumineuse : routage vers l\'intelligence Cloud pour puissance et contexte étendu.',
+        fallbackToCloudAllowed: false,
       };
     }
 
-    // 5. Défaut en ligne : Firebase AI Logic en mode hybride PREFER_ON_DEVICE si local possible, sinon Cloud
+    // 5. Tâche éligible au traitement on-device : exécution locale via Gemini Nano
     if (caps.canRunLocal) {
       return {
         target: 'local',
         effectiveMode: 'prefer_on_device',
-        reason: 'Mode hybride : essai on-device en priorité avec bascule automatique vers le cloud si nécessaire.',
+        reason: "Tâche éligible au traitement on-device : exécution locale via Gemini Nano.",
         fallbackToCloudAllowed: true,
       };
     }

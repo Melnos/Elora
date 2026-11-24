@@ -18,12 +18,14 @@ export interface UserProfile {
 
 export interface MemoryItem {
   id: string;
-  category: 'preference' | 'objective' | 'skill' | 'habit' | 'context';
+  category: 'preference' | 'objective' | 'skill' | 'habit' | 'context' | 'profile' | 'knowledge' | 'project' | 'constraint';
   key: string;
   value: string;
   source: string;
   dateAdded: string;
   enabledForAI: boolean;
+  status?: 'active' | 'candidate' | 'archived';
+  userId?: string;
 }
 
 export interface TaskItem {

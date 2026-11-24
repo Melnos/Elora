@@ -61,7 +61,7 @@ export interface AIRequestOptions {
   /** Longueur maximale en tokens */
   maxOutputTokens?: number;
   /** Type de tâche (simple, reasoning, multimodale, etc.) */
-  taskType?: 'simple_summary' | 'chat' | 'complex_reasoning' | 'multimodal';
+  taskType?: 'simple_summary' | 'chat' | 'complex_reasoning' | 'multimodal' | 'heavy_reasoning' | 'lightweight';
   /** Callback optionnel pour le streaming temps réel */
   onStreamChunk?: (chunk: string, accumulated: string) => void;
   /** Fichiers ou pièces jointes (documents, code, texte) */

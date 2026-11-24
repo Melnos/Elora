@@ -26,7 +26,7 @@ export class CapabilityDetector {
    * Analyse complète et asynchrone des capacités du terminal client.
    */
   public static async detect(): Promise<CapabilityReport> {
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isChrome = /Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent);
     const win = (typeof window !== 'undefined' ? window : {}) as WindowWithAI;

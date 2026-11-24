@@ -3,18 +3,381 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Règle de sécurité stricte pour ELORA (#BuildHybridAI Hackathon) :
-    // Chaque utilisateur n'a accès qu'à son propre espace personnel isolé.
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Application: ELORA (Ethical Personal Intelligence Environment)
+    // Hackathon: #BuildHybridAI
+    // Architecture: Strict Per-User Data Isolation under /users/{userId}
+    //
+    // Collection: /users/{userId} (User root document)
+    // Document ID: userId (matches Firebase Auth UID)
+    // Fields:
+    //   - profile: map (optional) - User profile details:
+    //       * name: string (0..100)
+    //       * email: string (optional, 0..100)
+    //       * roleTitle: string (optional, 0..100)
+    //       * currentObjective: string (optional, 0..500)
+    //       * learningFocus: list of strings (optional, max 50 items)
+    //   - updatedAt: string or timestamp (optional)
+    //   - createdAt: string or timestamp (optional)
+    //   - uid: string (optional, must match userId)
+    //   - id: string (optional, must match userId)
+    //   - email: string (optional, 0..100)
+    //   - name: string (optional, 0..100)
+    //
+    // Collection: /users/{userId}/profile/{profileDoc} (Profile subcollection)
+    // Document ID: profileDoc (e.g. 'default')
+    // Fields:
+    //   - name: string (0..100)
+    //   - email: string (optional, 0..100)
+    //   - roleTitle: string (optional, 0..100)
+    //   - currentObjective: string (optional, 0..500)
+    //   - learningFocus: list of strings (optional, max 50 items)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/memories/{memoryId} (Personal Memories)
+    // Document ID: memoryId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - userId: string (optional, must match userId if present, immutable)
+    //   - category: string (required, in ['profile', 'preference', 'knowledge', 'objective', 'project', 'habit', 'constraint', 'context', 'skill'])
+    //   - key: string (required, 1..200)
+    //   - value: string (required, 1..5000)
+    //   - source: string (optional, 0..200)
+    //   - status: string (optional, 0..50)
+    //   - dateAdded: string (optional, 0..50)
+    //   - enabledForAI: bool (required)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/tasks/{taskId} (Planner Tasks)
+    // Document ID: taskId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - title: string (required, 1..300)
+    //   - description: string (optional, 0..2000)
+    //   - dueDate: string (optional, 0..100)
+    //   - priority: string (required, in ['high', 'medium', 'low'])
+    //   - completed: bool (required)
+    //   - category: string (optional, 0..100)
+    //   - goalId: string (optional, 0..100)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/goals/{goalId} (Goals & Milestones)
+    // Document ID: goalId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - title: string (required, 1..300)
+    //   - category: string (optional, 0..100)
+    //   - targetDate: string (optional, 0..100)
+    //   - progressPercentage: number (required, 0..100)
+    //   - milestones: list of maps (required, max 50 items)
+    //   - completed: bool (required)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/focusSessions/{sessionId} (Focus Timers)
+    // Document ID: sessionId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - goalTitle: string (optional, 0..300)
+    //   - durationMinutes: number (required, 0..1440)
+    //   - completedAt: string (optional, 0..100)
+    //   - notes: string (optional, 0..3000)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/knowledgeDocs/{docId} & /users/{userId}/knowledge/{docId}
+    // Document ID: docId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - title: string (required, 1..300)
+    //   - collection: string (optional, 0..100)
+    //   - type: string (required, in ['pdf', 'notes', 'course', 'research'])
+    //   - summary: string (optional, 0..5000)
+    //   - keyInsights: list of strings (optional, max 50 items)
+    //   - content: string (optional, 0..50000)
+    //   - addedAt: string (optional, 0..100)
+    //   - tags: list of strings (optional, max 30 items)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/conversations/{convId} (AI Conversations)
+    // Document ID: convId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - title: string (required, 1..300)
+    //   - lastActive: string (optional, 0..100)
+    //   - messages: list of chat messages (required, max 500 items)
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // ===============================================================
 
-      // Toutes les sous-collections (tasks, goals, focusSessions, memories, knowledge, conversations)
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Vérifie si l'utilisateur est authentifié avec Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Vérifie si l'utilisateur connecté est le propriétaire du chemin
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Vérifie qu'un champ optionnel de type chaîne respecte les bornes si présent
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+        (data[field] is string &&
+         data[field].size() >= minLen &&
+         data[field].size() <= maxLen);
+    }
+
+    // Vérifie qu'un champ optionnel est une chaîne bornée ou un timestamp Firestore
+    function isValidOptionalStringOrTimestamp(data, field, minLen, maxLen) {
+      return !(field in data) ||
+        data[field] is timestamp ||
+        (data[field] is string &&
+         data[field].size() >= minLen &&
+         data[field].size() <= maxLen);
+    }
+
+    // Vérifie qu'un champ requis de type chaîne respecte les bornes
+    function isValidRequiredString(data, field, minLen, maxLen) {
+      return (field in data) &&
+        data[field] is string &&
+        data[field].size() >= minLen &&
+        data[field].size() <= maxLen;
+    }
+
+    // Vérifie qu'un champ optionnel de type liste respecte la taille max si présent
+    function isValidOptionalList(data, field, maxSize) {
+      return !(field in data) ||
+        (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    // Empêche la modification de l'identifiant 'id' lors d'une mise à jour
+    function isIdUnchanged() {
+      return !('id' in request.resource.data) ||
+        resource == null ||
+        !('id' in resource.data) ||
+        request.resource.data.id == resource.data.id;
+    }
+
+    // Empêche la modification de l'assignation de 'userId' lors d'une mise à jour
+    function isMemoryUserIdUnchanged() {
+      return !('userId' in request.resource.data) ||
+        resource == null ||
+        !('userId' in resource.data) ||
+        request.resource.data.userId == resource.data.userId;
+    }
+
+    // ===============================================================
+    // Domain Validators (Utilisés pour create ET update)
+    // ===============================================================
+
+    // Validateur pour le document utilisateur racine (/users/{userId})
+    function isValidUserRoot(data, userId) {
+      return data is map &&
+        data.keys().hasOnly(['profile', 'updatedAt', 'createdAt', 'uid', 'id', 'email', 'name']) &&
+        (!('profile' in data) || isValidProfileMap(data.profile)) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        (!('uid' in data) || data.uid == userId) &&
+        (!('id' in data) || data.id == userId) &&
+        isValidOptionalString(data, 'email', 0, 100) &&
+        isValidOptionalString(data, 'name', 0, 100);
+    }
+
+    // Validateur pour l'objet de profil utilisateur
+    function isValidProfileMap(data) {
+      return data is map &&
+        data.keys().hasOnly(['name', 'email', 'roleTitle', 'currentObjective', 'learningFocus', 'createdAt', 'updatedAt']) &&
+        isValidOptionalString(data, 'name', 0, 100) &&
+        isValidOptionalString(data, 'email', 0, 100) &&
+        isValidOptionalString(data, 'roleTitle', 0, 100) &&
+        isValidOptionalString(data, 'currentObjective', 0, 500) &&
+        isValidOptionalList(data, 'learningFocus', 50) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour une mémoire personnelle (Memories)
+    function isValidMemory(data, userId) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'userId', 'category', 'key', 'value', 'source', 'status', 'dateAdded', 'enabledForAI', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        (!('userId' in data) || data.userId == userId) &&
+        (data.category in ['profile', 'preference', 'knowledge', 'objective', 'project', 'habit', 'constraint', 'context', 'skill']) &&
+        isValidRequiredString(data, 'key', 1, 200) &&
+        isValidRequiredString(data, 'value', 1, 5000) &&
+        isValidOptionalString(data, 'source', 0, 200) &&
+        isValidOptionalString(data, 'status', 0, 50) &&
+        isValidOptionalString(data, 'dateAdded', 0, 50) &&
+        (data.enabledForAI is bool) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour une tâche du planificateur (Tasks)
+    function isValidTask(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'title', 'description', 'dueDate', 'priority', 'completed', 'category', 'goalId', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidRequiredString(data, 'title', 1, 300) &&
+        isValidOptionalString(data, 'description', 0, 2000) &&
+        isValidOptionalString(data, 'dueDate', 0, 100) &&
+        (data.priority in ['high', 'medium', 'low']) &&
+        (data.completed is bool) &&
+        isValidOptionalString(data, 'category', 0, 100) &&
+        isValidOptionalString(data, 'goalId', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour un objectif (Goals)
+    function isValidGoal(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'title', 'category', 'targetDate', 'progressPercentage', 'milestones', 'completed', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidRequiredString(data, 'title', 1, 300) &&
+        isValidOptionalString(data, 'category', 0, 100) &&
+        isValidOptionalString(data, 'targetDate', 0, 100) &&
+        (data.progressPercentage is number) &&
+        data.progressPercentage >= 0 &&
+        data.progressPercentage <= 100 &&
+        (data.milestones is list) &&
+        data.milestones.size() <= 50 &&
+        (data.completed is bool) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour une session de concentration (FocusSessions)
+    function isValidFocusSession(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'goalTitle', 'durationMinutes', 'completedAt', 'notes', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidOptionalString(data, 'goalTitle', 0, 300) &&
+        (data.durationMinutes is number) &&
+        data.durationMinutes >= 0 &&
+        data.durationMinutes <= 1440 &&
+        isValidOptionalString(data, 'completedAt', 0, 100) &&
+        isValidOptionalString(data, 'notes', 0, 3000) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour un document de connaissances (KnowledgeDocs)
+    function isValidKnowledgeDoc(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'title', 'collection', 'type', 'summary', 'keyInsights', 'content', 'addedAt', 'tags', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidRequiredString(data, 'title', 1, 300) &&
+        isValidOptionalString(data, 'collection', 0, 100) &&
+        (data.type in ['pdf', 'notes', 'course', 'research']) &&
+        isValidOptionalString(data, 'summary', 0, 5000) &&
+        isValidOptionalList(data, 'keyInsights', 50) &&
+        isValidOptionalString(data, 'content', 0, 50000) &&
+        isValidOptionalString(data, 'addedAt', 0, 100) &&
+        isValidOptionalList(data, 'tags', 30) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // Validateur pour une conversation avec l'IA (Conversations)
+    function isValidConversation(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'title', 'lastActive', 'messages', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidRequiredString(data, 'title', 1, 300) &&
+        isValidOptionalString(data, 'lastActive', 0, 100) &&
+        (data.messages is list) &&
+        data.messages.size() <= 500 &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
+    // ===============================================================
+    // Règles d'accès Firestore
+    // ===============================================================
+
+    // ---------------------------------------------------------------
+    // Espace Utilisateur Isolé : /users/{userId}
+    // Conforme à la politique "Zero-Trust" et "Least Privilege"
+    // ---------------------------------------------------------------
+    match /users/{userId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserRoot(request.resource.data, userId);
+      allow update: if isOwner(userId) && isValidUserRoot(request.resource.data, userId);
+
+      // Profil (sous-collection éventuelle /users/{userId}/profile/{profileDoc})
+      match /profile/{profileDoc} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidProfileMap(request.resource.data);
+        allow update: if isOwner(userId) && isValidProfileMap(request.resource.data);
+      }
+
+      // Mémoires personnelles (/users/{userId}/memories/{memoryId})
+      match /memories/{memoryId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMemory(request.resource.data, userId);
+        allow update: if isOwner(userId) && isIdUnchanged() && isMemoryUserIdUnchanged() && isValidMemory(request.resource.data, userId);
+      }
+
+      // Tâches du planificateur (/users/{userId}/tasks/{taskId})
+      match /tasks/{taskId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTask(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidTask(request.resource.data);
+      }
+
+      // Objectifs et jalons (/users/{userId}/goals/{goalId})
+      match /goals/{goalId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidGoal(request.resource.data);
+      }
+
+      // Sessions Focus (/users/{userId}/focusSessions/{sessionId})
+      match /focusSessions/{sessionId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFocusSession(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidFocusSession(request.resource.data);
+      }
+
+      // Connaissances & Documents (/users/{userId}/knowledgeDocs/{docId})
+      match /knowledgeDocs/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidKnowledgeDoc(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidKnowledgeDoc(request.resource.data);
+      }
+
+      // Alias collection 'knowledge' (utilisée par le service existant)
+      match /knowledge/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidKnowledgeDoc(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidKnowledgeDoc(request.resource.data);
+      }
+
+      // Conversations IA (/users/{userId}/conversations/{convId})
+      match /conversations/{convId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidConversation(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidConversation(request.resource.data);
       }
     }
 
-    // Interdiction par défaut de tout accès public ou non autorisé
+    // ---------------------------------------------------------------
+    // Règle par défaut (Default Deny) : Tout autre chemin est strictement interdit
+    // ---------------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }

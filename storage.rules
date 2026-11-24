@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// ===============================================================
+// ELORA - Firebase Cloud Storage Security Rules
+// Hackathon: #BuildHybridAI
+// Architecture: Strict Per-User File Isolation under users/{userId}/
+// ===============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Limite de taille de fichier pour prévenir les attaques DoS / épuisement de stockage (max 50 Mo)
+    function isValidFileSize() {
+      return request.resource == null || request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    // Types MIME acceptés pour les documents, images, audio et notes d'ELORA
+    function isValidContentType() {
+      return request.resource == null ||
+        request.resource.contentType.matches('image/.*') ||
+        request.resource.contentType.matches('application/pdf') ||
+        request.resource.contentType.matches('text/.*') ||
+        request.resource.contentType.matches('audio/.*') ||
+        request.resource.contentType.matches('application/json');
+    }
+
+    // ---------------------------------------------------------------
+    // Espace de stockage isolé par utilisateur : users/{userId}/{allPaths=**}
+    // ---------------------------------------------------------------
+    match /users/{userId}/{allPaths=**} {
+      // Lecture et téléchargement autorisés uniquement pour l'utilisateur propriétaire
+      allow read: if isOwner(userId);
+
+      // Création et mise à jour de fichiers autorisées uniquement pour l'utilisateur propriétaire avec validation
+      allow create, update: if isOwner(userId) && isValidFileSize() && isValidContentType();
+
+      // Suppression autorisée uniquement pour l'utilisateur propriétaire
+      allow delete: if isOwner(userId);
+    }
+
+    // ---------------------------------------------------------------
+    // Règle par défaut (Default Deny) : Tout accès public ou hors users/ est interdit
+    // ---------------------------------------------------------------
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
