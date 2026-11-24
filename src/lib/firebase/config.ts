@@ -44,6 +44,7 @@ let authInstance: Auth | null = null;
 export function getFirebaseAuth(): Auth {
   if (!authInstance) {
     const app = getFirebaseApp();
+    getFirebaseAppCheck();
     authInstance = getAuth(app);
   }
   return authInstance;
@@ -54,6 +55,7 @@ let firestoreInstance: Firestore | null = null;
 export function getFirebaseFirestore(): Firestore {
   if (!firestoreInstance) {
     const app = getFirebaseApp();
+    getFirebaseAppCheck();
     firestoreInstance = getFirestore(app);
   }
   return firestoreInstance;
