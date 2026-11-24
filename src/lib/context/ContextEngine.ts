@@ -2,12 +2,13 @@
  * ELORA Context Engine
  * Service central d'intelligence transversale et de résolution contextuelle.
  *
- * Responsabilités :
+ * Responsabilités & Précisions méthodologiques (Phase 6) :
  * 1. Rapprocher les entités des six espaces (Home, AI, Knowledge, Planner, Opportunities, Progress).
  * 2. Sélectionner les données strictement utiles et autorisées selon la requête.
- * 3. Éviter la saturation du contexte par un scoring de pertinence sémantique.
+ * 3. Filtrage par recherche lexicale tokenisée, pondération multicritère (titre, tags, collection, statut)
+ *    et seuillage de pertinence pour éviter la saturation du contexte (sans prétendre à un embedding vectoriel dense).
  * 4. Identifier les relations explicites (Documents <-> Projets <-> Objectifs <-> Tâches).
- * 5. Conserver la traçabilité des sources et proposer des actions contrôlées par l'utilisateur.
+ * 5. Conserver la traçabilité des sources, distinguer faits/déductions/lacunes, et proposer des actions contrôlées par l'utilisateur.
  */
 
 import type {
@@ -28,6 +29,7 @@ import type {
   ProposedAction,
 } from './types';
 import { MemoryService } from '../memory/MemoryService';
+import { ActionEngine } from '../actions/ActionEngine';
 
 export class ContextEngine {
   /**
@@ -159,22 +161,13 @@ export class ContextEngine {
       docs: relevantDocs,
     });
 
-    // 6. Détection de propositions d'actions proactives sans exécution aveugle
+    // 6. Détection de propositions d'actions proactives fiabilisées (Zéro J+2 arbitraire)
     if (query.allowProposedActions) {
-      if (promptLower.includes('tâche') || promptLower.includes('todo') || promptLower.includes('faire')) {
-        proposedActions.push({
-          id: `act_${Date.now()}_task`,
-          type: 'create_task',
-          title: 'Créer une tâche associée',
-          description: `Ajouter une tâche au planificateur en lien avec votre demande : "${prompt.slice(0, 50)}..."`,
-          payload: {
-            title: prompt.slice(0, 80),
-            priority: 'medium',
-            dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-            goalId: relevantGoals[0]?.id,
-          },
-          status: 'pending',
-        });
+      const proactiveAction = ActionEngine.extractProactiveAction(prompt, {
+        goals: relevantGoals,
+      });
+      if (proactiveAction) {
+        proposedActions.push(proactiveAction);
       }
     }
 
@@ -388,11 +381,13 @@ export class ContextEngine {
     }
 
     sections.push(
-      `\n### [CONSIGNES DE RAISONNEMENT]`,
-      `- Exploite ces relations pour fournir une réponse connectée et précise.`,
-      `- Cite expressément les identifiants de source (ex: [Doc #${data.docs[0]?.id || '...'}], [Tâche #${data.tasks[0]?.id || '...'}]) quand tu tires une information d'un document ou d'une tâche.`,
-      `- Toute information incertaine ou hypothétique doit être expressément formulée comme une suggestion.`,
-      `- Ne propose aucune modification destructive ou automatique sans confirmation explicite.`
+      `\n### [CONSIGNES DE RAISONNEMENT & EXIGENCES DE VÉRITÉ (PHASE 6)]`,
+      `- **Faits établis** : Appuie-toi rigoureusement sur les faits avérés ci-dessus (tâches, jalons d'objectifs, documents Knowledge et mémoires actives).`,
+      `- **Déductions & Hypothèses** : Distingue expressément ce qui est prouvé de ce qui est déduit. Formule toute analyse déductive au conditionnel ou en tant qu'hypothèse.`,
+      `- **Informations manquantes** : Si un paramètre clé fait défaut (ex: échéance précise, détail de mise en œuvre, identifiant manquant), signale-le ouvertement et demande une précision au lieu d'extrapoler ou d'inventer des contraintes arbitraires.`,
+      `- **Traçabilité stricte** : Cite expressément les identifiants de source (ex: [Doc #${data.docs[0]?.id || '...'}], [Tâche #${data.tasks[0]?.id || '...'}], [Objectif #${data.goals[0]?.id || '...'}]) dès qu'une information en est issue.`,
+      `- **Zéro hallucination de source** : Ne cite JAMAIS un document, une tâche ou un objectif qui n'apparaît pas explicitement dans ce contexte résolu.`,
+      `- **Non-destructivité** : Ne propose et n'exécute aucune modification sans approbation formelle de l'utilisateur.`
     );
 
     return sections.join('\n');

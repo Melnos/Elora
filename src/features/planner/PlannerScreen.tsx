@@ -97,7 +97,7 @@ export const PlannerScreen: React.FC = () => {
 
     addTask({
       title: quickTitle.trim(),
-      dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+      dueDate: new Date().toISOString().split('T')[0], // Échéance du jour par défaut pour une action rapide
       priority: quickPriority,
       completed: false,
       category: 'Projet',

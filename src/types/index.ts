@@ -99,11 +99,15 @@ export interface ChatMessageSource {
 
 export interface ChatProposedAction {
   id: string;
-  type: 'create_task' | 'complete_milestone' | 'validate_memory' | 'update_goal';
+  type: 'create_task' | 'complete_milestone' | 'validate_memory' | 'update_goal' | 'add_knowledge_doc';
   title: string;
   description: string;
   payload: Record<string, unknown>;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'executing' | 'accepted' | 'rejected' | 'failed';
+  errorMessage?: string;
+  missingFields?: string[];
+  isDestructive?: boolean;
+  executedAt?: string;
 }
 
 export interface ChatMessage {

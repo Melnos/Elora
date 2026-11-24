@@ -20,6 +20,7 @@ import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
 import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment } from '../lib/ai/types';
 import { ContextEngine } from '../lib/context/ContextEngine';
 import type { HomeBriefing, ProposedAction } from '../lib/context/types';
+import { ActionEngine } from '../lib/actions/ActionEngine';
 import { subscribeToAuthState, logoutUser, getSavedAuthSession } from '../lib/firebase/auth';
 import {
   syncUserProfile,
@@ -95,9 +96,9 @@ interface AppContextType {
   toggleSaveOpportunity: (id: string) => void;
   addOpportunityToPlanner: (opp: OpportunityItem) => void;
 
-  // Intelligence Transversale & Briefing (ContextEngine)
+  // Intelligence Transversale & Briefing (ContextEngine & ActionEngine)
   homeBriefing: HomeBriefing;
-  executeProposedAction: (action: ProposedAction, messageId?: string) => void;
+  executeProposedAction: (action: ProposedAction, messageId?: string) => Promise<void>;
   rejectProposedAction: (actionId: string, messageId?: string) => void;
 
   // Conversations IA
@@ -492,38 +493,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     [profile, memories, opportunities]
   );
 
-  // Exécution d'une action transversale proposée (sur validation explicite)
-  const executeProposedAction = (action: ProposedAction, messageId?: string) => {
-    if (action.type === 'create_task') {
-      const p = action.payload as {
-        title?: string;
-        dueDate?: string;
-        priority?: 'high' | 'medium' | 'low';
-        category?: string;
-        goalId?: string;
-      };
-      addTask({
-        title: p.title || action.title,
-        dueDate: p.dueDate || new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-        priority: p.priority || 'medium',
-        completed: false,
-        category: p.category || 'Projet',
-        goalId: p.goalId,
-      });
-    } else if (action.type === 'complete_milestone') {
-      const p = action.payload as { goalId: string; milestoneId: string };
-      if (p.goalId && p.milestoneId) {
-        toggleMilestone(p.goalId, p.milestoneId);
-      }
-    } else if (action.type === 'validate_memory') {
-      const p = action.payload as { id: string };
-      if (p.id && currentUser) {
-        MemoryService.updateMemory(currentUser.uid, p.id, { status: 'active', enabledForAI: true });
-        setMemories(MemoryService.getMemories(currentUser.uid));
-      }
-    }
-
-    // Mise à jour du statut de l'action dans les conversations
+  // Exécution d'une action transversale fiabilisée par ActionEngine (Phase 6)
+  const executeProposedAction = async (action: ProposedAction, messageId?: string) => {
+    // 1. Verrouillage UI immédiat en statut 'executing' (anti-double-clic)
     setConversations((prev) => {
       const next = prev.map((c) => {
         if (c.id !== currentConversationId) return c;
@@ -535,7 +507,86 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return {
               ...m,
               proposedActions: m.proposedActions.map((pa) =>
-                pa.id === action.id ? { ...pa, status: 'accepted' as const } : pa
+                pa.id === action.id ? { ...pa, status: 'executing' as const } : pa
+              ),
+            };
+          }),
+        };
+      });
+      return next;
+    });
+
+    // 2. Exécution sécurisée avec validation de schéma et persistance vérifiée
+    const result = await ActionEngine.execute(action, {
+      userId: currentUser?.uid,
+      tasks,
+      goals,
+      docs: knowledgeDocs,
+      memories,
+      onAddTask: async (taskData) => {
+        const id = `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const newTask: TaskItem = { id, ...taskData };
+        setTasks((prev) => {
+          const updated = [newTask, ...prev];
+          EloraDB.saveTasks(updated);
+          return updated;
+        });
+        if (currentUser) {
+          await saveUserTask(currentUser.uid, newTask);
+        }
+        return id;
+      },
+      onToggleMilestone: async (goalId, milestoneId) => {
+        toggleMilestone(goalId, milestoneId);
+      },
+      onValidateMemory: async (memoryId) => {
+        if (currentUser) {
+          MemoryService.updateMemory(currentUser.uid, memoryId, { status: 'active', enabledForAI: true });
+          const mems = MemoryService.getMemories(currentUser.uid);
+          setMemories(mems);
+          const validated = mems.find((m) => m.id === memoryId);
+          if (validated) await saveUserMemory(currentUser.uid, validated);
+        }
+      },
+      onAddKnowledgeDoc: async (docData) => {
+        const id = `doc_${Date.now()}`;
+        const newDoc: KnowledgeDoc = {
+          id,
+          addedAt: new Date().toISOString().split('T')[0],
+          ...docData,
+        };
+        setKnowledgeDocs((prev) => {
+          const updated = [newDoc, ...prev];
+          EloraDB.saveKnowledge(updated);
+          return updated;
+        });
+        if (currentUser) {
+          await saveUserKnowledgeDoc(currentUser.uid, newDoc);
+        }
+        return id;
+      },
+    });
+
+    // 3. Acter le statut final (accepted ou failed avec message d'erreur précis)
+    setConversations((prev) => {
+      const next = prev.map((c) => {
+        if (c.id !== currentConversationId) return c;
+        return {
+          ...c,
+          messages: c.messages.map((m) => {
+            if (messageId && m.id !== messageId) return m;
+            if (!m.proposedActions) return m;
+            return {
+              ...m,
+              proposedActions: m.proposedActions.map((pa) =>
+                pa.id === action.id
+                  ? {
+                      ...pa,
+                      status: result.status,
+                      errorMessage: result.errorMessage,
+                      executedAt: result.success ? new Date().toISOString() : undefined,
+                    }
+                  : pa
               ),
             };
           }),

@@ -22,6 +22,8 @@ import {
   Cloud,
   Trash2,
   Edit3,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import type { AIRequestAttachment } from '../../lib/ai/types';
 
@@ -602,11 +604,30 @@ export const AIScreen: React.FC = () => {
                                       {pa.status === 'accepted' ? (
                                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                                           <Check size={12} />
-                                          <span>Action validée</span>
+                                          <span>Action exécutée et persistée</span>
                                         </span>
+                                      ) : pa.status === 'executing' ? (
+                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-accent)] bg-[var(--color-accent-bg)] px-2.5 py-1 rounded-lg border border-[var(--color-accent)]/20 animate-pulse">
+                                          <Loader2 size={12} className="animate-spin" />
+                                          <span>Exécution en cours...</span>
+                                        </span>
+                                      ) : pa.status === 'failed' ? (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20" title={pa.errorMessage}>
+                                            <AlertCircle size={12} />
+                                            <span className="truncate max-w-[150px]">{pa.errorMessage || 'Échec'}</span>
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="px-2 py-0.5 rounded-lg text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] transition-colors cursor-pointer"
+                                            onClick={() => executeProposedAction(pa, msg.id)}
+                                          >
+                                            Réessayer
+                                          </button>
+                                        </div>
                                       ) : pa.status === 'rejected' ? (
                                         <span className="text-[11px] text-[var(--color-text-muted)] italic px-2 py-1">
-                                          Ignorée
+                                          Action ignorée
                                         </span>
                                       ) : (
                                         <>
@@ -622,6 +643,7 @@ export const AIScreen: React.FC = () => {
                                             type="button"
                                             className="px-2 py-1 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
                                             onClick={() => rejectProposedAction(pa.id, msg.id)}
+                                            title="Ignorer l'action"
                                           >
                                             <X size={12} />
                                           </button>

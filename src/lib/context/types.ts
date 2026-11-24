@@ -10,6 +10,8 @@ import type {
   GoalItem,
   KnowledgeDoc,
 } from '../../types';
+import type { ProposedAction, ActionStatus, ActionType } from '../actions/types';
+export type { ProposedAction, ActionStatus, ActionType };
 
 export type ContextScope =
   | 'profile'
@@ -42,15 +44,6 @@ export interface ReferencedSource {
   title: string;
   category?: string;
   snippet?: string;
-}
-
-export interface ProposedAction {
-  id: string;
-  type: 'create_task' | 'complete_milestone' | 'validate_memory' | 'update_goal';
-  title: string;
-  description: string;
-  payload: Record<string, unknown>;
-  status: 'pending' | 'accepted' | 'rejected';
 }
 
 export interface ResolvedContext {
