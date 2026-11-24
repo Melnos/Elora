@@ -1,10 +1,15 @@
 /**
  * ELORA - LocalAIProvider
- * Fournisseur d'inférence purement locale via Firebase AI Logic (InferenceMode.ONLY_ON_DEVICE)
- * et Chrome Prompt API (Gemini Nano).
+ * Fournisseur d'inférence purement locale via Firebase AI Logic (InferenceMode.ONLY_ON_DEVICE).
  *
- * RÈGLE D'OR : Si le modèle local est absent, ne jamais simuler une réponse factice.
- * Rejeter honnêtement avec une erreur explicite.
+ * Contrat officiel @firebase/ai@3.1.0 :
+ * - Nécessite globalThis.LanguageModel / window.LanguageModel (Chrome Built-in AI / Gemini Nano)
+ * - Génération à un seul tour (single-turn) via ChromeAdapterImpl
+ *
+ * RÈGLE D'OR :
+ * - Si LanguageModel est absent, ne JAMAIS appeler getGenerativeModel (car @firebase/ai@3.1.0
+ *   tenterait un appel Cloud si chromeAdapter est undefined) et ne JAMAIS simuler de réponse.
+ * - Zéro appel direct contournant Firebase AI Logic.
  */
 
 import { getGenerativeModel, InferenceMode, InferenceSource } from 'firebase/ai';
@@ -13,11 +18,34 @@ import type { AIRequestOptions, AIResponse } from './types';
 
 export class LocalAIProvider {
   /**
-   * Exécute une requête strictement locale.
+   * Vérifie la présence du contrat officiel LanguageModel attendu par @firebase/ai@3.1.0.
+   */
+  public static hasOfficialLanguageModel(): boolean {
+    const globalLM =
+      typeof globalThis !== 'undefined'
+        ? (globalThis as unknown as { LanguageModel?: { availability?: unknown; create?: unknown } }).LanguageModel
+        : undefined;
+    const winLM =
+      typeof window !== 'undefined'
+        ? (window as unknown as { LanguageModel?: { availability?: unknown; create?: unknown } }).LanguageModel
+        : undefined;
+    const lm = globalLM || winLM;
+    return Boolean(lm && typeof lm.availability === 'function' && typeof lm.create === 'function');
+  }
+
+  /**
+   * Exécute une requête strictement locale via Firebase AI Logic Hybrid Inference (ONLY_ON_DEVICE).
    */
   public async generate(options: AIRequestOptions): Promise<AIResponse> {
     const startTime = performance.now();
     const timestamp = new Date().toISOString();
+
+    // Garde absolu anti-fuite Cloud : si LanguageModel est absent, rejeter AVANT tout appel SDK
+    if (!LocalAIProvider.hasOfficialLanguageModel()) {
+      throw new Error(
+        "[LocalAIProvider] Inférence locale impossible : l'API officielle LanguageModel (Gemini Nano) n'est pas disponible sur cet appareil. Aucun transfert Cloud effectué."
+      );
+    }
 
     let promptPayload = options.prompt;
     if (options.attachments && options.attachments.length > 0) {
@@ -27,7 +55,6 @@ export class LocalAIProvider {
       promptPayload = `${promptPayload}\n\n${attachmentContext}`;
     }
 
-    // 1. Tenter via Firebase AI Logic avec ONLY_ON_DEVICE
     try {
       const ai = getFirebaseAI();
       const localModel = getGenerativeModel(ai, {
@@ -35,7 +62,8 @@ export class LocalAIProvider {
       });
 
       let text = '';
-      let certifiedSource: 'on_device' | 'in_cloud' = 'on_device';
+      let rawSource: InferenceSource | undefined;
+
       if (options.onStreamChunk) {
         const streamResult = await localModel.generateContentStream(promptPayload);
         for await (const chunk of streamResult.stream) {
@@ -44,15 +72,17 @@ export class LocalAIProvider {
           options.onStreamChunk(chunkText, text);
         }
         const finalResp = await streamResult.response;
-        if (finalResp.inferenceSource === InferenceSource.IN_CLOUD) {
-          certifiedSource = 'in_cloud';
-        }
+        rawSource = finalResp.inferenceSource;
       } else {
         const result = await localModel.generateContent(promptPayload);
         text = result.response.text();
-        if (result.response.inferenceSource === InferenceSource.IN_CLOUD) {
-          certifiedSource = 'in_cloud';
-        }
+        rawSource = result.response.inferenceSource;
+      }
+
+      if (rawSource !== InferenceSource.ON_DEVICE) {
+        throw new Error(
+          `[LocalAIProvider] Violation de politique locale : le SDK a rapporté inferenceSource="${String(rawSource)}" au lieu de "on_device".`
+        );
       }
 
       const durationMs = Math.round(performance.now() - startTime);
@@ -60,7 +90,7 @@ export class LocalAIProvider {
       return {
         text,
         metadata: {
-          source: certifiedSource,
+          source: 'on_device',
           modeRequested: options.mode || 'only_on_device',
           modelName: 'Gemini Nano (Firebase AI Logic On-Device)',
           durationMs,
@@ -70,83 +100,9 @@ export class LocalAIProvider {
         },
       };
     } catch (firebaseErr: unknown) {
-      // 2. Tenter un appel direct à l'API Chrome Prompt API (Gemini Nano natif)
-      const globalAI = typeof globalThis !== 'undefined'
-        ? (globalThis as unknown as { ai?: { languageModel?: any } }).ai
-        : undefined;
-      const winAI = typeof window !== 'undefined'
-        ? (window as unknown as { ai?: { languageModel?: any; assistant?: any } }).ai
-        : undefined;
-      const lm = globalAI?.languageModel || winAI?.languageModel || winAI?.assistant;
-
-      if (lm && typeof lm.create === 'function') {
-        let session: any = null;
-        try {
-          session = await lm.create({
-            temperature: options.temperature ?? 0.7,
-            topK: 3,
-          });
-
-          let text = '';
-
-          if (options.onStreamChunk && typeof session.promptStreaming === 'function') {
-            const stream = session.promptStreaming(promptPayload);
-            // Support AsyncIterable et ReadableStream natif Chrome
-            if (stream && typeof stream[Symbol.asyncIterator] === 'function') {
-              for await (const chunk of stream) {
-                // Dans Chrome Prompt API, chaque chunk émis est le texte cumulé complet
-                text = typeof chunk === 'string' ? chunk : String(chunk);
-                options.onStreamChunk(text, text);
-              }
-            } else if (stream && typeof stream.getReader === 'function') {
-              const reader = stream.getReader();
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                text = typeof value === 'string' ? value : String(value);
-                options.onStreamChunk(text, text);
-              }
-            } else {
-              text = await session.prompt(promptPayload);
-              options.onStreamChunk(text, text);
-            }
-          } else {
-            text = await session.prompt(promptPayload);
-          }
-
-          const durationMs = Math.round(performance.now() - startTime);
-
-          return {
-            text,
-            metadata: {
-              source: 'on_device',
-              modeRequested: options.mode || 'only_on_device',
-              modelName: 'Gemini Nano (Chrome Built-in Prompt API)',
-              durationMs,
-              timestamp,
-              fallbackOccurred: false,
-              sdkProvider: 'chrome_prompt_api',
-            },
-          };
-        } catch (directErr: unknown) {
-          const errDetail = directErr instanceof Error ? directErr.message : String(directErr);
-          throw new Error(
-            `[LocalAIProvider] Échec d'exécution sur le moteur local Gemini Nano : ${errDetail}`
-          );
-        } finally {
-          // Libération obligatoire des ressources VRAM / GPU de la session
-          if (session && typeof session.destroy === 'function') {
-            try {
-              session.destroy();
-            } catch {}
-          }
-        }
-      }
-
-      // Si le modèle est absent, NE JAMAIS simuler une fausse réponse
       const baseDetail = firebaseErr instanceof Error ? firebaseErr.message : String(firebaseErr);
       throw new Error(
-        `[LocalAIProvider] Inférence locale impossible : aucun modèle Gemini Nano actif n'est disponible sur cet appareil. (${baseDetail})`
+        `[LocalAIProvider] Inférence locale Firebase AI Logic indisponible ou échouée : ${baseDetail}`
       );
     }
   }

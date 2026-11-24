@@ -14,6 +14,7 @@ interface ChromeLanguageModel {
 }
 
 interface WindowWithAI extends Window {
+  LanguageModel?: ChromeLanguageModel;
   ai?: {
     languageModel?: ChromeLanguageModel;
     assistant?: ChromeLanguageModel;
@@ -29,11 +30,14 @@ export class CapabilityDetector {
     const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isChrome = /Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent);
-    const globalAI = typeof globalThis !== 'undefined' ? (globalThis as unknown as WindowWithAI).ai : undefined;
+    const globalObj = typeof globalThis !== 'undefined' ? (globalThis as unknown as WindowWithAI) : undefined;
+    const globalAI = globalObj?.ai;
     const win = (typeof window !== 'undefined' ? window : {}) as WindowWithAI;
 
-    // Détection du fournisseur de modèle on-device (support des spécifications Chrome 127 à 131+)
-    const lmProvider = globalAI?.languageModel || win.ai?.languageModel || win.ai?.assistant || win.model;
+    // Contrat officiel @firebase/ai@3.1.0 : globalThis.LanguageModel / window.LanguageModel
+    const officialLanguageModel = globalObj?.LanguageModel || win.LanguageModel;
+    const legacyPromptAPI = globalAI?.languageModel || win.ai?.languageModel || win.ai?.assistant || win.model;
+    const lmProvider = officialLanguageModel || legacyPromptAPI;
 
     let onDeviceStatus: OnDeviceAvailability = 'unsupported';
     let onDeviceDetails = 'API on-device non détectée dans cet environnement.';
@@ -61,9 +65,9 @@ export class CapabilityDetector {
           rawAvail = await lmProvider.availability();
         } else if (typeof lmProvider.capabilities === 'function') {
           const cap = await lmProvider.capabilities();
-          rawAvail = cap?.available || 'readily';
+          rawAvail = cap?.available || 'no';
         } else {
-          rawAvail = 'readily';
+          rawAvail = 'no';
         }
 
         const normalized = rawAvail.toLowerCase();

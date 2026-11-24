@@ -9,39 +9,30 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { initializeAppCheck, CustomProvider, type AppCheck } from 'firebase/app-check';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 
+function readEnvVar(key: string, fallback: string): string {
+  const viteVal =
+    typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env[key] as string | undefined)
+      : undefined;
+  const procVal =
+    typeof globalThis !== 'undefined' &&
+    (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
+      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env[key]
+      : undefined;
+  return viteVal || procVal || fallback;
+}
+
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoKeyForBuildHybridAIChallengeOnly1234',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'elora-hybrid-ai.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'elora-hybrid-ai',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'elora-hybrid-ai.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890',
+  apiKey: readEnvVar('VITE_FIREBASE_API_KEY', 'AIzaSyDemoKeyForBuildHybridAIChallengeOnly1234'),
+  authDomain: readEnvVar('VITE_FIREBASE_AUTH_DOMAIN', 'elora-hybrid-ai.firebaseapp.com'),
+  projectId: readEnvVar('VITE_FIREBASE_PROJECT_ID', 'elora-hybrid-ai'),
+  storageBucket: readEnvVar('VITE_FIREBASE_STORAGE_BUCKET', 'elora-hybrid-ai.firebasestorage.app'),
+  messagingSenderId: readEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID', '123456789012'),
+  appId: readEnvVar('VITE_FIREBASE_APP_ID', '1:123456789012:web:abcdef1234567890'),
 };
 
 // Initialisation idempotente du singleton FirebaseApp
 export function getFirebaseApp(): FirebaseApp {
-  // Bridge W3C / Chrome Prompt API pour Firebase AI Logic (ChromeAdapterImpl)
-  if (typeof window !== 'undefined') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = window as any;
-    if (!win.LanguageModel && win.ai?.languageModel) {
-      win.LanguageModel = win.ai.languageModel;
-    }
-    if (win.LanguageModel && !win.LanguageModel.availability && win.LanguageModel.capabilities) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      win.LanguageModel.availability = async (options?: any) => {
-        try {
-          const caps = await win.LanguageModel.capabilities(options);
-          if (caps.available === 'readily') return 'available';
-          if (caps.available === 'after-download') return 'downloadable';
-          return 'unavailable';
-        } catch {
-          return 'unavailable';
-        }
-      };
-    }
-  }
-
   if (getApps().length > 0) {
     return getApp();
   }

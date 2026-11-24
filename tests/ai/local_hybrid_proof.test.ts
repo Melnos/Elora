@@ -43,81 +43,56 @@ test('ELORA - Phase 7 : Preuves d\'Inférence Locale & Moteur Hybride', async (t
     }
   });
 
-  await t.test('2. Inférence locale certifiée sur runtime compatible avec nettoyage mémoire', async () => {
-    let sessionCreated = false;
-    let sessionDestroyed = false;
-    let promptReceived = '';
+  await t.test('2. Contrat officiel @firebase/ai@3.1.0 : détection LanguageModel (availability + create)', async () => {
+    // Sans globalThis.LanguageModel, hasOfficialLanguageModel() doit retourner false
+    assert.strictEqual(LocalAIProvider.hasOfficialLanguageModel(), false);
 
-    // Mock du runtime Chrome Prompt API W3C
-    const mockLanguageModel = {
-      create: async (opts?: unknown) => {
-        sessionCreated = true;
-        return {
-          prompt: async (text: string) => {
-            promptReceived = text;
-            return 'Réponse générée localement par Gemini Nano (On-Device).';
-          },
-          destroy: () => {
-            sessionDestroyed = true;
-          },
-        };
-      },
-    };
-
+    // Même si legacy globalThis.ai.languageModel existe sans availability/LanguageModel, ne pas supposer l'équivalence
     const originalGlobalAI = (globalThis as unknown as { ai?: unknown }).ai;
-    (globalThis as unknown as { ai: unknown }).ai = { languageModel: mockLanguageModel };
+    const originalLanguageModel = (globalThis as unknown as { LanguageModel?: unknown }).LanguageModel;
 
-    try {
-      const provider = new LocalAIProvider();
-      const response = await provider.generate({
-        prompt: 'Bonjour depuis le terminal client',
-        mode: 'only_on_device',
-      });
+    (globalThis as unknown as { ai: unknown }).ai = {
+      languageModel: { create: async () => ({}) },
+    };
+    assert.strictEqual(
+      LocalAIProvider.hasOfficialLanguageModel(),
+      false,
+      'window.ai.languageModel legacy ne doit pas être supposé équivalent à LanguageModel'
+    );
 
-      assert.strictEqual(sessionCreated, true, 'La session locale a été instanciée');
-      assert.strictEqual(sessionDestroyed, true, 'session.destroy() a été appelé pour libérer la VRAM');
-      assert.ok(promptReceived.includes('terminal client'));
-      assert.strictEqual(response.metadata.source, 'on_device');
-      assert.strictEqual(response.metadata.fallbackOccurred, false);
-      assert.ok(response.metadata.modelName.includes('Gemini Nano'));
-      assert.ok(response.metadata.durationMs >= 0);
-    } finally {
-      (globalThis as unknown as { ai: unknown }).ai = originalGlobalAI;
-    }
-  });
-
-  await t.test('3. Streaming local : prise en charge du flux et émission de chunks', async () => {
-    const streamedChunks: string[] = [];
-
-    const mockStreamingModel = {
+    // Avec le contrat officiel globalThis.LanguageModel (availability + create)
+    (globalThis as unknown as { LanguageModel: unknown }).LanguageModel = {
+      availability: async () => 'available',
       create: async () => ({
-        promptStreaming: async function* (text: string) {
-          yield 'Anal';
-          yield 'Analyse locale ';
-          yield 'Analyse locale terminée.';
-        },
+        prompt: async () => 'ok',
         destroy: () => {},
       }),
     };
 
-    const originalGlobalAI = (globalThis as unknown as { ai?: unknown }).ai;
-    (globalThis as unknown as { ai: unknown }).ai = { languageModel: mockStreamingModel };
-
     try {
-      const provider = new LocalAIProvider();
-      const response = await provider.generate({
-        prompt: 'Flux de test',
-        onStreamChunk: (chunk, accumulated) => {
-          streamedChunks.push(accumulated);
-        },
-      });
-
-      assert.strictEqual(response.metadata.source, 'on_device');
-      assert.strictEqual(response.text, 'Analyse locale terminée.');
-      assert.ok(streamedChunks.length >= 2, 'Des chunks intermédiaires doivent être capturés');
+      assert.strictEqual(
+        LocalAIProvider.hasOfficialLanguageModel(),
+        true,
+        'globalThis.LanguageModel conforme doit être reconnu'
+      );
     } finally {
       (globalThis as unknown as { ai: unknown }).ai = originalGlobalAI;
+      (globalThis as unknown as { LanguageModel: unknown }).LanguageModel = originalLanguageModel;
     }
+  });
+
+  await t.test('3. Garde anti-fuite LocalAIProvider : rejet explicite en absence de runtime ChromeAdapter', async () => {
+    const provider = new LocalAIProvider();
+    await assert.rejects(
+      async () => {
+        await provider.generate({
+          prompt: 'Test strict local',
+          mode: 'only_on_device',
+        });
+      },
+      /Inférence locale impossible|indisponible/,
+      'LocalAIProvider doit rejeter honnêtement sans simuler ni contacter le Cloud'
+    );
   });
 
   await t.test('4. Règle absolue : ZÉRO fuite vers le Cloud en mode LOCAL_ONLY', async () => {
