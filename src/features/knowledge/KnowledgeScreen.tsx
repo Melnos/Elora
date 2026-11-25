@@ -26,7 +26,7 @@ import {
   formatFileSize,
   SUPPORTED_EXTENSIONS,
 } from '../../lib/knowledge/documentExtractor';
-import { uploadKnowledgeFile } from '../../lib/firebase/storage';
+import { uploadKnowledgeFile, STORAGE_PATH_PREFIX } from '../../lib/firebase/storage';
 
 export const KnowledgeScreen: React.FC = () => {
   const {
@@ -249,8 +249,13 @@ export const KnowledgeScreen: React.FC = () => {
     // Tentative réelle d'upload vers Firebase Storage si connecté et fichier présent
     if (attachedFile && currentUser) {
       const storageRes = await uploadKnowledgeFile(currentUser.uid, createdDoc.id, attachedFile);
+      const nextInsights = [
+        ...insights,
+        ...(storageRes.storagePath ? [`${STORAGE_PATH_PREFIX}${storageRes.storagePath}`] : []),
+        `Stockage : ${storageRes.message}`,
+      ].slice(0, 50);
       updateKnowledgeDoc(createdDoc.id, {
-        keyInsights: [...insights, `Stockage : ${storageRes.message}`].slice(0, 50),
+        keyInsights: nextInsights,
       });
       setStatusNotice(storageRes.message);
     } else if (attachedFile) {

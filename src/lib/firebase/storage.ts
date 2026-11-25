@@ -7,8 +7,27 @@
  * Firebase Storage n'est pas provisionné ou si l'utilisateur est hors ligne.
  */
 
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import { getFirebaseStorage } from './config';
+
+export const STORAGE_PATH_PREFIX = 'Chemin Storage : ';
+
+export function extractStoragePathFromInsights(keyInsights?: string[]): string | null {
+  if (!Array.isArray(keyInsights)) return null;
+  const entry = keyInsights.find((i) => typeof i === 'string' && i.startsWith(STORAGE_PATH_PREFIX));
+  return entry ? entry.slice(STORAGE_PATH_PREFIX.length).trim() || null : null;
+}
+
+export async function getKnowledgeFileUrl(storagePath: string): Promise<string | null> {
+  if (!storagePath || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
+  try {
+    const storage = getFirebaseStorage();
+    return await getDownloadURL(ref(storage, storagePath));
+  } catch (err) {
+    console.warn('[Storage] Impossible de récupérer l\'URL de téléchargement :', err);
+    return null;
+  }
+}
 
 export interface StorageUploadResult {
   status: 'uploaded' | 'not_provisioned' | 'offline' | 'error';

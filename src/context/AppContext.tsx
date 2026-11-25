@@ -41,6 +41,7 @@ import {
   mergeCollectionById,
   mergeOpportunities,
 } from '../lib/firebase/firestore';
+import { deleteKnowledgeFile, extractStoragePathFromInsights } from '../lib/firebase/storage';
 
 interface AppContextType {
   // Navigation & Vues
@@ -443,10 +444,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteKnowledgeDoc = (id: string) => {
+    const existing = knowledgeDocs.find((d) => d.id === id);
+    const storagePath = extractStoragePathFromInsights(existing?.keyInsights);
     const updated = EloraDB.deleteKnowledge(id);
     setKnowledgeDocs(updated);
     if (currentUser) {
       deleteUserKnowledgeDoc(currentUser.uid, id);
+      if (storagePath) {
+        deleteKnowledgeFile(storagePath);
+      }
     }
   };
 
