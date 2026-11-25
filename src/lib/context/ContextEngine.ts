@@ -122,23 +122,25 @@ export class ContextEngine {
     const scoredDocs = dataset.docs.map((doc) => {
       let score = 0;
       if (activeEntityId === doc.id) score += 10;
-      const titleLower = doc.title.toLowerCase();
-      const summaryLower = doc.summary.toLowerCase();
-      const tagsLower = doc.tags.join(' ').toLowerCase();
-      const contentLower = doc.content.toLowerCase();
+      const titleLower = this.normalizeSearchText(doc.title);
+      const collectionLower = this.normalizeSearchText(doc.collection);
+      const summaryLower = this.normalizeSearchText(doc.summary);
+      const tagsLower = this.normalizeSearchText(doc.tags.join(' '));
+      const contentLower = this.normalizeSearchText(doc.content);
 
       for (const kw of keywords) {
         if (titleLower.includes(kw)) score += 5;
         if (tagsLower.includes(kw)) score += 4;
+        if (collectionLower.includes(kw)) score += 3;
         if (summaryLower.includes(kw)) score += 3;
-        if (contentLower.includes(kw)) score += 1;
+        if (contentLower.includes(kw)) score += 2;
       }
       return { doc, score };
     });
     scoredDocs.sort((a, b) => b.score - a.score);
 
     const relevantDocs = scoredDocs
-      .filter((sd) => sd.score > 2)
+      .filter((sd) => sd.score >= 2)
       .slice(0, Math.min(maxItemsPerScope, 3))
       .map((sd) => sd.doc);
 
@@ -328,12 +330,29 @@ export class ContextEngine {
 
   // --- Utilitaires Internes ---
 
+  private static normalizeSearchText(text: string): string {
+    return (text || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
   private static extractKeywords(text: string): string[] {
-    return text
-      .replace(/[^\w\sàâäéèêëîïôöùûüç]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2)
-      .slice(0, 10);
+    const stopWords = new Set([
+      'les', 'des', 'une', 'que', 'qui', 'quoi', 'quel', 'quelle', 'quels', 'quelles',
+      'dans', 'pour', 'avec', 'sur', 'sous', 'par', 'mon', 'mes', 'ton', 'tes', 'son',
+      'ses', 'nos', 'vos', 'est', 'sont', 'dit', 'peux', 'fais', 'faire', 'comment',
+      'pourquoi', 'quand', 'cette', 'ceci', 'cela', 'plus', 'moins', 'tout', 'tous',
+      'the', 'and', 'for', 'with', 'what', 'how', 'about', 'this', 'that', 'from',
+    ]);
+    return Array.from(
+      new Set(
+        this.normalizeSearchText(text)
+          .replace(/[^\w\s-]/g, ' ')
+          .split(/[\s-]+/)
+          .filter((w) => w.length > 2 && !stopWords.has(w))
+      )
+    ).slice(0, 14);
   }
 
   private static formatSystemContext(data: {
