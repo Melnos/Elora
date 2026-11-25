@@ -13,34 +13,43 @@ import { describe, it } from 'node:test';
 import { ok, strictEqual } from 'node:assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CloudAIProvider } from '../../src/lib/ai/CloudAIProvider';
+
+// Charger .env puis .env.local AVANT tout import de CloudAIProvider / firebase/config
+// (en ESM, un import statique est hissé avant le corps du module et figerait la config démo).
+for (const envFile of ['.env', '.env.local']) {
+  const envPath = path.resolve(process.cwd(), envFile);
+  if (!fs.existsSync(envPath)) continue;
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  for (const rawLine of envContent.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eqIdx = line.indexOf('=');
+    if (eqIdx > 0) {
+      const key = line.slice(0, eqIdx).trim();
+      const val = line.slice(eqIdx + 1).trim();
+      if (key && val) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
 
 describe('ELORA - Validation des Inférences Réelles (Phase 8.5)', () => {
-  it('1. Test Unitaire : CloudAIProvider vérifie le format des requêtes', () => {
+  it('1. Test Unitaire : CloudAIProvider vérifie le format des requêtes', async () => {
+    const { CloudAIProvider } = await import('../../src/lib/ai/CloudAIProvider');
     const provider = new CloudAIProvider();
     ok(typeof provider.generate === 'function');
   });
 
   it('2. Test d\'Inférence Réelle : Exécution Cloud et identification exacte du sdkProvider', async () => {
-    const envPath = path.resolve(process.cwd(), '.env');
-    ok(fs.existsSync(envPath), 'Le fichier .env doit exister');
-    const envContent = fs.readFileSync(envPath, 'utf-8');
-
-    for (const rawLine of envContent.split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#')) continue;
-      const eqIdx = line.indexOf('=');
-      if (eqIdx > 0) {
-        const key = line.slice(0, eqIdx).trim();
-        const val = line.slice(eqIdx + 1).trim();
-        if (key && val) {
-          process.env[key] = val;
-        }
-      }
-    }
-
+    const { CloudAIProvider } = await import('../../src/lib/ai/CloudAIProvider');
+    const { firebaseConfig } = await import('../../src/lib/firebase/config');
+    ok(
+      !firebaseConfig.apiKey.includes('Demo'),
+      'La clé Firebase chargée ne doit pas être la clé de démonstration'
+    );
     const activeKey = process.env.VITE_GEMINI_API_KEY || process.env.VITE_FIREBASE_API_KEY || '';
-    ok(activeKey.length > 20, 'Une clé API valide doit être configurée dans .env');
+    ok(activeKey.length > 20, 'Une clé API valide doit être configurée dans .env / .env.local');
 
     const provider = new CloudAIProvider();
     const prompt = 'Tu es ELORA. Réponds en exactement 3 mots.';

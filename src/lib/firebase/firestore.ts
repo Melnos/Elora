@@ -30,6 +30,33 @@ function getDB(): Firestore {
 }
 
 /**
+ * Nettoie récursivement tout champ `undefined` avant écriture Firestore (`setDoc`),
+ * tout en préservant les valeurs légitimes (`null`, `false`, `0`, `""`, `Date`, `Timestamp`).
+ */
+export function sanitizeForFirestore<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const proto = Object.getPrototypeOf(value);
+    if (proto === Object.prototype || proto === null) {
+      const cleaned: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (v !== undefined) {
+          cleaned[k] = sanitizeForFirestore(v);
+        }
+      }
+      return cleaned as T;
+    }
+  }
+
+  return value;
+}
+
+/**
  * Sauvegarde ou mise à jour du profil utilisateur
  */
 export async function syncUserProfile(uid: string, profile: UserProfile): Promise<void> {
@@ -42,7 +69,7 @@ export async function syncUserProfile(uid: string, profile: UserProfile): Promis
   }
   try {
     const userRef = doc(getDB(), 'users', uid);
-    await setDoc(userRef, { profile, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(userRef, sanitizeForFirestore({ profile, updatedAt: new Date().toISOString() }), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Sauvegarde hors ligne profil :', err);
     OfflineQueue.enqueue({
@@ -129,7 +156,7 @@ export async function saveUserTask(uid: string, task: TaskItem): Promise<void> {
   }
   try {
     const taskRef = doc(getDB(), 'users', uid, 'tasks', task.id);
-    await setDoc(taskRef, task, { merge: true });
+    await setDoc(taskRef, sanitizeForFirestore(task), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture tâche, mise en file d\'attente :', err);
     OfflineQueue.enqueue({ type: 'task_create', payload: { uid, task } });
@@ -156,7 +183,7 @@ export async function saveUserGoal(uid: string, goal: GoalItem): Promise<void> {
   if (!navigator.onLine) return;
   try {
     const goalRef = doc(getDB(), 'users', uid, 'goals', goal.id);
-    await setDoc(goalRef, goal, { merge: true });
+    await setDoc(goalRef, sanitizeForFirestore(goal), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture objectif :', err);
   }
@@ -169,7 +196,7 @@ export async function saveUserFocusSession(uid: string, session: FocusSession): 
   if (!navigator.onLine) return;
   try {
     const sessionRef = doc(getDB(), 'users', uid, 'focusSessions', session.id);
-    await setDoc(sessionRef, session, { merge: true });
+    await setDoc(sessionRef, sanitizeForFirestore(session), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture focus :', err);
   }
@@ -182,7 +209,7 @@ export async function saveUserMemory(uid: string, memory: MemoryItem): Promise<v
   if (!navigator.onLine) return;
   try {
     const memRef = doc(getDB(), 'users', uid, 'memories', memory.id);
-    await setDoc(memRef, memory, { merge: true });
+    await setDoc(memRef, sanitizeForFirestore(memory), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture mémoire :', err);
   }
@@ -211,7 +238,7 @@ export async function saveUserKnowledgeDoc(uid: string, kdoc: KnowledgeDoc): Pro
   }
   try {
     const docRef = doc(getDB(), 'users', uid, 'knowledge', kdoc.id);
-    await setDoc(docRef, kdoc, { merge: true });
+    await setDoc(docRef, sanitizeForFirestore(kdoc), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture knowledge :', err);
     OfflineQueue.enqueue({ type: 'note_create', payload: { uid, kdoc } });
@@ -238,7 +265,7 @@ export async function saveUserConversation(uid: string, conversation: Conversati
   if (!navigator.onLine) return;
   try {
     const convRef = doc(getDB(), 'users', uid, 'conversations', conversation.id);
-    await setDoc(convRef, conversation, { merge: true });
+    await setDoc(convRef, sanitizeForFirestore(conversation), { merge: true });
   } catch (err) {
     console.warn('[Firestore] Erreur écriture conversation :', err);
   }
