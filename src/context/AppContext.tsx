@@ -14,6 +14,7 @@ import type {
   ChatMessage,
 } from '../types';
 import { EloraDB } from '../lib/db/database';
+import { OfflineQueue } from '../lib/offline/OfflineQueue';
 import { MemoryService } from '../lib/memory/MemoryService';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
 import { CapabilityDetector } from '../lib/ai/CapabilityDetector';
@@ -90,7 +91,11 @@ interface AppContextType {
 
   // Connaissances
   knowledgeDocs: KnowledgeDoc[];
-  addKnowledgeDoc: (doc: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => void;
+  addKnowledgeDoc: (doc: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => KnowledgeDoc;
+  updateKnowledgeDoc: (
+    id: string,
+    updates: Partial<Pick<KnowledgeDoc, 'title' | 'collection' | 'summary' | 'tags' | 'keyInsights'>>
+  ) => void;
   deleteKnowledgeDoc: (id: string) => void;
 
   // Opportunités
@@ -413,12 +418,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Actions Connaissances
-  const addKnowledgeDoc = (docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => {
+  const addKnowledgeDoc = (docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>): KnowledgeDoc => {
     const newDoc = EloraDB.addKnowledge(docData);
     setKnowledgeDocs(EloraDB.getKnowledge());
     if (currentUser) {
       saveUserKnowledgeDoc(currentUser.uid, newDoc);
     }
+    return newDoc;
+  };
+
+  const updateKnowledgeDoc = (
+    id: string,
+    updates: Partial<Pick<KnowledgeDoc, 'title' | 'collection' | 'summary' | 'tags' | 'keyInsights'>>
+  ) => {
+    setKnowledgeDocs((prev) => {
+      const next = prev.map((d) => (d.id === id ? { ...d, ...updates } : d));
+      EloraDB.saveKnowledge(next);
+      if (currentUser) {
+        const target = next.find((d) => d.id === id);
+        if (target) saveUserKnowledgeDoc(currentUser.uid, target);
+      }
+      return next;
+    });
   };
 
   const deleteKnowledgeDoc = (id: string) => {
@@ -451,9 +472,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  // Déconnexion
+  // Déconnexion : nettoie les données locales privées pour garantir l'isolation multi-comptes
   const logout = async () => {
     await logoutUser();
+    EloraDB.resetAll();
+    OfflineQueue.clear();
+    setProfile(EloraDB.getProfile());
+    setMemories(EloraDB.getMemories());
+    setTasks(EloraDB.getTasks());
+    setGoals(EloraDB.getGoals());
+    setFocusSessions(EloraDB.getFocusSessions());
+    setKnowledgeDocs(EloraDB.getKnowledge());
+    setOpportunities(EloraDB.getOpportunities());
+    const resetConvs = EloraDB.getConversations();
+    setConversations(resetConvs);
+    setCurrentConversationId(resetConvs[0]?.id || 'conv_1');
     setCurrentUser(null);
   };
 
@@ -836,6 +869,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addFocusSession,
         knowledgeDocs,
         addKnowledgeDoc,
+        updateKnowledgeDoc,
         deleteKnowledgeDoc,
         opportunities,
         matchedOpportunities,

@@ -374,8 +374,9 @@ export class ContextEngine {
     if (data.docs.length > 0) {
       sections.push(`\n* **Documents Knowledge référencés** :`);
       data.docs.forEach((d) => {
+        const excerpt = d.content ? d.content.trim().slice(0, 1200) : '';
         sections.push(
-          `  - [Doc #${d.id}] "${d.title}" (${d.collection}) : ${d.summary}`
+          `  - [Doc #${d.id}] "${d.title}" (${d.collection}) : ${d.summary}${excerpt ? `\n    Extrait : ${excerpt}` : ''}`
         );
       });
     }

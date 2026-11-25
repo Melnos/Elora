@@ -423,8 +423,8 @@ service cloud.firestore {
       // Opportunités et candidatures (/users/{userId}/opportunities/{oppId})
       match /opportunities/{oppId} {
         allow read, delete: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidOpportunity(request.resource.data);
-        allow update: if isOwner(userId) && isIdUnchanged() && isValidOpportunity(request.resource.data);
+        allow create: if isOwner(userId) && request.resource.data.id == oppId && isValidOpportunity(request.resource.data);
+        allow update: if isOwner(userId) && request.resource.data.id == oppId && isIdUnchanged() && isValidOpportunity(request.resource.data);
       }
     }
 

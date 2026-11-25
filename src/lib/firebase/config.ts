@@ -6,6 +6,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from 'firebase/app-check';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 
@@ -117,4 +118,15 @@ export function getFirebaseAI(): AI {
     aiInstance = getAI(app, { backend: new GoogleAIBackend() });
   }
   return aiInstance;
+}
+
+// Firebase Storage singleton
+let storageInstance: FirebaseStorage | null = null;
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!storageInstance) {
+    const app = getFirebaseApp();
+    getFirebaseAppCheck();
+    storageInstance = getStorage(app);
+  }
+  return storageInstance;
 }

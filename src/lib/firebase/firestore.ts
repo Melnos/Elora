@@ -119,11 +119,11 @@ export function mergeOpportunities(
   return merged;
 }
 
-async function writeSubdoc(
+async function writeSubdoc<T extends object>(
   uid: string,
   subcollection: string,
   docId: string,
-  data: unknown,
+  data: T,
   queueType: QueuedSyncType,
   queuePayload: Record<string, unknown>,
   rethrow = false
@@ -134,7 +134,7 @@ async function writeSubdoc(
   }
   try {
     const ref = doc(getDB(), 'users', uid, subcollection, docId);
-    await setDoc(ref, sanitizeForFirestore(data), { merge: true });
+    await setDoc(ref, sanitizeForFirestore(data) as Record<string, unknown>, { merge: true });
   } catch (err) {
     console.warn(`[Firestore] Erreur écriture ${subcollection}/${docId}, mise en file d'attente :`, err);
     OfflineQueue.enqueue({ type: queueType, payload: queuePayload });

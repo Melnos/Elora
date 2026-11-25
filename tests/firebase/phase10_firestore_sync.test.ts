@@ -345,10 +345,18 @@ describe('Phase 10 — Firestore Sync Reliability, OfflineQueue & Opportunités'
     strictEqual(remaining[0].error, 'network timeout');
   });
 
-  it('5. Isolation stricte dans firestore.rules incluant opportunities et default-deny', () => {
+  it('5. Isolation stricte dans firestore.rules incluant opportunities (id == oppId) et default-deny', () => {
     const rules = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf-8');
     ok(rules.includes('match /opportunities/{oppId}'), 'Sous-collection opportunities déclarée');
     ok(rules.includes('isValidOpportunity(request.resource.data)'), 'Validation stricte isValidOpportunity');
+    ok(
+      /match\s+\/opportunities\/\{oppId\}\s*\{[\s\S]*?allow\s+create:[\s\S]*?request\.resource\.data\.id\s*==\s*oppId/.test(rules),
+      'create opportunities doit imposer request.resource.data.id == oppId'
+    );
+    ok(
+      /match\s+\/opportunities\/\{oppId\}\s*\{[\s\S]*?allow\s+update:[\s\S]*?request\.resource\.data\.id\s*==\s*oppId[\s\S]*?isIdUnchanged\(\)/.test(rules),
+      'update opportunities doit imposer request.resource.data.id == oppId && isIdUnchanged()'
+    );
     ok(rules.includes('isOwner(userId)'), 'Isolation stricte par userId');
     ok(
       /match\s+\/\{document=\*\*\}\s*\{\s*allow\s+read,\s*write:\s*if\s+false;\s*\}/.test(rules),

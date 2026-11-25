@@ -8,12 +8,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "npx jiti tests/ai/capability_detector.test.ts && npx jiti tests/ai/task_router.test.ts && npx jiti tests/ai/ai_orchestrator.test.ts && npx jiti tests/ai/local_hybrid_proof.test.ts && npx jiti tests/memory/memory_service.test.ts && npx jiti tests/auth_memory/auth_memory_security.test.ts && npx jiti tests/context/context_engine.test.ts && npx jiti tests/actions/action_engine.test.ts && npx jiti tests/e2e/e2e_transversal_workflow.test.ts && npx jiti tests/firebase/firestore_sanitize_and_rules.test.ts && npx jiti tests/firebase/phase10_firestore_sync.test.ts",
+    "test": "npx jiti tests/ai/capability_detector.test.ts && npx jiti tests/ai/task_router.test.ts && npx jiti tests/ai/ai_orchestrator.test.ts && npx jiti tests/ai/local_hybrid_proof.test.ts && npx jiti tests/memory/memory_service.test.ts && npx jiti tests/auth_memory/auth_memory_security.test.ts && npx jiti tests/context/context_engine.test.ts && npx jiti tests/actions/action_engine.test.ts && npx jiti tests/e2e/e2e_transversal_workflow.test.ts && npx jiti tests/firebase/firestore_sanitize_and_rules.test.ts && npx jiti tests/firebase/phase10_firestore_sync.test.ts && npx jiti tests/knowledge/phase12_document_library.test.ts",
     "test:live": "node --dns-result-order=ipv4first node_modules/jiti/lib/jiti-cli.mjs tests/ai/live_inference.test.ts"
   },
   "dependencies": {
     "firebase": "^13.4.0",
     "lucide-react": "^1.16.0",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.5.438",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
