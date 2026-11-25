@@ -33,9 +33,12 @@ import {
   deleteUserMemory,
   saveUserKnowledgeDoc,
   deleteUserKnowledgeDoc,
+  saveUserOpportunity,
   saveUserConversation,
   deleteUserConversation,
   processOfflineQueue,
+  mergeCollectionById,
+  mergeOpportunities,
 } from '../lib/firebase/firestore';
 
 interface AppContextType {
@@ -206,28 +209,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cloudData.profile) {
           setProfile(cloudData.profile);
           EloraDB.saveProfile(cloudData.profile);
+        } else {
+          const baseProfile = EloraDB.getProfile();
+          const initialProfile: UserProfile = {
+            ...baseProfile,
+            name: currentUser.displayName || baseProfile.name,
+            email: currentUser.email || baseProfile.email,
+          };
+          EloraDB.saveProfile(initialProfile);
+          setProfile(initialProfile);
+          await syncUserProfile(currentUser.uid, initialProfile);
         }
+
         if (cloudData.tasks.length > 0) {
-          setTasks(cloudData.tasks);
-          EloraDB.saveTasks(cloudData.tasks);
+          const merged = mergeCollectionById(EloraDB.getTasks(), cloudData.tasks);
+          setTasks(merged);
+          EloraDB.saveTasks(merged);
         }
         if (cloudData.goals.length > 0) {
-          setGoals(cloudData.goals);
-          EloraDB.saveGoals(cloudData.goals);
+          const merged = mergeCollectionById(EloraDB.getGoals(), cloudData.goals);
+          setGoals(merged);
+          EloraDB.saveGoals(merged);
         }
         if (cloudData.focusSessions.length > 0) {
-          setFocusSessions(cloudData.focusSessions);
+          const merged = mergeCollectionById(EloraDB.getFocusSessions(), cloudData.focusSessions);
+          setFocusSessions(merged);
+          EloraDB.saveFocusSessions(merged);
         }
         if (cloudData.memories.length > 0) {
-          setMemories(cloudData.memories);
-          MemoryService.syncFromFirestore(currentUser.uid, cloudData.memories as any);
+          const merged = mergeCollectionById(EloraDB.getMemories(), cloudData.memories);
+          setMemories(merged);
+          EloraDB.saveMemories(merged);
+          MemoryService.syncFromFirestore(currentUser.uid, merged as any);
         }
         if (cloudData.knowledgeDocs.length > 0) {
-          setKnowledgeDocs(cloudData.knowledgeDocs);
+          const merged = mergeCollectionById(EloraDB.getKnowledge(), cloudData.knowledgeDocs);
+          setKnowledgeDocs(merged);
+          EloraDB.saveKnowledge(merged);
+        }
+        if (cloudData.opportunities.length > 0) {
+          const merged = mergeOpportunities(EloraDB.getOpportunities(), cloudData.opportunities);
+          setOpportunities(merged);
+          EloraDB.saveOpportunities(merged);
         }
         if (cloudData.conversations.length > 0) {
-          setConversations(cloudData.conversations);
-          EloraDB.saveConversations(cloudData.conversations);
+          const merged = mergeCollectionById(EloraDB.getConversations(), cloudData.conversations);
+          setConversations(merged);
+          EloraDB.saveConversations(merged);
         }
       }
     } catch (err) {
@@ -405,6 +433,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleSaveOpportunity = (id: string) => {
     const updated = EloraDB.toggleSaveOpportunity(id);
     setOpportunities(updated);
+    if (currentUser) {
+      const target = updated.find((o) => o.id === id);
+      if (target) {
+        saveUserOpportunity(currentUser.uid, target);
+      }
+    }
   };
 
   const addOpportunityToPlanner = (opp: OpportunityItem) => {

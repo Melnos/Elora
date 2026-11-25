@@ -115,6 +115,27 @@ service cloud.firestore {
     //   - title: string (required, 1..300)
     //   - lastActive: string (optional, 0..100)
     //   - messages: list of chat messages (required, max 500 items)
+    //       * Each ChatMessage map contains: id, role ('user'|'assistant'), content, timestamp
+    //       * Optional fields: inferenceSource, modelName, durationMs, referencedDocIds, sources, proposedActions, fallbackOccurred, fallbackReason
+    //   - createdAt: string or timestamp (optional)
+    //   - updatedAt: string or timestamp (optional)
+    //
+    // Collection: /users/{userId}/opportunities/{oppId} (Opportunities)
+    // Document ID: oppId
+    // Fields:
+    //   - id: string (required, 1..100, immutable)
+    //   - title: string (required, 1..300)
+    //   - organization: string (optional, 0..200)
+    //   - type: string (required, in ['hackathon', 'internship', 'scholarship', 'competition', 'program'])
+    //   - deadline: string (optional, 0..100)
+    //   - location: string (optional, 0..200)
+    //   - isVerified: bool (required)
+    //   - matchScore: number (required, 0..100)
+    //   - matchReason: string (optional, 0..2000)
+    //   - eligibility: list of strings (optional, max 30 items)
+    //   - skillsRequired: list of strings (optional, max 30 items)
+    //   - officialUrl: string (optional, 0..500)
+    //   - saved: bool (required)
     //   - createdAt: string or timestamp (optional)
     //   - updatedAt: string or timestamp (optional)
     //
@@ -224,7 +245,7 @@ service cloud.firestore {
         isValidOptionalString(data, 'status', 0, 50) &&
         isValidOptionalString(data, 'dateAdded', 0, 50) &&
         (data.enabledForAI is bool) &&
-        (!('confidence' in data) || (data.confidence is number && data.confidence >= 0 && data.confidence <= 100)) &&
+        (!('confidence' in data) || (data.confidence is number && data.confidence >= 0 && data.confidence <= 1)) &&
         isValidOptionalList(data, 'relatedEntityIds', 20) &&
         isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
         isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
@@ -309,6 +330,27 @@ service cloud.firestore {
         isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
     }
 
+    // Validateur pour une opportunité (Opportunities)
+    function isValidOpportunity(data) {
+      return data is map &&
+        data.keys().hasOnly(['id', 'title', 'organization', 'type', 'deadline', 'location', 'isVerified', 'matchScore', 'matchReason', 'eligibility', 'skillsRequired', 'officialUrl', 'saved', 'createdAt', 'updatedAt']) &&
+        isValidRequiredString(data, 'id', 1, 100) &&
+        isValidRequiredString(data, 'title', 1, 300) &&
+        isValidOptionalString(data, 'organization', 0, 200) &&
+        (data.type in ['hackathon', 'internship', 'scholarship', 'competition', 'program']) &&
+        isValidOptionalString(data, 'deadline', 0, 100) &&
+        isValidOptionalString(data, 'location', 0, 200) &&
+        (data.isVerified is bool) &&
+        (data.matchScore is number && data.matchScore >= 0 && data.matchScore <= 100) &&
+        isValidOptionalString(data, 'matchReason', 0, 2000) &&
+        isValidOptionalList(data, 'eligibility', 30) &&
+        isValidOptionalList(data, 'skillsRequired', 30) &&
+        isValidOptionalString(data, 'officialUrl', 0, 500) &&
+        (data.saved is bool) &&
+        isValidOptionalStringOrTimestamp(data, 'createdAt', 0, 100) &&
+        isValidOptionalStringOrTimestamp(data, 'updatedAt', 0, 100);
+    }
+
     // ===============================================================
     // Règles d'accès Firestore
     // ===============================================================
@@ -376,6 +418,13 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create: if isOwner(userId) && isValidConversation(request.resource.data);
         allow update: if isOwner(userId) && isIdUnchanged() && isValidConversation(request.resource.data);
+      }
+
+      // Opportunités et candidatures (/users/{userId}/opportunities/{oppId})
+      match /opportunities/{oppId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOpportunity(request.resource.data);
+        allow update: if isOwner(userId) && isIdUnchanged() && isValidOpportunity(request.resource.data);
       }
     }
 

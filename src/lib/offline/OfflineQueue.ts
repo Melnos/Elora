@@ -6,9 +6,28 @@
  * Ne JAMAIS simuler l'exécution d'une requête IA cloud différée comme si elle avait été traitée.
  */
 
+export type QueuedSyncType =
+  | 'profile_sync'
+  | 'progress_entry'
+  | 'task_create'
+  | 'task_update'
+  | 'task_delete'
+  | 'goal_save'
+  | 'goal_delete'
+  | 'focus_save'
+  | 'memory_save'
+  | 'memory_delete'
+  | 'note_create'
+  | 'note_update'
+  | 'knowledge_delete'
+  | 'conversation_save'
+  | 'conversation_delete'
+  | 'opportunity_save'
+  | 'opportunity_delete';
+
 export interface QueuedSyncItem {
   id: string;
-  type: 'task_create' | 'task_update' | 'note_create' | 'note_update' | 'progress_entry';
+  type: QueuedSyncType;
   payload: Record<string, unknown>;
   createdAt: string;
   status: 'pending' | 'syncing' | 'synced' | 'failed';
@@ -64,6 +83,17 @@ export class OfflineQueue {
     } catch (err) {
       console.error('[OfflineQueue] Erreur de sauvegarde locale :', err);
     }
+  }
+
+  /**
+   * Met à jour la file en ne conservant que les éléments non synchronisés (ex: échecs).
+   */
+  public static replaceAll(queue: QueuedSyncItem[]): void {
+    if (queue.length === 0) {
+      this.clear();
+      return;
+    }
+    this.save(queue);
   }
 
   /**
