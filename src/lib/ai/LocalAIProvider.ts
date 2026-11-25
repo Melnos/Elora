@@ -47,6 +47,23 @@ export class LocalAIProvider {
       );
     }
 
+    // Vérifier aussi la disponibilité réelle avant d'invoquer @firebase/ai
+    const lm =
+      (typeof globalThis !== 'undefined'
+        ? (globalThis as unknown as { LanguageModel?: { availability?: () => Promise<string> } }).LanguageModel
+        : undefined) ||
+      (typeof window !== 'undefined'
+        ? (window as unknown as { LanguageModel?: { availability?: () => Promise<string> } }).LanguageModel
+        : undefined);
+    if (lm && typeof lm.availability === 'function') {
+      const avail = String(await lm.availability()).toLowerCase();
+      if (avail === 'unavailable' || avail === 'no') {
+        throw new Error(
+          `[LocalAIProvider] Gemini Nano indisponible sur ce matériel (statut="${avail}"). Aucun transfert Cloud effectué.`
+        );
+      }
+    }
+
     let promptPayload = options.prompt;
     if (options.attachments && options.attachments.length > 0) {
       const attachmentContext = options.attachments
@@ -66,6 +83,8 @@ export class LocalAIProvider {
 
       if (options.onStreamChunk) {
         const streamResult = await localModel.generateContentStream(promptPayload);
+        // Empêcher toute erreur "Uncaught (in promise)" si .stream échoue avant .response
+        streamResult.response.catch(() => undefined);
         for await (const chunk of streamResult.stream) {
           const chunkText = chunk.text();
           text += chunkText;

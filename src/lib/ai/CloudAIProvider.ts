@@ -65,15 +65,40 @@ export class CloudAIProvider {
       let certifiedSource: 'in_cloud' | 'on_device' = 'in_cloud';
 
       if (options.onStreamChunk) {
-        const streamResult = await cloudModel.generateContentStream(promptPayload);
-        for await (const chunk of streamResult.stream) {
-          const chunkText = chunk.text();
-          text += chunkText;
-          options.onStreamChunk(chunkText, text);
-        }
-        const finalResp = await streamResult.response;
-        if (finalResp.inferenceSource === InferenceSource.ON_DEVICE) {
-          certifiedSource = 'on_device';
+        try {
+          const streamResult = await cloudModel.generateContentStream(promptPayload);
+          // Empêcher toute erreur "Uncaught (in promise)" si .stream échoue avant .response
+          streamResult.response.catch(() => undefined);
+
+          for await (const chunk of streamResult.stream) {
+            const chunkText = chunk.text();
+            text += chunkText;
+            options.onStreamChunk(chunkText, text);
+          }
+          const finalResp = await streamResult.response;
+          if (finalResp.inferenceSource === InferenceSource.ON_DEVICE) {
+            certifiedSource = 'on_device';
+          }
+        } catch (streamErr: unknown) {
+          const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+          const isTransientStreamErr =
+            msg.includes('503') ||
+            msg.includes('parse-failed') ||
+            msg.includes('UNAVAILABLE') ||
+            msg.includes('fetch-error');
+          if (!isTransientStreamErr) {
+            throw streamErr;
+          }
+          // Seconde tentative Firebase AI Logic en mode non-streamé (évite les erreurs SSE / 503 transitoires)
+          await new Promise((r) => setTimeout(r, 350));
+          const retryResult = await cloudModel.generateContent(promptPayload);
+          text = retryResult.response.text();
+          if (retryResult.response.inferenceSource === InferenceSource.ON_DEVICE) {
+            certifiedSource = 'on_device';
+          }
+          if (text) {
+            options.onStreamChunk(text, text);
+          }
         }
       } else {
         const result = await cloudModel.generateContent(promptPayload);
