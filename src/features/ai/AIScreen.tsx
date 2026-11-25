@@ -304,26 +304,26 @@ export const AIScreen: React.FC = () => {
 
   const quickStarters = [
     {
-      title: 'Priorités du Jour',
-      prompt: 'Quelles sont mes 3 priorités d\'aujourd\'hui et comment m\'organiser ?',
+      title: 'Planifier ma semaine',
+      prompt: 'Aide-moi à planifier ma semaine d\'étude et à prioriser mes révisions.',
       icon: <Target size={14} className="text-[var(--color-accent)]" />,
     },
     {
-      title: 'Stratégie Hackathon',
-      prompt: 'Aide-moi à structurer mon plan d\'action pour remporter le Hackathon Firebase #BuildHybridAI.',
+      title: 'Synthétiser un cours',
+      prompt: 'Aide-moi à synthétiser un cours et à en dégager les notions essentielles.',
       icon: <Sparkles size={14} className="text-[var(--color-accent)]" />,
     },
     {
-      title: 'Veille & Opportunités',
-      prompt: 'Analyse mes opportunités sauvegardées et prépare un pitch de candidature sur-mesure.',
+      title: 'Préparer un examen',
+      prompt: 'Aide-moi à préparer un examen avec un plan de révision et des exercices ciblés.',
       icon: <Compass size={14} className="text-[var(--color-accent)]" />,
     },
   ];
 
   const contextualPrompts = [
-    { label: 'Guide Firebase AI Logic', prompt: 'Résume les bonnes pratiques d\'intégration de Firebase AI Logic avec Gemini Nano et Cloud.' },
-    { label: 'Objectif Hackathon', prompt: 'Quelles sont les prochaines étapes concrètes pour finaliser le projet du Hackathon ?' },
-    { label: 'Priorités Planner', prompt: 'Optimise l\'ordre d\'exécution de mes tâches en cours pour ma session Deep Work.' },
+    { label: 'Créer une fiche de révision', prompt: 'Crée une fiche de révision claire et structurée sur ce sujet.' },
+    { label: 'Tester mes connaissances avec un quiz', prompt: 'Teste mes connaissances avec un quiz progressif de 5 questions.' },
+    { label: 'Planifier ma semaine', prompt: 'Aide-moi à planifier ma semaine autour de mes tâches et objectifs en cours.' },
   ];
 
   return (
@@ -540,7 +540,7 @@ export const AIScreen: React.FC = () => {
                 Intelligence Personnelle ELORA
               </h2>
               <p className="text-xs sm:text-sm text-[var(--color-text-muted)] max-w-lg mx-auto mt-2 leading-relaxed">
-                Connectée à vos projets, vos documents et vos opportunités. Traitement hybride confidentiel local (Gemini Nano) et Cloud (Firebase AI Logic).
+                Connectée à vos objectifs, vos documents de cours et votre planning pour vous aider à synthétiser, réviser et vous organiser.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 text-left">

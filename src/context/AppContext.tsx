@@ -28,7 +28,13 @@ import {
   DEFAULT_CONVERSATION_TITLE,
   MAX_CONVERSATION_TITLE_LENGTH,
 } from '../lib/conversations/conversationUtils';
-import { subscribeToAuthState, logoutUser, getSavedAuthSession } from '../lib/firebase/auth';
+import {
+  subscribeToAuthState,
+  logoutUser,
+  getSavedAuthSession,
+  getPendingSignupDisplayName,
+  clearPendingSignupDisplayName,
+} from '../lib/firebase/auth';
 import {
   syncUserProfile,
   fetchUserData,
@@ -182,7 +188,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [conversations, setConversations] = useState<Conversation[]>(() => EloraDB.getConversations());
 
   const [currentConversationId, setCurrentConversationId] = useState<string>(() => {
-    return conversations[0]?.id || 'conv_1';
+    return conversations[0]?.id || '';
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -221,16 +227,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cloudData.profile) {
           setProfile(cloudData.profile);
           EloraDB.saveProfile(cloudData.profile);
+          clearPendingSignupDisplayName();
         } else {
           const baseProfile = EloraDB.getProfile();
+          const resolvedName =
+            currentUser.displayName || getPendingSignupDisplayName() || baseProfile.name;
           const initialProfile: UserProfile = {
             ...baseProfile,
-            name: currentUser.displayName || baseProfile.name,
+            name: resolvedName,
             email: currentUser.email || baseProfile.email,
           };
           EloraDB.saveProfile(initialProfile);
           setProfile(initialProfile);
           await syncUserProfile(currentUser.uid, initialProfile);
+          clearPendingSignupDisplayName();
         }
 
         if (cloudData.tasks.length > 0) {
@@ -273,7 +283,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setConversations(mergedConvs);
           EloraDB.saveConversations(mergedConvs);
           setCurrentConversationId((prevId) =>
-            mergedConvs.some((c) => c.id === prevId) ? prevId : mergedConvs[0]?.id || 'conv_1'
+            mergedConvs.some((c) => c.id === prevId) ? prevId : mergedConvs[0]?.id || ''
           );
         }
         // Pousser vers Firestore les conversations créées/modifiées localement non encore présentes sur le Cloud
@@ -296,11 +306,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentUser(user);
       setIsAuthLoading(false);
       if (user) {
-        if (user.displayName || user.email) {
+        const resolvedName = user.displayName || getPendingSignupDisplayName();
+        if (resolvedName || user.email) {
           setProfile((prev) => {
             const updated = {
               ...prev,
-              name: user.displayName || prev.name,
+              name: resolvedName || prev.name,
               email: user.email || prev.email,
             };
             EloraDB.saveProfile(updated);
@@ -511,7 +522,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOpportunities(EloraDB.getOpportunities());
     const resetConvs = EloraDB.getConversations();
     setConversations(resetConvs);
-    setCurrentConversationId(resetConvs[0]?.id || 'conv_1');
+    setCurrentConversationId(resetConvs[0]?.id || '');
     setCurrentUser(null);
   };
 
@@ -760,7 +771,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   ) => {
     if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
 
-    const targetConvId = currentConversationId;
+    const existingTarget = currentConversationId
+      ? conversations.find((c) => c.id === currentConversationId)
+      : undefined;
+    const effectiveConvId = existingTarget
+      ? existingTarget.id
+      : `conv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    if (!existingTarget) {
+      setCurrentConversationId(effectiveConvId);
+    }
     const nowIso = new Date().toISOString();
 
     const userMsg: ChatMessage = {
@@ -780,23 +799,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     let convSnapshotOnSend: Conversation | undefined;
     setConversations((prev) => {
-      const mapped = prev.map((c) => {
-        if (c.id !== targetConvId) return c;
-        const hasPriorUserMessages = c.messages.some((m) => m.role === 'user');
-        const nextTitle =
-          !hasPriorUserMessages && c.title === DEFAULT_CONVERSATION_TITLE
-            ? generateConversationTitle(text)
-            : c.title;
-        convSnapshotOnSend = {
-          ...c,
-          title: nextTitle,
-          messages: [...c.messages, userMsg, initialAssistantMsg],
-          lastActive: "À l'instant",
-          createdAt: c.createdAt || nowIso,
-          updatedAt: nowIso,
-        };
-        return convSnapshotOnSend;
-      });
+      const hasTarget = prev.some((c) => c.id === effectiveConvId);
+      const mapped = hasTarget
+        ? prev.map((c) => {
+            if (c.id !== effectiveConvId) return c;
+            const hasPriorUserMessages = c.messages.some((m) => m.role === 'user');
+            const nextTitle =
+              !hasPriorUserMessages && c.title === DEFAULT_CONVERSATION_TITLE
+                ? generateConversationTitle(text)
+                : c.title;
+            convSnapshotOnSend = {
+              ...c,
+              title: nextTitle,
+              messages: [...c.messages, userMsg, initialAssistantMsg],
+              lastActive: "À l'instant",
+              createdAt: c.createdAt || nowIso,
+              updatedAt: nowIso,
+            };
+            return convSnapshotOnSend;
+          })
+        : [
+            (convSnapshotOnSend = {
+              id: effectiveConvId,
+              title: generateConversationTitle(text),
+              lastActive: "À l'instant",
+              createdAt: nowIso,
+              updatedAt: nowIso,
+              messages: [userMsg, initialAssistantMsg],
+            }),
+            ...prev,
+          ];
       const sorted = sortConversationsByDate(mapped);
       EloraDB.saveConversations(sorted);
       return sorted;
@@ -827,7 +859,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       );
 
-      const activeConv = conversations.find((c) => c.id === targetConvId);
+      const activeConv = conversations.find((c) => c.id === effectiveConvId);
       const recentHistory = (activeConv?.messages || [])
         .filter((m) => m.id !== 'msg_1' && m.id !== 'msg_2' && m.content && m.content.trim().length > 0)
         .slice(-6)
@@ -845,7 +877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         onStreamChunk: (_chunk: string, accumulated: string) => {
           setConversations((prev) =>
             prev.map((c) => {
-              if (c.id !== targetConvId) return c;
+              if (c.id !== effectiveConvId) return c;
               return {
                 ...c,
                 messages: c.messages.map((m) =>
@@ -861,7 +893,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       let completedConv: Conversation | undefined;
       setConversations((prev) => {
         const mapped = prev.map((c) => {
-          if (c.id !== targetConvId) return c;
+          if (c.id !== effectiveConvId) return c;
           completedConv = {
             ...c,
             updatedAt: completedIso,
@@ -907,7 +939,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       let erroredConv: Conversation | undefined;
       setConversations((prev) => {
         const mapped = prev.map((c) => {
-          if (c.id !== targetConvId) return c;
+          if (c.id !== effectiveConvId) return c;
           erroredConv = {
             ...c,
             updatedAt: errIso,

@@ -127,6 +127,21 @@ export const OpportunitiesScreen: React.FC = () => {
       </div>
 
       {/* Grille des Opportunités */}
+      {filteredOpportunities.length === 0 ? (
+        <div className="rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] p-8 text-center space-y-2.5">
+          <Compass size={28} className="text-[var(--color-accent)] mx-auto opacity-80" />
+          <h3 className="text-sm font-bold text-[var(--color-text-main)]">
+            {activeFilter === 'saved'
+              ? 'Aucune opportunité sauvegardée pour le moment'
+              : 'Aucune opportunité vérifiée disponible pour le moment'}
+          </h3>
+          <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto leading-relaxed">
+            {activeFilter === 'saved'
+              ? 'Vos opportunités enregistrées apparaîtront ici dès que vous en ajouterez à vos favoris.'
+              : 'ELORA n\'affiche aucune recommandation fictive ou non vérifiée. Complétez votre objectif et vos domaines d\'étude dans les Paramètres ou préparez vos candidatures avec l\'assistant IA.'}
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {filteredOpportunities.map((opp, idx) => {
           const isFeatured = idx === 0 && activeFilter === 'all';
@@ -248,6 +263,7 @@ export const OpportunitiesScreen: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

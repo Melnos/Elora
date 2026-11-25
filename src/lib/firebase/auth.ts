@@ -60,17 +60,34 @@ export async function loginWithEmail(email: string, pass: string): Promise<User>
   return credential.user;
 }
 
+let pendingSignupDisplayName: string | null = null;
+
+export function getPendingSignupDisplayName(): string | null {
+  return pendingSignupDisplayName;
+}
+
+export function clearPendingSignupDisplayName(): void {
+  pendingSignupDisplayName = null;
+}
+
 /**
  * Inscription par Email et Mot de passe
  */
 export async function signupWithEmail(email: string, pass: string, displayName?: string): Promise<User> {
   const auth = getFirebaseAuth();
-  const credential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-  if (displayName && credential.user) {
-    await updateProfile(credential.user, { displayName });
+  const cleanName = displayName?.trim() || '';
+  pendingSignupDisplayName = cleanName || null;
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    if (cleanName && credential.user) {
+      await updateProfile(credential.user, { displayName: cleanName });
+    }
+    saveAuthSession(credential.user);
+    return credential.user;
+  } catch (err) {
+    pendingSignupDisplayName = null;
+    throw err;
   }
-  saveAuthSession(credential.user);
-  return credential.user;
 }
 
 /**

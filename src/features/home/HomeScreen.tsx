@@ -16,15 +16,20 @@ import {
 export const HomeScreen: React.FC = () => {
   const {
     currentUser,
+    profile,
     tasks,
     goals,
     opportunities,
     homeBriefing,
     setActiveTab,
+    setIsSettingsOpen,
     toggleTaskCompleted,
     addOpportunityToPlanner,
     sendMessage,
   } = useApp();
+
+  const needsProfileCompletion =
+    !profile.currentObjective?.trim() && (!profile.learningFocus || profile.learningFocus.length === 0);
 
   // Tâches prioritaires réelles résolues par le moteur contextuel
   const pendingHighTasks = homeBriefing.urgentTasks.length > 0
@@ -74,6 +79,19 @@ export const HomeScreen: React.FC = () => {
               <span className="hidden sm:inline">•</span>
               <span>{pendingAllCount} tâche(s) au total dans le Planner</span>
             </div>
+
+            {needsProfileCompletion && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)] hover:underline cursor-pointer"
+                >
+                  <span>Personnaliser votre formation, votre objectif et vos domaines d'étude</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Actions d'engagement rapide */}

@@ -33,9 +33,10 @@ function runTests() {
   assert.strictEqual(initialFocusSessions.length, 0, 'initialFocusSessions doit être vide');
   assert.strictEqual(initialKnowledge.length, 0, 'initialKnowledge doit être vide');
   assert.strictEqual(initialConversations.length, 0, 'initialConversations doit être vide');
-  assert.ok(
-    initialOpportunities.every((opp) => opp.saved === false),
-    'Aucune opportunité ne doit être pré-sauvegardée pour un nouvel étudiant'
+  assert.strictEqual(
+    initialOpportunities.length,
+    0,
+    'initialOpportunities doit être vide (aucun hackathon ni bourse fictive)'
   );
   console.log('✓ Neutralisation mockData.ts validée');
 
@@ -113,6 +114,54 @@ function runTests() {
     'OpportunitiesScreen.tsx ne doit plus afficher "Informations 100% Vérifiées"'
   );
   console.log('✓ Mention honnête OpportunitiesScreen.tsx validée');
+
+  // 6. Phase 18C : Première conversation (aucun repli conv_1), suggestions étudiantes, inscription prénom, dev caché
+  const appContextSrc = fs.readFileSync(
+    path.join(ROOT, 'src/context/AppContext.tsx'),
+    'utf-8'
+  );
+  assert.ok(
+    !appContextSrc.includes("'conv_1'"),
+    'AppContext.tsx ne doit plus contenir aucun repli vers conv_1'
+  );
+  assert.ok(
+    appContextSrc.includes('effectiveConvId') && appContextSrc.includes('getPendingSignupDisplayName'),
+    'AppContext.tsx doit créer la première conversation dans sendMessage et préserver le prénom à l\'inscription'
+  );
+
+  assert.ok(
+    !aiScreenSrc.includes('#BuildHybridAI') && !aiScreenSrc.includes('Guide Firebase AI Logic'),
+    'AIScreen.tsx ne doit plus exposer de suggestions Hackathon ou Firebase AI Logic'
+  );
+  assert.ok(
+    aiScreenSrc.includes('Planifier ma semaine') &&
+      aiScreenSrc.includes('Synthétiser un cours') &&
+      aiScreenSrc.includes('Préparer un examen'),
+    'AIScreen.tsx doit proposer des raccourcis adaptés aux étudiants'
+  );
+
+  const knowledgeSrc = fs.readFileSync(
+    path.join(ROOT, 'src/features/knowledge/KnowledgeScreen.tsx'),
+    'utf-8'
+  );
+  assert.ok(
+    knowledgeSrc.includes("Cours d'algorithmique"),
+    'KnowledgeScreen.tsx doit utiliser un placeholder étudiant neutre'
+  );
+
+  const settingsSrc = fs.readFileSync(
+    path.join(ROOT, 'src/components/layout/SettingsModal.tsx'),
+    'utf-8'
+  );
+  assert.ok(
+    settingsSrc.includes('isDeveloperMode') && !settingsSrc.includes('#BuildHybridAI'),
+    'SettingsModal.tsx doit masquer les outils développeur aux étudiants et ne pas mentionner #BuildHybridAI'
+  );
+  assert.ok(
+    settingsSrc.includes("Domaines d'étude"),
+    'SettingsModal.tsx doit permettre de modifier les domaines d\'étude'
+  );
+  console.log('✓ Correctifs Phase 18C validés');
 
   console.log('=== Tous les tests Phase 18 ont réussi ===');
 }

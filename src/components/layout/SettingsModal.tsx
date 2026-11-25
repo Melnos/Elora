@@ -34,6 +34,11 @@ export const SettingsModal: React.FC = () => {
   const [newMemoryCategory, setNewMemoryCategory] = useState<'preference' | 'objective' | 'skill' | 'habit' | 'context'>('preference');
   const [showAddMemory, setShowAddMemory] = useState(false);
 
+  const isDeveloperMode =
+    typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).get('dev') === '1' ||
+      localStorage.getItem('elora_dev_mode') === 'true');
+
   if (!isSettingsOpen) return null;
 
   const handleAddMemorySubmit = (e: React.FormEvent) => {
@@ -95,13 +100,15 @@ export const SettingsModal: React.FC = () => {
             <Palette size={16} />
             <span>Apparence</span>
           </button>
-          <button
-            className={`tab-btn ${activeTab === 'dev' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dev')}
-          >
-            <Shield size={16} />
-            <span>Développeur</span>
-          </button>
+          {isDeveloperMode && (
+            <button
+              className={`tab-btn ${activeTab === 'dev' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dev')}
+            >
+              <Shield size={16} />
+              <span>Développeur</span>
+            </button>
+          )}
         </div>
 
         {/* Corps des onglets */}
@@ -135,8 +142,27 @@ export const SettingsModal: React.FC = () => {
                 <textarea
                   className="form-textarea"
                   rows={3}
+                  placeholder="Ex. Valider mon semestre, préparer mon mémoire ou un concours"
                   value={profile.currentObjective}
                   onChange={(e) => updateProfile({ currentObjective: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Domaines d'étude (séparés par des virgules)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ex. Mathématiques, Algorithmique, Droit, Biologie"
+                  value={(profile.learningFocus || []).join(', ')}
+                  onChange={(e) =>
+                    updateProfile({
+                      learningFocus: e.target.value
+                        .split(',')
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    })
+                  }
                 />
               </div>
             </div>
@@ -304,17 +330,17 @@ export const SettingsModal: React.FC = () => {
               </div>
             </div>
           )}
-          {/* ONGLET 5 : DÉVELOPPEUR & DIAGNOSTIC HACKATHON */}
-          {activeTab === 'dev' && (
+          {/* ONGLET 5 : DÉVELOPPEUR & DIAGNOSTIC (accès explicite uniquement) */}
+          {isDeveloperMode && activeTab === 'dev' && (
             <div className="settings-section">
-              <h3 className="section-title">Outils Développeur & Hackathon</h3>
-              <p className="section-desc">Accès au banc d'essai technique Phase 0 (#BuildHybridAI) et aux tests de certification d'inférence.</p>
+              <h3 className="section-title">Outils Développeur & Diagnostic</h3>
+              <p className="section-desc">Accès au banc d'essai technique et aux vérifications d'inférence hybride.</p>
 
               <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-semibold text-[var(--color-text-main)]">Banc de Test Hybride (Phase 0)</h4>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Vérifie l'API Chrome Prompt API (Gemini Nano) et Firebase AI Logic Cloud.</p>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-main)]">Banc de Test Hybride</h4>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Vérifie la disponibilité locale et l'inférence Cloud.</p>
                   </div>
                   <button
                     type="button"

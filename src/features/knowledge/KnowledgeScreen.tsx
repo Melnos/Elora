@@ -781,7 +781,7 @@ export const KnowledgeScreen: React.FC = () => {
                   type="text"
                   required
                   disabled={keepOriginalFileName && Boolean(attachedFile)}
-                  placeholder="ex: Guide Firebase AI Logic"
+                  placeholder="ex. Cours d'algorithmique — Chapitre 3"
                   value={
                     keepOriginalFileName && attachedFile ? attachedFile.name : customTitle
                   }
