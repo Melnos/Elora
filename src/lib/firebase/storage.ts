@@ -1,16 +1,62 @@
 /**
- * ELORA - Service Firebase Cloud Storage pour les fichiers Knowledge
- * Stocke les fichiers binaires sous users/{uid}/knowledge/{docId}/{fileName}
- * conformément à storage.rules (isolation stricte par utilisateur).
+ * ELORA - Service Firebase Cloud Storage optionnel pour les fichiers Knowledge
  *
- * RÈGLE D'HONNÊTETÉ : Ne jamais simuler un upload réussi si le bucket
- * Firebase Storage n'est pas provisionné ou si l'utilisateur est hors ligne.
+ * RÈGLE D'HONNÊTETÉ :
+ * - Firebase Storage nécessite le forfait Blaze : si le bucket n'est pas provisionné (HTTP 404),
+ *   désactiver proprement les tentatives d'upload pour ne pas bloquer Knowledge ni polluer la console.
+ * - Ne jamais simuler un upload réussi ni générer de fausse URL.
+ * - Préserver la compatibilité des documents possédant déjà un chemin Storage.
  */
 
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
-import { getFirebaseStorage } from './config';
+import { firebaseConfig, getFirebaseStorage } from './config';
 
 export const STORAGE_PATH_PREFIX = 'Chemin Storage : ';
+
+export interface StorageUploadResult {
+  status: 'uploaded' | 'not_provisioned' | 'offline' | 'error';
+  storagePath?: string;
+  message: string;
+}
+
+const NOT_PROVISIONED_MESSAGE =
+  'Fichier original non archivé dans le cloud (Firebase Storage désactivé). Texte extrait et métadonnées enregistrés dans Firestore.';
+
+// Cache de session : évite de relancer des requêtes Storage vouées à 404
+let cachedStorageProvisioned: boolean | null = null;
+
+export function resetStorageAvailabilityCache(): void {
+  cachedStorageProvisioned = null;
+}
+
+export async function isStorageBucketAvailable(): Promise<boolean> {
+  if (cachedStorageProvisioned !== null) {
+    return cachedStorageProvisioned;
+  }
+
+  const bucket = (firebaseConfig.storageBucket || '').trim();
+  if (!bucket) {
+    cachedStorageProvisioned = false;
+    return false;
+  }
+
+  if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o`);
+    if (res.status === 404) {
+      cachedStorageProvisioned = false;
+      return false;
+    }
+    // 200 ou 401/403 (bucket existant protégé par règles) => bucket provisionné
+    cachedStorageProvisioned = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function extractStoragePathFromInsights(keyInsights?: string[]): string | null {
   if (!Array.isArray(keyInsights)) return null;
@@ -20,6 +66,7 @@ export function extractStoragePathFromInsights(keyInsights?: string[]): string |
 
 export async function getKnowledgeFileUrl(storagePath: string): Promise<string | null> {
   if (!storagePath || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
+  if (cachedStorageProvisioned === false) return null;
   try {
     const storage = getFirebaseStorage();
     return await getDownloadURL(ref(storage, storagePath));
@@ -27,12 +74,6 @@ export async function getKnowledgeFileUrl(storagePath: string): Promise<string |
     console.warn('[Storage] Impossible de récupérer l\'URL de téléchargement :', err);
     return null;
   }
-}
-
-export interface StorageUploadResult {
-  status: 'uploaded' | 'not_provisioned' | 'offline' | 'error';
-  storagePath?: string;
-  message: string;
 }
 
 export async function uploadKnowledgeFile(
@@ -43,7 +84,16 @@ export async function uploadKnowledgeFile(
   if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) {
     return {
       status: 'offline',
-      message: 'Hors ligne : métadonnées et texte extrait enregistrés localement ; fichier binaire non envoyé vers Storage.',
+      message:
+        'Hors ligne : fichier original non archivé dans le cloud. Texte extrait et métadonnées enregistrés localement.',
+    };
+  }
+
+  const available = await isStorageBucketAvailable();
+  if (!available) {
+    return {
+      status: 'not_provisioned',
+      message: NOT_PROVISIONED_MESSAGE,
     };
   }
 
@@ -59,7 +109,7 @@ export async function uploadKnowledgeFile(
     return {
       status: 'uploaded',
       storagePath,
-      message: 'Fichier original enregistré dans Firebase Storage.',
+      message: 'Fichier original archivé dans Firebase Storage.',
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -70,17 +120,24 @@ export async function uploadKnowledgeFile(
       msg.includes('404') ||
       msg.includes('Not Found');
 
+    if (isNotProvisioned) {
+      cachedStorageProvisioned = false;
+      return {
+        status: 'not_provisioned',
+        message: NOT_PROVISIONED_MESSAGE,
+      };
+    }
+
     return {
-      status: isNotProvisioned ? 'not_provisioned' : 'error',
-      message: isNotProvisioned
-        ? 'Firebase Storage non activé/provisionné sur ce projet (404) : le texte extrait et les métadonnées restent persistés dans Firestore.'
-        : `Échec upload Firebase Storage : ${msg}`,
+      status: 'error',
+      message: `Fichier original non archivé dans le cloud (${msg}). Texte extrait conservé dans Firestore.`,
     };
   }
 }
 
 export async function deleteKnowledgeFile(storagePath: string): Promise<void> {
   if (!storagePath || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+  if (cachedStorageProvisioned === false) return;
   try {
     const storage = getFirebaseStorage();
     await deleteObject(ref(storage, storagePath));

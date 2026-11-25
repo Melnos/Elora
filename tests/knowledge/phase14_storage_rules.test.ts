@@ -1,13 +1,19 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import { ok, strictEqual } from 'node:assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
   extractStoragePathFromInsights,
   STORAGE_PATH_PREFIX,
+  uploadKnowledgeFile,
+  resetStorageAvailabilityCache,
 } from '../../src/lib/firebase/storage';
 
-describe('Phase 14A — Firebase Storage Rules & Knowledge Path Helpers', () => {
+describe('Phase 14A — Firebase Storage Optionnel, Rules & Compatibilité', () => {
+  beforeEach(() => {
+    resetStorageAvailabilityCache();
+  });
+
   it('1. extractStoragePathFromInsights gère les anciens documents sans chemin Storage et les nouveaux documents', () => {
     strictEqual(extractStoragePathFromInsights(undefined), null);
     strictEqual(extractStoragePathFromInsights(['Document importé']), null);
@@ -32,5 +38,29 @@ describe('Phase 14A — Firebase Storage Rules & Knowledge Path Helpers', () => 
       /match\s+\/\{allPaths=\*\*\}\s*\{\s*allow\s+read,\s*write:\s*if\s+false;\s*\}/.test(rules),
       'Default-deny maintenu'
     );
+  });
+
+  it('3. Bucket non provisionné (404) : désactive proprement Storage sans simuler d\'upload ni bloquer', async () => {
+    let fetchCalls = 0;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      fetchCalls++;
+      return { status: 404 } as Response;
+    }) as typeof fetch;
+
+    try {
+      const fakeFile = new File(['hello'], 'cours.pdf', { type: 'application/pdf' });
+      const res1 = await uploadKnowledgeFile('uid_1', 'doc_1', fakeFile);
+      strictEqual(res1.status, 'not_provisioned');
+      strictEqual(res1.storagePath, undefined);
+      ok(res1.message.includes('non archivé dans le cloud'));
+
+      // Deuxième appel : utilise le cache de session sans relancer de requête Storage
+      const res2 = await uploadKnowledgeFile('uid_1', 'doc_2', fakeFile);
+      strictEqual(res2.status, 'not_provisioned');
+      strictEqual(fetchCalls, 1);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 });
