@@ -129,5 +129,7 @@ export interface Conversation {
   id: string;
   title: string;
   lastActive: string;
+  createdAt?: string;
+  updatedAt?: string;
   messages: ChatMessage[];
 }

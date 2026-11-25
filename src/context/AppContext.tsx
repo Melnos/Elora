@@ -22,6 +22,12 @@ import type { CapabilityReport, InferenceMode, AIResponse, AIRequestAttachment }
 import { ContextEngine } from '../lib/context/ContextEngine';
 import type { HomeBriefing, ProposedAction } from '../lib/context/types';
 import { ActionEngine } from '../lib/actions/ActionEngine';
+import {
+  generateConversationTitle,
+  sortConversationsByDate,
+  DEFAULT_CONVERSATION_TITLE,
+  MAX_CONVERSATION_TITLE_LENGTH,
+} from '../lib/conversations/conversationUtils';
 import { subscribeToAuthState, logoutUser, getSavedAuthSession } from '../lib/firebase/auth';
 import {
   syncUserProfile,
@@ -258,10 +264,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setOpportunities(merged);
           EloraDB.saveOpportunities(merged);
         }
-        if (cloudData.conversations.length > 0) {
-          const merged = mergeCollectionById(EloraDB.getConversations(), cloudData.conversations);
-          setConversations(merged);
-          EloraDB.saveConversations(merged);
+        const localConvs = EloraDB.getConversations();
+        const cloudConvIds = new Set(cloudData.conversations.map((c) => c.id));
+        const mergedConvs = sortConversationsByDate(
+          mergeCollectionById(localConvs, cloudData.conversations)
+        );
+        if (cloudData.conversations.length > 0 || localConvs.some((c) => c.createdAt || c.updatedAt)) {
+          setConversations(mergedConvs);
+          EloraDB.saveConversations(mergedConvs);
+          setCurrentConversationId((prevId) =>
+            mergedConvs.some((c) => c.id === prevId) ? prevId : mergedConvs[0]?.id || 'conv_1'
+          );
+        }
+        // Pousser vers Firestore les conversations créées/modifiées localement non encore présentes sur le Cloud
+        for (const lc of mergedConvs) {
+          if (!cloudConvIds.has(lc.id) && (lc.createdAt || lc.updatedAt)) {
+            void saveUserConversation(currentUser.uid, lc);
+          }
         }
       }
     } catch (err) {
@@ -497,55 +516,84 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Conversations IA
-  const createConversation = (initialTitle: string = 'Nouvelle conversation'): string => {
-    const newId = `conv_${Date.now()}`;
+  const createConversation = (initialTitle: string = DEFAULT_CONVERSATION_TITLE): string => {
+    const nowIso = new Date().toISOString();
+    const newId = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const newConv: Conversation = {
       id: newId,
-      title: initialTitle,
-      lastActive: 'À l\'instant',
+      title: initialTitle.trim().slice(0, MAX_CONVERSATION_TITLE_LENGTH) || DEFAULT_CONVERSATION_TITLE,
+      lastActive: "À l'instant",
+      createdAt: nowIso,
+      updatedAt: nowIso,
       messages: [],
     };
-    const updated = [newConv, ...conversations];
-    EloraDB.saveConversations(updated);
-    setConversations(updated);
+    setConversations((prev) => {
+      const updated = sortConversationsByDate([newConv, ...prev]);
+      EloraDB.saveConversations(updated);
+      return updated;
+    });
     setCurrentConversationId(newId);
     if (currentUser) {
-      saveUserConversation(currentUser.uid, newConv);
+      void saveUserConversation(currentUser.uid, newConv);
     }
     return newId;
   };
 
   const deleteConversation = (id: string) => {
-    setConversations((prev) => {
-      const filtered = prev.filter((c) => c.id !== id);
-      const nextConvs = filtered.length > 0 ? filtered : [{
-        id: `conv_${Date.now()}`,
-        title: 'Nouvelle conversation',
-        lastActive: 'À l\'instant',
-        messages: [],
-      }];
-      EloraDB.saveConversations(nextConvs);
-      if (currentConversationId === id) {
-        setCurrentConversationId(nextConvs[0].id);
-      }
-      return nextConvs;
-    });
+    const currentList = EloraDB.getConversations();
+    const filtered = currentList.filter((c) => c.id !== id);
+    const nowIso = new Date().toISOString();
+    const nextConvs =
+      filtered.length > 0
+        ? sortConversationsByDate(filtered)
+        : [
+            {
+              id: `conv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              title: DEFAULT_CONVERSATION_TITLE,
+              lastActive: "À l'instant",
+              createdAt: nowIso,
+              updatedAt: nowIso,
+              messages: [],
+            },
+          ];
+
+    EloraDB.saveConversations(nextConvs);
+    setConversations(nextConvs);
+    if (currentConversationId === id) {
+      setCurrentConversationId(nextConvs[0].id);
+    }
     if (currentUser) {
-      deleteUserConversation(currentUser.uid, id);
+      void deleteUserConversation(currentUser.uid, id);
+      if (filtered.length === 0) {
+        void saveUserConversation(currentUser.uid, nextConvs[0]);
+      }
     }
   };
 
   const renameConversation = (id: string, newTitle: string) => {
-    if (!newTitle.trim()) return;
+    const cleanTitle = newTitle.trim().slice(0, MAX_CONVERSATION_TITLE_LENGTH);
+    if (!cleanTitle) return;
+    const nowIso = new Date().toISOString();
+    let renamedConv: Conversation | undefined;
     setConversations((prev) => {
-      const updated = prev.map((c) => (c.id === id ? { ...c, title: newTitle.trim() } : c));
+      const updated = sortConversationsByDate(
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          renamedConv = {
+            ...c,
+            title: cleanTitle,
+            updatedAt: nowIso,
+            createdAt: c.createdAt || nowIso,
+          };
+          return renamedConv;
+        })
+      );
       EloraDB.saveConversations(updated);
-      const conv = updated.find((c) => c.id === id);
-      if (currentUser && conv) {
-        saveUserConversation(currentUser.uid, conv);
-      }
       return updated;
     });
+    if (currentUser && renamedConv) {
+      void saveUserConversation(currentUser.uid, renamedConv);
+    }
   };
 
   // Briefing transversal dynamique & Rapprochement des opportunités
@@ -712,6 +760,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   ) => {
     if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
 
+    const targetConvId = currentConversationId;
+    const nowIso = new Date().toISOString();
+
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}_u`,
       role: 'user',
@@ -727,17 +778,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === currentConversationId
-          ? {
-            ...c,
-            messages: [...c.messages, userMsg, initialAssistantMsg],
-            lastActive: 'À l\'instant',
-          }
-          : c
-      )
-    );
+    let convSnapshotOnSend: Conversation | undefined;
+    setConversations((prev) => {
+      const mapped = prev.map((c) => {
+        if (c.id !== targetConvId) return c;
+        const hasPriorUserMessages = c.messages.some((m) => m.role === 'user');
+        const nextTitle =
+          !hasPriorUserMessages && c.title === DEFAULT_CONVERSATION_TITLE
+            ? generateConversationTitle(text)
+            : c.title;
+        convSnapshotOnSend = {
+          ...c,
+          title: nextTitle,
+          messages: [...c.messages, userMsg, initialAssistantMsg],
+          lastActive: "À l'instant",
+          createdAt: c.createdAt || nowIso,
+          updatedAt: nowIso,
+        };
+        return convSnapshotOnSend;
+      });
+      const sorted = sortConversationsByDate(mapped);
+      EloraDB.saveConversations(sorted);
+      return sorted;
+    });
+
+    if (currentUser && convSnapshotOnSend) {
+      void saveUserConversation(currentUser.uid, convSnapshotOnSend);
+    }
 
     setIsGenerating(true);
 
@@ -760,7 +827,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       );
 
-      const activeConv = conversations.find((c) => c.id === currentConversationId);
+      const activeConv = conversations.find((c) => c.id === targetConvId);
       const recentHistory = (activeConv?.messages || [])
         .filter((m) => m.id !== 'msg_1' && m.id !== 'msg_2' && m.content && m.content.trim().length > 0)
         .slice(-6)
@@ -778,7 +845,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         onStreamChunk: (_chunk: string, accumulated: string) => {
           setConversations((prev) =>
             prev.map((c) => {
-              if (c.id !== currentConversationId) return c;
+              if (c.id !== targetConvId) return c;
               return {
                 ...c,
                 messages: c.messages.map((m) =>
@@ -790,11 +857,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
       });
 
+      const completedIso = new Date().toISOString();
+      let completedConv: Conversation | undefined;
       setConversations((prev) => {
-        const nextConvs = prev.map((c) => {
-          if (c.id !== currentConversationId) return c;
-          return {
+        const mapped = prev.map((c) => {
+          if (c.id !== targetConvId) return c;
+          completedConv = {
             ...c,
+            updatedAt: completedIso,
+            createdAt: c.createdAt || nowIso,
+            lastActive: "À l'instant",
             messages: c.messages.map((m) =>
               m.id === assistantMsgId
                 ? {
@@ -818,24 +890,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 : m
             ),
           };
+          return completedConv;
         });
 
-        EloraDB.saveConversations(nextConvs);
-
-        if (currentUser) {
-          const currentConv = nextConvs.find((c) => c.id === currentConversationId);
-          if (currentConv) saveUserConversation(currentUser.uid, currentConv);
-        }
-
-        return nextConvs;
+        const sorted = sortConversationsByDate(mapped);
+        EloraDB.saveConversations(sorted);
+        return sorted;
       });
+
+      if (currentUser && completedConv) {
+        await saveUserConversation(currentUser.uid, completedConv);
+      }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      const errIso = new Date().toISOString();
+      let erroredConv: Conversation | undefined;
       setConversations((prev) => {
-        const nextConvs = prev.map((c) => {
-          if (c.id !== currentConversationId) return c;
-          return {
+        const mapped = prev.map((c) => {
+          if (c.id !== targetConvId) return c;
+          erroredConv = {
             ...c,
+            updatedAt: errIso,
             messages: c.messages.map((m) =>
               m.id === assistantMsgId
                 ? {
@@ -845,10 +920,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 : m
             ),
           };
+          return erroredConv;
         });
-        EloraDB.saveConversations(nextConvs);
-        return nextConvs;
+        const sorted = sortConversationsByDate(mapped);
+        EloraDB.saveConversations(sorted);
+        return sorted;
       });
+      if (currentUser && erroredConv) {
+        await saveUserConversation(currentUser.uid, erroredConv);
+      }
     } finally {
       setIsGenerating(false);
     }

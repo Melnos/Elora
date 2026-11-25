@@ -26,6 +26,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { AIRequestAttachment } from '../../lib/ai/types';
+import {
+  formatConversationRelativeDate,
+  MAX_CONVERSATION_TITLE_LENGTH,
+} from '../../lib/conversations/conversationUtils';
 
 export const AIScreen: React.FC = () => {
   const {
@@ -47,6 +51,9 @@ export const AIScreen: React.FC = () => {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [showHistoryMobile, setShowHistoryMobile] = useState(false);
   const [attachments, setAttachments] = useState<AIRequestAttachment[]>([]);
+  const [editingConvId, setEditingConvId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [confirmDeleteConvId, setConfirmDeleteConvId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -340,62 +347,148 @@ export const AIScreen: React.FC = () => {
         </div>
 
         <div className="threads-list flex-1 overflow-y-auto p-2.5 space-y-1">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`w-full group flex items-center justify-between p-2.5 rounded-xl transition-all ${
-                conv.id === currentConversationId
-                  ? 'bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)]'
-                  : 'hover:bg-[var(--color-bg-surface-elevated)] border border-transparent'
-              }`}
-            >
-              <button
-                className="flex-1 text-left min-w-0 cursor-pointer"
-                onClick={() => {
-                  setCurrentConversationId(conv.id);
-                  setShowHistoryMobile(false);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${conv.id === currentConversationId ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-strong)]'}`} />
-                  <span className="text-xs font-medium text-[var(--color-text-main)] truncate block">
-                    {conv.title}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block pl-3.5">
-                  {conv.lastActive}
-                </span>
-              </button>
+          {conversations.map((conv) => {
+            const isEditing = editingConvId === conv.id;
+            const isConfirmingDelete = confirmDeleteConvId === conv.id;
+            const relativeDate = formatConversationRelativeDate(conv);
 
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 ml-1">
-                <button
-                  className="p-1 rounded hover:bg-[var(--color-bg-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] cursor-pointer"
-                  title="Renommer la discussion"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newTitle = window.prompt('Nouveau titre de la discussion :', conv.title);
-                    if (newTitle) renameConversation(conv.id, newTitle);
-                  }}
-                >
-                  <Edit3 size={11} />
-                </button>
-                {conversations.length > 1 && (
-                  <button
-                    className="p-1 rounded hover:bg-rose-500/10 text-[var(--color-text-muted)] hover:text-rose-500 cursor-pointer"
-                    title="Supprimer la discussion"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm('Supprimer cette discussion ?')) {
-                        deleteConversation(conv.id);
+            return (
+              <div
+                key={conv.id}
+                className={`w-full group flex items-center justify-between p-2.5 rounded-xl transition-all ${
+                  conv.id === currentConversationId
+                    ? 'bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)]'
+                    : 'hover:bg-[var(--color-bg-surface-elevated)] border border-transparent'
+                }`}
+              >
+                {isEditing ? (
+                  <form
+                    className="flex-1 flex items-center gap-1 min-w-0"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (editingTitle.trim()) {
+                        renameConversation(conv.id, editingTitle);
                       }
+                      setEditingConvId(null);
                     }}
                   >
-                    <Trash2 size={11} />
-                  </button>
+                    <input
+                      type="text"
+                      autoFocus
+                      maxLength={MAX_CONVERSATION_TITLE_LENGTH}
+                      aria-label="Nouveau titre de la discussion"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setEditingConvId(null);
+                      }}
+                      className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-[var(--color-bg-base)] border border-[var(--color-border-strong)] text-xs text-[var(--color-text-main)]"
+                    />
+                    <button
+                      type="submit"
+                      aria-label="Valider le titre"
+                      className="p-1 rounded bg-[var(--color-accent)] text-white cursor-pointer shrink-0"
+                    >
+                      <Check size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Annuler le renommage"
+                      onClick={() => setEditingConvId(null)}
+                      className="p-1 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] cursor-pointer shrink-0"
+                    >
+                      <X size={11} />
+                    </button>
+                  </form>
+                ) : isConfirmingDelete ? (
+                  <div className="flex-1 flex items-center justify-between gap-1.5 min-w-0">
+                    <span className="text-[11px] font-semibold text-rose-500 truncate">
+                      Supprimer ?
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        aria-label="Confirmer la suppression"
+                        onClick={() => {
+                          deleteConversation(conv.id);
+                          setConfirmDeleteConvId(null);
+                        }}
+                        className="px-2 py-0.5 rounded bg-rose-500 text-white text-[10px] font-semibold cursor-pointer"
+                      >
+                        Oui
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Annuler la suppression"
+                        onClick={() => setConfirmDeleteConvId(null)}
+                        className="px-2 py-0.5 rounded bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-main)] cursor-pointer"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      className="flex-1 text-left min-w-0 cursor-pointer"
+                      onClick={() => {
+                        setCurrentConversationId(conv.id);
+                        setShowHistoryMobile(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            conv.id === currentConversationId
+                              ? 'bg-[var(--color-accent)]'
+                              : 'bg-[var(--color-border-strong)]'
+                          }`}
+                        />
+                        <span className="text-xs font-medium text-[var(--color-text-main)] truncate block">
+                          {conv.title}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[var(--color-text-muted)] mt-0.5 block pl-3.5">
+                        {relativeDate}
+                      </span>
+                    </button>
+
+                    <div className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity flex items-center gap-1 shrink-0 ml-1">
+                      <button
+                        type="button"
+                        className="p-1.5 rounded hover:bg-[var(--color-bg-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] cursor-pointer"
+                        title="Renommer la discussion"
+                        aria-label={`Renommer ${conv.title}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteConvId(null);
+                          setEditingConvId(conv.id);
+                          setEditingTitle(conv.title);
+                        }}
+                      >
+                        <Edit3 size={12} />
+                      </button>
+                      {conversations.length > 1 && (
+                        <button
+                          type="button"
+                          className="p-1.5 rounded hover:bg-rose-500/10 text-[var(--color-text-muted)] hover:text-rose-500 cursor-pointer"
+                          title="Supprimer la discussion"
+                          aria-label={`Supprimer ${conv.title}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingConvId(null);
+                            setConfirmDeleteConvId(conv.id);
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </aside>
 
