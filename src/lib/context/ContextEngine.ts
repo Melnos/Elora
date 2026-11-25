@@ -50,31 +50,27 @@ export class ContextEngine {
     const { prompt, userId, activeEntityId, maxItemsPerScope = 4 } = query;
     const promptLower = (prompt || '').toLowerCase();
     const keywords = this.extractKeywords(promptLower);
+    const isPersonalQuery = this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId);
 
     const referencedSources: ReferencedSource[] = [];
     const proposedActions: ProposedAction[] = [];
 
-    // 1. Mémoires actives filtrées (Zero-candidate rule respectée)
-    const activeMemories = MemoryService.getActiveContextForAI(
-      userId,
-      prompt,
-      maxItemsPerScope
-    );
-
-    // 2. Objectifs pertinents (Score de matching lexical et statut)
+    // 1. Objectifs pertinents (uniquement si correspondance lexicale, entité ciblée ou demande personnelle explicite)
     const scoredGoals = dataset.goals.map((g) => {
-      let score = 0;
-      if (!g.completed) score += 2; // Priorité aux objectifs actifs
-      if (activeEntityId === g.id) score += 10;
-      const text = `${g.title} ${g.category}`.toLowerCase();
+      let keywordHits = 0;
+      const text = this.normalizeSearchText(`${g.title} ${g.category}`);
       for (const kw of keywords) {
-        if (text.includes(kw)) score += 3;
+        if (text.includes(kw)) keywordHits += 1;
       }
-      return { goal: g, score };
+      const score =
+        keywordHits * 3 +
+        (activeEntityId === g.id ? 10 : 0) +
+        (keywordHits > 0 || isPersonalQuery ? (!g.completed ? 2 : 0) : 0);
+      return { goal: g, score, keywordHits };
     });
     scoredGoals.sort((a, b) => b.score - a.score);
     const relevantGoals = scoredGoals
-      .filter((sg) => sg.score > 0 || scoredGoals.indexOf(sg) === 0)
+      .filter((sg) => sg.keywordHits > 0 || activeEntityId === sg.goal.id || isPersonalQuery)
       .slice(0, Math.min(maxItemsPerScope, 3))
       .map((sg) => sg.goal);
 
@@ -89,23 +85,24 @@ export class ContextEngine {
 
     const relevantGoalIds = new Set(relevantGoals.map((g) => g.id));
 
-    // 3. Tâches pertinentes (liées aux objectifs retenus ou aux mots-clés)
+    // 2. Tâches pertinentes (uniquement si correspondance lexicale, objectif retenu ou demande personnelle explicite)
     const scoredTasks = dataset.tasks.map((t) => {
-      let score = 0;
-      if (!t.completed) score += 2;
-      if (t.priority === 'high') score += 2;
-      if (t.goalId && relevantGoalIds.has(t.goalId)) score += 4;
-      if (activeEntityId === t.id) score += 10;
-
-      const text = `${t.title} ${t.description || ''} ${t.category}`.toLowerCase();
+      let keywordHits = 0;
+      const text = this.normalizeSearchText(`${t.title} ${t.description || ''} ${t.category}`);
       for (const kw of keywords) {
-        if (text.includes(kw)) score += 3;
+        if (text.includes(kw)) keywordHits += 1;
       }
-      return { task: t, score };
+      const linkedToGoal = Boolean(t.goalId && relevantGoalIds.has(t.goalId));
+      const score =
+        keywordHits * 3 +
+        (linkedToGoal ? 4 : 0) +
+        (activeEntityId === t.id ? 10 : 0) +
+        (keywordHits > 0 || linkedToGoal || isPersonalQuery ? (!t.completed ? 2 : 0) + (t.priority === 'high' ? 2 : 0) : 0);
+      return { task: t, score, keywordHits, linkedToGoal };
     });
     scoredTasks.sort((a, b) => b.score - a.score);
     const relevantTasks = scoredTasks
-      .filter((st) => st.score > 1 || scoredTasks.indexOf(st) === 0)
+      .filter((st) => st.keywordHits > 0 || st.linkedToGoal || activeEntityId === st.task.id || isPersonalQuery)
       .slice(0, maxItemsPerScope)
       .map((st) => st.task);
 
@@ -118,7 +115,7 @@ export class ContextEngine {
       });
     });
 
-    // 4. Documents Knowledge pertinents (avec extraits de contenu)
+    // 3. Documents Knowledge pertinents (avec extraits de contenu)
     const scoredDocs = dataset.docs.map((doc) => {
       let score = 0;
       if (activeEntityId === doc.id) score += 10;
@@ -131,16 +128,16 @@ export class ContextEngine {
       for (const kw of keywords) {
         if (titleLower.includes(kw)) score += 5;
         if (tagsLower.includes(kw)) score += 4;
-        if (collectionLower.includes(kw)) score += 3;
         if (summaryLower.includes(kw)) score += 3;
         if (contentLower.includes(kw)) score += 2;
+        if (collectionLower.includes(kw)) score += 1;
       }
       return { doc, score };
     });
     scoredDocs.sort((a, b) => b.score - a.score);
 
     const relevantDocs = scoredDocs
-      .filter((sd) => sd.score >= 2)
+      .filter((sd) => sd.score >= 4 || activeEntityId === sd.doc.id || (isPersonalQuery && scoredDocs.indexOf(sd) === 0 && sd.score > 0))
       .slice(0, Math.min(maxItemsPerScope, 3))
       .map((sd) => sd.doc);
 
@@ -154,6 +151,25 @@ export class ContextEngine {
       });
     });
 
+    // 4. Mémoires actives filtrées (uniquement si demande personnelle ou correspondance réelle avec le contexte)
+    const activeMemPool = dataset.memories.filter(
+      (m) => m.status === 'active' && m.enabledForAI
+    );
+    const hasMemoryKeywordMatch = activeMemPool.some((m) => {
+      const mText = this.normalizeSearchText(`${m.key} ${m.value} ${m.category}`);
+      return keywords.some((kw) => mText.includes(kw));
+    });
+    const shouldIncludeMemories =
+      isPersonalQuery ||
+      hasMemoryKeywordMatch ||
+      relevantGoals.length > 0 ||
+      relevantTasks.length > 0 ||
+      relevantDocs.length > 0;
+
+    const activeMemories = shouldIncludeMemories
+      ? MemoryService.getActiveContextForAI(userId, prompt, maxItemsPerScope)
+      : { systemContextBlock: '', itemCount: 0, categoriesIncluded: [] };
+
     // 5. Génération du bloc d'instructions contextuelles pour l'IA
     const systemPromptBlock = this.formatSystemContext({
       profile: dataset.profile,
@@ -161,6 +177,7 @@ export class ContextEngine {
       goals: relevantGoals,
       tasks: relevantTasks,
       docs: relevantDocs,
+      includePersonalProfile: isPersonalQuery,
     });
 
     // 6. Détection de propositions d'actions proactives fiabilisées (Zéro J+2 arbitraire)
@@ -330,6 +347,13 @@ export class ContextEngine {
 
   // --- Utilitaires Internes ---
 
+  private static isPersonalizationRequest(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(mon profil|mes objectifs|mon objectif|mes taches|ma tache|mon planning|mon agenda|mes documents|ma bibliotheque|mes memoires|mes preferences|mes competences|ma progression|mon bilan|mes opportunites|mon projet|a partir de mes|selon mon|adapte a mon|personnalise|dans mon contexte|hackathon|elora|ecogen)\b/i.test(
+      normalized
+    );
+  }
+
   private static normalizeSearchText(text: string): string {
     return (text || '')
       .toLowerCase()
@@ -361,12 +385,37 @@ export class ContextEngine {
     goals: GoalItem[];
     tasks: TaskItem[];
     docs: KnowledgeDoc[];
+    includePersonalProfile?: boolean;
   }): string {
+    const hasPersonalContext = Boolean(
+      data.includePersonalProfile ||
+        data.activeMemoriesBlock ||
+        data.goals.length > 0 ||
+        data.tasks.length > 0 ||
+        data.docs.length > 0
+    );
+
     const sections: string[] = [
-      `### [CONTEXTE UTILISATEUR TRANSVERSAL - ELORA CONTEXT ENGINE]`,
-      `* **Utilisateur** : ${data.profile.name} (${data.profile.roleTitle})`,
-      `* **Objectif stratégique déclaré** : ${data.profile.currentObjective}`,
+      `### [CONSIGNES PRINCIPALES - ELORA]`,
+      `- **Priorité à la demande** : Réponds directement, clairement et complètement à la question actuelle de l'utilisateur.`,
+      `- **Structure exacte** : Respecte strictement le format et le nombre d'éléments demandés (ex: exactement 3 exemples).`,
+      `- **Continuité conversationnelle** : Si l'utilisateur fait référence à un élément précédent (ex: « le deuxième »), appuie-toi uniquement sur la liste réellement produite au tour précédent dans l'historique récent. Si le référent est absent ou ambigu, demande une précision sans inventer.`,
     ];
+
+    if (!hasPersonalContext) {
+      sections.push(
+        `- **Question générale** : Aucun document, tâche, objectif ou profil personnel n'est requis ici. N'évoque pas les projets, le profil, le hackathon ou les documents personnels de l'utilisateur.`
+      );
+      return sections.join('\n');
+    }
+
+    sections.push(`\n### [CONTEXTE UTILISATEUR PERTINENT - ELORA CONTEXT ENGINE]`);
+    if (data.includePersonalProfile) {
+      sections.push(
+        `* **Utilisateur** : ${data.profile.name} (${data.profile.roleTitle})`,
+        `* **Objectif stratégique déclaré** : ${data.profile.currentObjective}`
+      );
+    }
 
     if (data.activeMemoriesBlock) {
       sections.push(`\n${data.activeMemoriesBlock}`);
@@ -401,13 +450,12 @@ export class ContextEngine {
     }
 
     sections.push(
-      `\n### [CONSIGNES DE RAISONNEMENT & EXIGENCES DE VÉRITÉ (PHASE 6)]`,
-      `- **Faits établis** : Appuie-toi rigoureusement sur les faits avérés ci-dessus (tâches, jalons d'objectifs, documents Knowledge et mémoires actives).`,
-      `- **Déductions & Hypothèses** : Distingue expressément ce qui est prouvé de ce qui est déduit. Formule toute analyse déductive au conditionnel ou en tant qu'hypothèse.`,
-      `- **Informations manquantes** : Si un paramètre clé fait défaut (ex: échéance précise, détail de mise en œuvre, identifiant manquant), signale-le ouvertement et demande une précision au lieu d'extrapoler ou d'inventer des contraintes arbitraires.`,
+      `\n### [CONSIGNES DE RAISONNEMENT & EXIGENCES DE VÉRITÉ]`,
+      `- **Faits établis** : Appuie-toi rigoureusement sur les faits avérés ci-dessus uniquement s'ils servent la question.`,
+      `- **Déductions & Hypothèses** : Distingue expressément ce qui est prouvé de ce qui est déduit.`,
+      `- **Informations manquantes** : Si un paramètre clé fait défaut, signale-le ouvertement sans extrapoler.`,
       `- **Traçabilité stricte** : Cite expressément les identifiants de source (ex: [Doc #${data.docs[0]?.id || '...'}], [Tâche #${data.tasks[0]?.id || '...'}], [Objectif #${data.goals[0]?.id || '...'}]) dès qu'une information en est issue.`,
-      `- **Zéro hallucination de source** : Ne cite JAMAIS un document, une tâche ou un objectif qui n'apparaît pas explicitement dans ce contexte résolu.`,
-      `- **Non-destructivité** : Ne propose et n'exécute aucune modification sans approbation formelle de l'utilisateur.`
+      `- **Zéro hallucination de source** : Ne cite JAMAIS un document, une tâche ou un objectif absent de ce contexte.`
     );
 
     return sections.join('\n');

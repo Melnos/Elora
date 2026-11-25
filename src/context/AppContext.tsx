@@ -762,7 +762,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const activeConv = conversations.find((c) => c.id === currentConversationId);
       const recentHistory = (activeConv?.messages || [])
-        .filter((m) => m.content && m.content.trim().length > 0)
+        .filter((m) => m.id !== 'msg_1' && m.id !== 'msg_2' && m.content && m.content.trim().length > 0)
         .slice(-6)
         .map((m) => `${m.role === 'user' ? 'Utilisateur' : 'ELORA'} : ${m.content.slice(0, 1200)}`)
         .join('\n');
