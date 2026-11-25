@@ -50,6 +50,7 @@ export class ContextEngine {
     const { prompt, userId, activeEntityId, maxItemsPerScope = 4 } = query;
     const promptLower = (prompt || '').toLowerCase();
     const keywords = this.extractKeywords(promptLower);
+    const excludedTerms = this.extractExcludedTerms(promptLower);
     const isPersonalQuery = this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId);
 
     const referencedSources: ReferencedSource[] = [];
@@ -117,14 +118,21 @@ export class ContextEngine {
 
     // 3. Documents Knowledge pertinents (avec extraits de contenu)
     const scoredDocs = dataset.docs.map((doc) => {
-      let score = 0;
-      if (activeEntityId === doc.id) score += 10;
       const titleLower = this.normalizeSearchText(doc.title);
       const collectionLower = this.normalizeSearchText(doc.collection);
       const summaryLower = this.normalizeSearchText(doc.summary);
       const tagsLower = this.normalizeSearchText(doc.tags.join(' '));
       const contentLower = this.normalizeSearchText(doc.content);
 
+      const isExcluded = excludedTerms.some(
+        (term) => titleLower.includes(term) || tagsLower.includes(term)
+      );
+      if (isExcluded && activeEntityId !== doc.id) {
+        return { doc, score: 0 };
+      }
+
+      let score = 0;
+      if (activeEntityId === doc.id) score += 10;
       for (const kw of keywords) {
         if (titleLower.includes(kw)) score += 5;
         if (tagsLower.includes(kw)) score += 4;
@@ -346,6 +354,57 @@ export class ContextEngine {
   }
 
   // --- Utilitaires Internes ---
+
+  /**
+   * Ne retient que les sources qui ont effectivement contribué à la réponse générée
+   * (citation explicite de l'ID ou mention réelle du titre / termes clés dans la réponse).
+   */
+  public static filterUsedSources(
+    sources: ReferencedSource[],
+    responseText: string,
+    userPrompt: string = ''
+  ): ReferencedSource[] {
+    if (!sources.length || !responseText.trim()) return [];
+    const respNorm = this.normalizeSearchText(responseText);
+    const excluded = this.extractExcludedTerms(userPrompt);
+
+    return sources.filter((s) => {
+      const titleNorm = this.normalizeSearchText(s.title);
+      if (excluded.some((term) => titleNorm.includes(term))) {
+        return false;
+      }
+      const idNorm = this.normalizeSearchText(s.id);
+      if (respNorm.includes(`#${idNorm}`) || respNorm.includes(idNorm)) {
+        return true;
+      }
+      if (titleNorm.length >= 4 && respNorm.includes(titleNorm)) {
+        return true;
+      }
+      const titleTokens = titleNorm
+        .replace(/[^\w\s-]/g, ' ')
+        .split(/[\s-]+/)
+        .filter((w) => w.length >= 4);
+      if (titleTokens.length === 0) return false;
+      const matchedTokens = titleTokens.filter((t) => respNorm.includes(t));
+      return matchedTokens.length >= Math.min(2, titleTokens.length);
+    });
+  }
+
+  private static extractExcludedTerms(prompt: string): string[] {
+    const norm = this.normalizeSearchText(prompt);
+    const terms: string[] = [];
+    const patterns = [
+      /(?:mets|met|laisse|laisser)\s+([a-z0-9_-]{3,})\s+de\s+cote/g,
+      /(?:sans|ignore|ignorer|oublie|oublier|pas\s+de|ne\s+parle\s+pas\s+de)\s+([a-z0-9_-]{3,})/g,
+    ];
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(norm)) !== null) {
+        if (m[1]) terms.push(m[1]);
+      }
+    }
+    return terms;
+  }
 
   private static isPersonalizationRequest(promptLower: string): boolean {
     const normalized = this.normalizeSearchText(promptLower);

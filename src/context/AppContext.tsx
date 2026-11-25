@@ -806,7 +806,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                       : aiResponse.metadata.source,
                   modelName: aiResponse.metadata.modelName,
                   durationMs: aiResponse.metadata.durationMs,
-                  sources: resolvedContext.referencedSources,
+                  sources: ContextEngine.filterUsedSources(
+                    resolvedContext.referencedSources,
+                    aiResponse.text,
+                    text
+                  ),
                   proposedActions: resolvedContext.proposedActions,
                   fallbackOccurred: aiResponse.metadata.fallbackOccurred,
                   fallbackReason: aiResponse.metadata.fallbackReason,
