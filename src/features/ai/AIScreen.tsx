@@ -54,6 +54,7 @@ export const AIScreen: React.FC = () => {
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [confirmDeleteConvId, setConfirmDeleteConvId] = useState<string | null>(null);
+  const [, setRelativeTimeTick] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +66,14 @@ export const AIScreen: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentConversation?.messages, isGenerating]);
+
+  // Rafraîchit automatiquement les dates relatives (« À l'instant », « Il y a 1 min »...) toutes les 30s
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setRelativeTimeTick((tick) => tick + 1);
+    }, 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   // Détection du format de fichier
   const getFileBadge = (name: string) => {

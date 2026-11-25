@@ -67,7 +67,7 @@ export const OpportunitiesScreen: React.FC = () => {
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-accent-bg)] text-[var(--color-accent)] text-xs font-semibold border border-[var(--color-accent)]/20 self-start md:self-auto">
           <ShieldCheck size={14} />
-          <span>Informations 100% Vérifiées</span>
+          <span>Sélection curatée</span>
         </div>
       </div>
 

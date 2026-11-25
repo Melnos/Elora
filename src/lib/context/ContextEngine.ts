@@ -448,10 +448,10 @@ export class ContextEngine {
   }): string {
     const hasPersonalContext = Boolean(
       data.includePersonalProfile ||
-        data.activeMemoriesBlock ||
-        data.goals.length > 0 ||
-        data.tasks.length > 0 ||
-        data.docs.length > 0
+      data.activeMemoriesBlock ||
+      data.goals.length > 0 ||
+      data.tasks.length > 0 ||
+      data.docs.length > 0
     );
 
     const sections: string[] = [
@@ -522,7 +522,7 @@ export class ContextEngine {
 
   private static getGreeting(name: string): string {
     const hour = new Date().getHours();
-    const cleanName = name || 'Djima';
+    const cleanName = name?.trim() || 'Étudiant';
     if (hour < 12) return `Bonjour ${cleanName}`;
     if (hour < 18) return `Bon après-midi ${cleanName}`;
     return `Bonsoir ${cleanName}`;

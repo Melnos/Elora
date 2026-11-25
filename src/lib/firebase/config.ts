@@ -10,26 +10,28 @@ import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from 'firebase/app-check';
 import { getAI, GoogleAIBackend, type AI } from 'firebase/ai';
 
-function readEnvVar(key: string, fallback: string): string {
-  const viteVal =
-    typeof import.meta !== 'undefined' && import.meta.env
-      ? (import.meta.env[key] as string | undefined)
-      : undefined;
+function readEnvVar(
+  viteVal: string | undefined,
+  procKey: string,
+  fallback: string
+): string {
   const procVal =
     typeof globalThis !== 'undefined' &&
     (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
-      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env[key]
+      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env[procKey]
       : undefined;
   return viteVal || procVal || fallback;
 }
 
+const env = typeof import.meta !== 'undefined' ? import.meta.env : undefined;
+
 export const firebaseConfig = {
-  apiKey: readEnvVar('VITE_FIREBASE_API_KEY', 'AIzaSyDemoKeyForBuildHybridAIChallengeOnly1234'),
-  authDomain: readEnvVar('VITE_FIREBASE_AUTH_DOMAIN', 'elora-hybrid-ai.firebaseapp.com'),
-  projectId: readEnvVar('VITE_FIREBASE_PROJECT_ID', 'elora-hybrid-ai'),
-  storageBucket: readEnvVar('VITE_FIREBASE_STORAGE_BUCKET', 'elora-hybrid-ai.firebasestorage.app'),
-  messagingSenderId: readEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID', '123456789012'),
-  appId: readEnvVar('VITE_FIREBASE_APP_ID', '1:123456789012:web:abcdef1234567890'),
+  apiKey: readEnvVar(env?.VITE_FIREBASE_API_KEY, 'VITE_FIREBASE_API_KEY', 'AIzaSyDemoKeyForBuildHybridAIChallengeOnly1234'),
+  authDomain: readEnvVar(env?.VITE_FIREBASE_AUTH_DOMAIN, 'VITE_FIREBASE_AUTH_DOMAIN', 'elora-hybrid-ai.firebaseapp.com'),
+  projectId: readEnvVar(env?.VITE_FIREBASE_PROJECT_ID, 'VITE_FIREBASE_PROJECT_ID', 'elora-hybrid-ai'),
+  storageBucket: readEnvVar(env?.VITE_FIREBASE_STORAGE_BUCKET, 'VITE_FIREBASE_STORAGE_BUCKET', 'elora-hybrid-ai.firebasestorage.app'),
+  messagingSenderId: readEnvVar(env?.VITE_FIREBASE_MESSAGING_SENDER_ID, 'VITE_FIREBASE_MESSAGING_SENDER_ID', '123456789012'),
+  appId: readEnvVar(env?.VITE_FIREBASE_APP_ID, 'VITE_FIREBASE_APP_ID', '1:123456789012:web:abcdef1234567890'),
 };
 
 // Initialisation idempotente du singleton FirebaseApp
@@ -82,7 +84,11 @@ export function getFirebaseAppCheck(): AppCheck | null {
     return null;
   }
 
-  const siteKey = readEnvVar('VITE_FIREBASE_APPCHECK_SITE_KEY', '').trim();
+  const siteKey = readEnvVar(
+    env?.VITE_FIREBASE_APPCHECK_SITE_KEY,
+    'VITE_FIREBASE_APPCHECK_SITE_KEY',
+    ''
+  ).trim();
   if (!siteKey || siteKey.startsWith('votre_')) {
     // Aucune attestation simulée : si la clé de site reCAPTCHA Enterprise est absente, ne pas initialiser App Check.
     return null;

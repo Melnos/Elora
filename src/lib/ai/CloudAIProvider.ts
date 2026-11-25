@@ -29,12 +29,16 @@ export class CloudAIProvider {
       ? (globalThis as unknown as { process?: { env?: Record<string, string> } }).process
       : undefined;
 
+    // Sécurité production : ne jamais lire VITE_GEMINI_API_KEY via import.meta.env
+    // afin que Vite n'embarque pas de clé Gemini directe dans le bundle public dist/.
+    // En navigateur, l'inférence cloud passe par Firebase AI Logic (App Check + Auth).
+    // La variable process.env.VITE_GEMINI_API_KEY reste supportée uniquement pour les tests Node/CLI.
     const apiKey =
-      (typeof import.meta !== 'undefined' && import.meta.env
-        ? import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY
-        : '') ||
       proc?.env?.VITE_GEMINI_API_KEY ||
       proc?.env?.VITE_FIREBASE_API_KEY ||
+      (typeof import.meta !== 'undefined' && import.meta.env
+        ? import.meta.env.VITE_FIREBASE_API_KEY
+        : '') ||
       '';
 
     // Construction du prompt enrichi avec pièces jointes si présentes
