@@ -760,8 +760,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       );
 
+      const activeConv = conversations.find((c) => c.id === currentConversationId);
+      const recentHistory = (activeConv?.messages || [])
+        .filter((m) => m.content && m.content.trim().length > 0)
+        .slice(-6)
+        .map((m) => `${m.role === 'user' ? 'Utilisateur' : 'ELORA'} : ${m.content.slice(0, 1200)}`)
+        .join('\n');
+      const historyBlock = recentHistory
+        ? `\n\n### [HISTORIQUE RÉCENT DE LA CONVERSATION]\n${recentHistory}`
+        : '';
+
       const aiResponse: AIResponse = await orchestrator.process({
-        prompt: `${resolvedContext.systemPromptBlock}\n\nDemande de l'utilisateur : ${text}`,
+        prompt: `${resolvedContext.systemPromptBlock}${historyBlock}\n\nDemande actuelle de l'utilisateur : ${text}`,
         mode: options?.mode,
         localOnly: options?.localOnly,
         attachments: options?.attachments,
