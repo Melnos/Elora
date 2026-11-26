@@ -101,5 +101,47 @@ describe('Phase 15 — Résilience Firebase AI Logic (503, AI/parse-failed, Fall
     const cloudSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/ai/CloudAIProvider.ts'), 'utf-8');
     ok(appCtx.includes('HISTORIQUE RÉCENT DE LA CONVERSATION'), 'Historique multi-tours injecté');
     ok(cloudSrc.includes('streamResult.response.catch'), 'Protection anti-Uncaught sur streamResult.response');
+    ok(!cloudSrc.includes('VITE_FIREBASE_API_KEY'), 'VITE_FIREBASE_API_KEY ne doit jamais servir de clé Gemini REST');
+  });
+
+  it('5. En navigateur (window défini), aucun appel vers generativelanguage.googleapis.com même si Firebase AI Logic échoue', async () => {
+    const g = globalThis as unknown as { window?: unknown };
+    const prevWindow = g.window;
+    const origFetch = globalThis.fetch;
+    let directGeminiCalled = false;
+
+    g.window = {};
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('generativelanguage.googleapis.com')) {
+        directGeminiCalled = true;
+      }
+      return new Response(JSON.stringify({ error: { message: 'Firebase App Check token is invalid.' } }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const prevGeminiKey = process.env.VITE_GEMINI_API_KEY;
+    const prevFirebaseKey = process.env.VITE_FIREBASE_API_KEY;
+    process.env.VITE_GEMINI_API_KEY = 'TEST_KEY_FOR_UNIT_MOCK_ONLY_123456';
+    process.env.VITE_FIREBASE_API_KEY = 'TEST_FIREBASE_KEY_ONLY_123456';
+
+    try {
+      const provider = new CloudAIProvider();
+      await rejects(
+        () => provider.generate({ prompt: 'Test navigateur strict', mode: 'only_in_cloud' }),
+        /Échec de l'appel Cloud/
+      );
+      strictEqual(directGeminiCalled, false, 'Aucun appel direct generativelanguage.googleapis.com autorisé dans le navigateur');
+    } finally {
+      globalThis.fetch = origFetch;
+      if (prevWindow === undefined) delete g.window;
+      else g.window = prevWindow;
+      if (prevGeminiKey === undefined) delete process.env.VITE_GEMINI_API_KEY;
+      else process.env.VITE_GEMINI_API_KEY = prevGeminiKey;
+      if (prevFirebaseKey === undefined) delete process.env.VITE_FIREBASE_API_KEY;
+      else process.env.VITE_FIREBASE_API_KEY = prevFirebaseKey;
+    }
   });
 });

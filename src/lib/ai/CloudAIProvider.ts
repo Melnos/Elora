@@ -29,17 +29,11 @@ export class CloudAIProvider {
       ? (globalThis as unknown as { process?: { env?: Record<string, string> } }).process
       : undefined;
 
-    // Sécurité production : ne jamais lire VITE_GEMINI_API_KEY via import.meta.env
-    // afin que Vite n'embarque pas de clé Gemini directe dans le bundle public dist/.
-    // En navigateur, l'inférence cloud passe par Firebase AI Logic (App Check + Auth).
-    // La variable process.env.VITE_GEMINI_API_KEY reste supportée uniquement pour les tests Node/CLI.
-    const apiKey =
-      proc?.env?.VITE_GEMINI_API_KEY ||
-      proc?.env?.VITE_FIREBASE_API_KEY ||
-      (typeof import.meta !== 'undefined' && import.meta.env
-        ? import.meta.env.VITE_FIREBASE_API_KEY
-        : '') ||
-      '';
+    // Sécurité production navigateur : ne jamais appeler generativelanguage.googleapis.com
+    // depuis le navigateur et ne jamais utiliser la clé Firebase Web comme clé Gemini.
+    // Le repli Node/CLI reste strictement isolé hors navigateur avec process.env.VITE_GEMINI_API_KEY.
+    const isBrowserRuntime = typeof window !== 'undefined';
+    const nodeGeminiApiKey = !isBrowserRuntime ? proc?.env?.VITE_GEMINI_API_KEY || '' : '';
 
     // Construction du prompt enrichi avec pièces jointes si présentes
     let promptPayload = options.prompt;
@@ -131,10 +125,10 @@ export class CloudAIProvider {
       console.warn('[CloudAIProvider] Note Firebase AI Logic (backend/App Check) :', firebaseError.message);
     }
 
-    // 2. Filet de résilience en environnement de développement / test si une clé directe est fournie
-    if (apiKey) {
+    // 2. Filet de résilience strictement réservé à l'environnement Node/CLI (jamais dans le navigateur)
+    if (!isBrowserRuntime && nodeGeminiApiKey) {
       try {
-        const restResult = await this.generateViaGeminiREST(promptPayload, apiKey, options);
+        const restResult = await this.generateViaGeminiREST(promptPayload, nodeGeminiApiKey, options);
         const durationMs = Math.round(performance.now() - startTime);
         return {
           text: restResult.text,
@@ -175,9 +169,7 @@ export class CloudAIProvider {
     const candidateModels = [
       'gemini-3.5-flash-lite',
       'gemini-3.5-flash',
-      'gemini-3.8-flash',
       'gemini-flash-latest',
-      'gemini-3.7-flash',
     ];
     let lastError: Error | null = null;
 
