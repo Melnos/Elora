@@ -69,6 +69,10 @@ export interface AIRequestOptions {
   onStreamChunk?: (chunk: string, accumulated: string) => void;
   /** Fichiers ou pièces jointes (documents, code, texte) */
   attachments?: AIRequestAttachment[];
+  /** Question brute de l'utilisateur, utilisée pour évaluer la complexité sans inclure le contexte injecté */
+  userQuestion?: string;
+  /** Signal d'annulation partagé pour le cycle de vie IA */
+  signal?: AbortSignal;
 }
 
 export interface AIResponse {

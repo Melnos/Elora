@@ -137,6 +137,7 @@ interface AppContextType {
       attachments?: AIRequestAttachment[];
     }
   ) => Promise<void>;
+  cancelGeneration: () => void;
   isGenerating: boolean;
 
   // Diagnostic IA
@@ -760,6 +761,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const cancelGeneration = useCallback(() => {
+    orchestrator.cancelCurrent();
+  }, []);
+
   // Envoi de message IA avec streaming temps réel et résolution transversale ContextEngine
   const sendMessage = async (
     text: string,
@@ -769,6 +774,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       attachments?: AIRequestAttachment[];
     }
   ) => {
+    if (isGenerating) return;
     if (!text.trim() && (!options?.attachments || options.attachments.length === 0)) return;
 
     const existingTarget = currentConversationId
@@ -871,6 +877,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const aiResponse: AIResponse = await orchestrator.process({
         prompt: `${resolvedContext.systemPromptBlock}${historyBlock}\n\nDemande actuelle de l'utilisateur : ${text}`,
+        userQuestion: text,
         mode: options?.mode,
         localOnly: options?.localOnly,
         attachments: options?.attachments,
@@ -934,6 +941,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await saveUserConversation(currentUser.uid, completedConv);
       }
     } catch (err: unknown) {
+      const isAborted = err instanceof Error && err.name === 'AbortError';
       const errMsg = err instanceof Error ? err.message : String(err);
       const errIso = new Date().toISOString();
       let erroredConv: Conversation | undefined;
@@ -947,7 +955,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               m.id === assistantMsgId
                 ? {
                   ...m,
-                  content: `⚠️ **Information ELORA :**\n\n${errMsg}`,
+                  content: isAborted
+                    ? (m.content && m.content.trim().length > 0
+                        ? `${m.content}\n\n_(Génération interrompue par l'utilisateur.)_`
+                        : "_Génération interrompue par l'utilisateur._")
+                    : `⚠️ **Information ELORA :**\n\n${errMsg}`,
                 }
                 : m
             ),
@@ -1017,6 +1029,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteConversation,
         renameConversation,
         sendMessage,
+        cancelGeneration,
         isGenerating,
         caps,
         refreshCapabilities,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   X,
@@ -15,8 +15,10 @@ import {
   HelpCircle,
   Server,
   Zap,
+  Download,
 } from 'lucide-react';
 import { orchestrator } from '../../lib/ai/AIOrchestrator';
+import { CapabilityDetector } from '../../lib/ai/CapabilityDetector';
 import { OfflineQueue } from '../../lib/offline/OfflineQueue';
 import type { AIResponse } from '../../lib/ai/types';
 
@@ -36,9 +38,19 @@ export const DiagnosticModal: React.FC = () => {
   const [logs, setLogs] = useState<TestLog[]>([]);
   const [activeTest, setActiveTest] = useState<string | null>(null);
   const [showFlagsGuide, setShowFlagsGuide] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [testPrompt, setTestPrompt] = useState(
     'Explique en 2 phrases pourquoi une IA hybride est plus résiliente et respectueuse de la vie privée.'
   );
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isDiagnosticOpen) return;
@@ -224,6 +236,76 @@ export const DiagnosticModal: React.FC = () => {
     runTestOfflineQueue();
   };
 
+  const handleDownloadLocalModel = async () => {
+    if (isDownloading) return;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadError(null);
+
+    addLog({
+      name: 'Téléchargement Gemini Nano',
+      status: 'running',
+      message: 'Initialisation du téléchargement du modèle local (~4 Go) via LanguageModel.create()...',
+    });
+
+    try {
+      const report = await CapabilityDetector.downloadLocalModel(
+        (percent) => setDownloadProgress(percent),
+        controller.signal
+      );
+      await refreshCapabilities();
+
+      if (report.onDeviceStatus === 'readily') {
+        addLog({
+          name: 'Téléchargement Gemini Nano',
+          status: 'success',
+          source: 'on_device',
+          message: 'Modèle local téléchargé et vérifié prêt (onDeviceStatus: readily).',
+        });
+      } else {
+        const msg = `Téléchargement terminé, mais le statut réel reste '${report.onDeviceStatus}' (${report.onDeviceDetails}).`;
+        setDownloadError(msg);
+        addLog({
+          name: 'Téléchargement Gemini Nano',
+          status: 'warning',
+          source: 'unavailable',
+          message: msg,
+        });
+      }
+    } catch (err: unknown) {
+      if (
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        addLog({
+          name: 'Téléchargement Gemini Nano',
+          status: 'warning',
+          message: 'Téléchargement du modèle local annulé par l’utilisateur.',
+        });
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        setDownloadError(msg);
+        addLog({
+          name: 'Téléchargement Gemini Nano',
+          status: 'error',
+          source: 'unavailable',
+          message: `Échec du téléchargement du modèle local : ${msg}`,
+        });
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      setIsDownloading(false);
+    }
+  };
+
+  const handleCancelDownload = () => {
+    abortControllerRef.current?.abort();
+  };
+
   return (
     <div className="modal-backdrop" onClick={() => setIsDiagnosticOpen(false)}>
       <div
@@ -298,6 +380,53 @@ export const DiagnosticModal: React.FC = () => {
             </div>
 
             <p className="diag-details-text">{caps?.onDeviceDetails}</p>
+
+            {(caps?.onDeviceStatus === 'after-download' || isDownloading || downloadError) && (
+              <div className="mt-3 p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] space-y-2.5">
+                {!isDownloading && caps?.onDeviceStatus === 'after-download' && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadLocalModel}
+                    className="btn-accent-sm w-full justify-center"
+                  >
+                    <Download size={14} />
+                    <span>Télécharger le modèle local (~4 Go)</span>
+                  </button>
+                )}
+
+                {isDownloading && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-[var(--color-text-main)]">
+                      <span>Téléchargement de Gemini Nano en cours...</span>
+                      <strong>{downloadProgress}%</strong>
+                    </div>
+                    <div
+                      className="w-full h-2 rounded-full overflow-hidden bg-[var(--color-border-subtle)]"
+                      role="progressbar"
+                      aria-valuenow={downloadProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="h-full bg-[var(--color-accent)] transition-all duration-200"
+                        style={{ width: `${downloadProgress}%` }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelDownload}
+                      className="btn-secondary-sm"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                )}
+
+                {downloadError && (
+                  <p className="text-xs text-[var(--color-danger)]">{downloadError}</p>
+                )}
+              </div>
+            )}
 
             <button
               className="toggle-flags-guide-btn"

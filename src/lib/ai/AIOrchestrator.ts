@@ -18,13 +18,32 @@ import { LocalAIProvider } from './LocalAIProvider';
 import { TaskRouter } from './TaskRouter';
 import type { AIRequestOptions, AIResponse, CapabilityReport } from './types';
 
+function createAbortError(): DOMException {
+  return new DOMException("Génération annulée par l'utilisateur.", 'AbortError');
+}
+
+function isAbortError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { name?: string }).name === 'AbortError';
+}
+
 export class AIOrchestrator {
   private localProvider: LocalAIProvider;
   private cloudProvider: CloudAIProvider;
+  private activeAbortController: AbortController | null = null;
 
   constructor() {
     this.localProvider = new LocalAIProvider();
     this.cloudProvider = new CloudAIProvider();
+  }
+
+  /**
+   * Annule proprement la génération IA en cours, le cas échéant.
+   */
+  public cancelCurrent(): void {
+    if (this.activeAbortController) {
+      this.activeAbortController.abort(createAbortError());
+      this.activeAbortController = null;
+    }
   }
 
   /**
@@ -38,45 +57,90 @@ export class AIOrchestrator {
    * Point d'entrée principal pour soumettre une consigne ou message à ELORA.
    */
   public async process(options: AIRequestOptions): Promise<AIResponse> {
-    // 1. Détermination de la route d'exécution
-    const decision = await TaskRouter.route(options);
-
-    // 2. Exécution selon la cible
-    if (decision.target === 'local') {
-      try {
-        return await this.localProvider.generate({
-          ...options,
-          mode: decision.effectiveMode,
-        });
-      } catch (localErr: unknown) {
-        // Si le repli vers le cloud est interdit (mode confidentiel/localOnly)
-        if (!decision.fallbackToCloudAllowed) {
-          throw localErr;
-        }
-
-        // Si le repli est autorisé et que nous sommes en ligne
-        const caps = await CapabilityDetector.detect();
-        if (caps.networkOnline) {
-          const cloudResp = await this.cloudProvider.generate({
-            ...options,
-            mode: 'prefer_on_device',
-          });
-
-          // Enregistrement explicite du repli
-          cloudResp.metadata.fallbackOccurred = true;
-          cloudResp.metadata.fallbackReason = `Moteur local indisponible (${localErr instanceof Error ? localErr.message : String(localErr)}) - Bascule transparente vers Cloud`;
-          return cloudResp;
-        }
-
-        throw localErr;
-      }
+    if (options.signal?.aborted) {
+      throw createAbortError();
     }
 
-    // 3. Exécution Cloud directe
-    return await this.cloudProvider.generate({
+    // Garde anti-concurrence : annule proprement toute génération précédente encore active
+    if (this.activeAbortController) {
+      this.cancelCurrent();
+    }
+
+    const controller = new AbortController();
+    this.activeAbortController = controller;
+
+    const onExternalAbort = () => {
+      controller.abort(options.signal?.reason ?? createAbortError());
+    };
+    if (options.signal) {
+      options.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+
+    const effectiveOptions: AIRequestOptions = {
       ...options,
-      mode: decision.effectiveMode,
-    });
+      signal: controller.signal,
+    };
+
+    try {
+      // 1. Détermination de la route d'exécution
+      const decision = await TaskRouter.route(effectiveOptions);
+
+      if (controller.signal.aborted) {
+        throw createAbortError();
+      }
+
+      // 2. Exécution selon la cible
+      if (decision.target === 'local') {
+        try {
+          return await this.localProvider.generate({
+            ...effectiveOptions,
+            mode: decision.effectiveMode,
+          });
+        } catch (localErr: unknown) {
+          // Ne JAMAIS basculer vers le Cloud si la requête a été annulée
+          if (isAbortError(localErr) || controller.signal.aborted) {
+            throw isAbortError(localErr) ? localErr : createAbortError();
+          }
+
+          // Si le repli vers le cloud est interdit (mode confidentiel/localOnly)
+          if (!decision.fallbackToCloudAllowed) {
+            throw localErr;
+          }
+
+          // Si le repli est autorisé et que nous sommes en ligne
+          const caps = await CapabilityDetector.detect();
+          if (controller.signal.aborted) {
+            throw createAbortError();
+          }
+          if (caps.networkOnline) {
+            const cloudResp = await this.cloudProvider.generate({
+              ...effectiveOptions,
+              mode: 'prefer_on_device',
+            });
+
+            // Enregistrement explicite du repli
+            cloudResp.metadata.fallbackOccurred = true;
+            cloudResp.metadata.fallbackReason = `Moteur local indisponible (${localErr instanceof Error ? localErr.message : String(localErr)}) - Bascule transparente vers Cloud`;
+            return cloudResp;
+          }
+
+          throw localErr;
+        }
+      }
+
+      // 3. Exécution Cloud directe
+      return await this.cloudProvider.generate({
+        ...effectiveOptions,
+        mode: decision.effectiveMode,
+      });
+    } finally {
+      if (options.signal) {
+        options.signal.removeEventListener('abort', onExternalAbort);
+      }
+      if (this.activeAbortController === controller) {
+        this.activeAbortController = null;
+      }
+    }
   }
 
   /**

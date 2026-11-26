@@ -10,11 +10,30 @@ import { getGenerativeModel, InferenceMode, InferenceSource } from 'firebase/ai'
 import { getFirebaseAI } from '../firebase/config';
 import type { AIRequestOptions, AIResponse } from './types';
 
+function createAbortError(): DOMException {
+  return new DOMException("Génération annulée par l'utilisateur.", 'AbortError');
+}
+
+function isAbortError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { name?: string }).name === 'AbortError';
+}
+
+async function closeStreamSafely(stream: unknown): Promise<void> {
+  const closable = stream as { return?: () => Promise<unknown> } | null | undefined;
+  if (closable && typeof closable.return === 'function') {
+    await closable.return().catch(() => undefined);
+  }
+}
+
 export class CloudAIProvider {
   /**
    * Exécute une requête IA via Google Gemini API ou Firebase AI Logic.
    */
   public async generate(options: AIRequestOptions): Promise<AIResponse> {
+    if (options.signal?.aborted) {
+      throw createAbortError();
+    }
+
     const startTime = performance.now();
     const timestamp = new Date().toISOString();
 
@@ -64,20 +83,44 @@ export class CloudAIProvider {
 
       if (options.onStreamChunk) {
         try {
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
+
           const streamResult = await cloudModel.generateContentStream(promptPayload);
           // Empêcher toute erreur "Uncaught (in promise)" si .stream échoue avant .response
           streamResult.response.catch(() => undefined);
 
+          if (options.signal?.aborted) {
+            await closeStreamSafely(streamResult.stream);
+            throw createAbortError();
+          }
+
           for await (const chunk of streamResult.stream) {
+            if (options.signal?.aborted) {
+              await closeStreamSafely(streamResult.stream);
+              throw createAbortError();
+            }
             const chunkText = chunk.text();
             text += chunkText;
             options.onStreamChunk(chunkText, text);
           }
+
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
+
           const finalResp = await streamResult.response;
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
           if (finalResp.inferenceSource === InferenceSource.ON_DEVICE) {
             certifiedSource = 'on_device';
           }
         } catch (streamErr: unknown) {
+          if (isAbortError(streamErr) || options.signal?.aborted) {
+            throw isAbortError(streamErr) ? streamErr : createAbortError();
+          }
           const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
           const isTransientStreamErr =
             msg.includes('503') ||
@@ -89,7 +132,13 @@ export class CloudAIProvider {
           }
           // Seconde tentative Firebase AI Logic en mode non-streamé (évite les erreurs SSE / 503 transitoires)
           await new Promise((r) => setTimeout(r, 350));
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
           const retryResult = await cloudModel.generateContent(promptPayload);
+          if (options.signal?.aborted) {
+            throw createAbortError();
+          }
           text = retryResult.response.text();
           if (retryResult.response.inferenceSource === InferenceSource.ON_DEVICE) {
             certifiedSource = 'on_device';
@@ -100,6 +149,9 @@ export class CloudAIProvider {
         }
       } else {
         const result = await cloudModel.generateContent(promptPayload);
+        if (options.signal?.aborted) {
+          throw createAbortError();
+        }
         text = result.response.text();
         if (result.response.inferenceSource === InferenceSource.ON_DEVICE) {
           certifiedSource = 'on_device';
@@ -121,6 +173,9 @@ export class CloudAIProvider {
         },
       };
     } catch (fbErr: unknown) {
+      if (isAbortError(fbErr) || options.signal?.aborted) {
+        throw isAbortError(fbErr) ? fbErr : createAbortError();
+      }
       firebaseError = fbErr instanceof Error ? fbErr : new Error(String(fbErr));
       console.warn('[CloudAIProvider] Note Firebase AI Logic (backend/App Check) :', firebaseError.message);
     }
@@ -128,6 +183,9 @@ export class CloudAIProvider {
     // 2. Filet de résilience strictement réservé à l'environnement Node/CLI (jamais dans le navigateur)
     if (!isBrowserRuntime && nodeGeminiApiKey) {
       try {
+        if (options.signal?.aborted) {
+          throw createAbortError();
+        }
         const restResult = await this.generateViaGeminiREST(promptPayload, nodeGeminiApiKey, options);
         const durationMs = Math.round(performance.now() - startTime);
         return {
@@ -145,6 +203,9 @@ export class CloudAIProvider {
           },
         };
       } catch (geminiErr) {
+        if (isAbortError(geminiErr) || options.signal?.aborted) {
+          throw isAbortError(geminiErr) ? geminiErr : createAbortError();
+        }
         console.warn('[CloudAIProvider] Échec repli Gemini REST :', geminiErr);
       }
     }
@@ -174,11 +235,15 @@ export class CloudAIProvider {
     let lastError: Error | null = null;
 
     for (const model of candidateModels) {
+      if (options.signal?.aborted) {
+        throw createAbortError();
+      }
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: options.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
@@ -194,6 +259,9 @@ export class CloudAIProvider {
         }
 
         const data = await response.json();
+        if (options.signal?.aborted) {
+          throw createAbortError();
+        }
         const parts = data?.candidates?.[0]?.content?.parts || [];
         const text = parts.map((p: { text?: string }) => p.text || '').join('');
         if (text) {
@@ -213,6 +281,9 @@ export class CloudAIProvider {
           };
         }
       } catch (err) {
+        if (isAbortError(err) || options.signal?.aborted) {
+          throw isAbortError(err) ? err : createAbortError();
+        }
         lastError = err instanceof Error ? err : new Error(String(err));
       }
     }

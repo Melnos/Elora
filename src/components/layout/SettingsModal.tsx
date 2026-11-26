@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   X,
@@ -11,7 +11,9 @@ import {
   Plus,
   Eye,
   EyeOff,
+  Download,
 } from 'lucide-react';
+import { CapabilityDetector } from '../../lib/ai/CapabilityDetector';
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -26,6 +28,8 @@ export const SettingsModal: React.FC = () => {
     deleteMemory,
     theme,
     setTheme,
+    caps,
+    refreshCapabilities,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'privacy' | 'appearance' | 'dev'>('profile');
@@ -33,6 +37,11 @@ export const SettingsModal: React.FC = () => {
   const [newMemoryValue, setNewMemoryValue] = useState('');
   const [newMemoryCategory, setNewMemoryCategory] = useState<'preference' | 'objective' | 'skill' | 'habit' | 'context'>('preference');
   const [showAddMemory, setShowAddMemory] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadStatusNotice, setDownloadStatusNotice] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const isDeveloperMode =
     typeof window !== 'undefined' &&
@@ -50,7 +59,57 @@ export const SettingsModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSettingsOpen, setIsSettingsOpen]);
 
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   if (!isSettingsOpen) return null;
+
+  const handleDownloadLocalModel = async () => {
+    if (isDownloading) return;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadError(null);
+    setDownloadStatusNotice(null);
+
+    try {
+      const report = await CapabilityDetector.downloadLocalModel(
+        (percent) => setDownloadProgress(percent),
+        controller.signal
+      );
+      await refreshCapabilities();
+
+      if (report.onDeviceStatus === 'readily') {
+        setDownloadStatusNotice('Gemini Nano est téléchargé et prêt pour une inférence locale privée.');
+      } else {
+        setDownloadError(
+          `Téléchargement terminé, mais le statut réel reste '${report.onDeviceStatus}' (${report.onDeviceDetails}).`
+        );
+      }
+    } catch (err: unknown) {
+      if (
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        setDownloadStatusNotice('Téléchargement du modèle local annulé.');
+      } else {
+        setDownloadError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      setIsDownloading(false);
+    }
+  };
+
+  const handleCancelDownload = () => {
+    abortControllerRef.current?.abort();
+  };
 
   const handleAddMemorySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,6 +382,69 @@ export const SettingsModal: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {(caps?.onDeviceStatus === 'after-download' ||
+                isDownloading ||
+                downloadError ||
+                downloadStatusNotice) && (
+                <div className="mt-4 p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-[var(--color-text-main)]">
+                      Modèle local Gemini Nano
+                    </h4>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      {caps?.onDeviceDetails}
+                    </p>
+                  </div>
+
+                  {!isDownloading && caps?.onDeviceStatus === 'after-download' && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadLocalModel}
+                      className="btn-accent-sm"
+                    >
+                      <Download size={14} />
+                      <span>Télécharger le modèle local (~4 Go)</span>
+                    </button>
+                  )}
+
+                  {isDownloading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-[var(--color-text-main)]">
+                        <span>Téléchargement en cours...</span>
+                        <strong>{downloadProgress}%</strong>
+                      </div>
+                      <div
+                        className="w-full h-2 rounded-full overflow-hidden bg-[var(--color-border-subtle)]"
+                        role="progressbar"
+                        aria-valuenow={downloadProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className="h-full bg-[var(--color-accent)] transition-all duration-200"
+                          style={{ width: `${downloadProgress}%` }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCancelDownload}
+                        className="btn-secondary-sm"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+
+                  {downloadError && (
+                    <p className="text-xs text-[var(--color-danger)]">{downloadError}</p>
+                  )}
+
+                  {downloadStatusNotice && !downloadError && (
+                    <p className="text-xs text-[var(--color-emerald)]">{downloadStatusNotice}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -98,7 +98,7 @@ export class TaskRouter {
       options.taskType === 'multimodal' ||
       options.taskType === 'heavy_reasoning' ||
       (options.attachments && options.attachments.length > 0) ||
-      options.prompt.length > 2000;
+      (options.userQuestion ?? options.prompt).length > 2000;
 
     if (isHeavyTask) {
       return {

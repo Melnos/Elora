@@ -7,10 +7,29 @@
 import type { CapabilityReport, OnDeviceAvailability } from './types';
 
 // Types pour l'API Chrome Prompt API (window.ai)
+interface ChromeLanguageModelSession {
+  destroy?: () => void;
+}
+
+interface ChromeDownloadProgressEvent {
+  loaded?: number;
+  total?: number;
+}
+
+interface ChromeLanguageModelMonitor {
+  addEventListener: (
+    type: 'downloadprogress',
+    listener: (event: ChromeDownloadProgressEvent) => void
+  ) => void;
+}
+
 interface ChromeLanguageModel {
   capabilities?: (options?: unknown) => Promise<{ available: string }>;
   availability?: (options?: unknown) => Promise<string>;
-  create?: (options?: unknown) => Promise<unknown>;
+  create?: (options?: {
+    signal?: AbortSignal;
+    monitor?: (m: ChromeLanguageModelMonitor) => void;
+  }) => Promise<ChromeLanguageModelSession>;
 }
 
 interface WindowWithAI extends Window {
@@ -110,5 +129,82 @@ export class CapabilityDetector {
       canRunCloud,
       recommendations,
     };
+  }
+
+  /**
+   * Déclenche le téléchargement du modèle local Gemini Nano via window.LanguageModel.create()
+   * lorsque availability() retourne 'after-download', puis vérifie l'état réel via detect().
+   */
+  public static async downloadLocalModel(
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal
+  ): Promise<CapabilityReport> {
+    if (signal?.aborted) {
+      throw new DOMException('Téléchargement du modèle local annulé.', 'AbortError');
+    }
+
+    const globalObj = typeof globalThis !== 'undefined' ? (globalThis as unknown as WindowWithAI) : undefined;
+    const win = (typeof window !== 'undefined' ? window : {}) as WindowWithAI;
+    const lm = globalObj?.LanguageModel || win.LanguageModel;
+
+    if (!lm || typeof lm.availability !== 'function' || typeof lm.create !== 'function') {
+      throw new Error(
+        "L'API Chrome Prompt API (LanguageModel.availability / LanguageModel.create) est indisponible dans cet environnement."
+      );
+    }
+
+    const rawAvail = await lm.availability();
+    const normalized = typeof rawAvail === 'string' ? rawAvail.toLowerCase() : 'no';
+
+    if (normalized === 'unavailable' || normalized === 'no' || !normalized) {
+      throw new Error(
+        `Le modèle local Gemini Nano n'est pas téléchargeable sur ce navigateur (availability: '${rawAvail || 'unavailable'}').`
+      );
+    }
+
+    if (normalized === 'readily' || normalized === 'available') {
+      onProgress?.(100);
+      return await CapabilityDetector.detect();
+    }
+
+    let session: ChromeLanguageModelSession | undefined;
+    try {
+      session = await lm.create({
+        signal,
+        monitor(m: ChromeLanguageModelMonitor) {
+          m.addEventListener('downloadprogress', (e: ChromeDownloadProgressEvent) => {
+            let percent = 0;
+            if (typeof e.loaded === 'number') {
+              if (typeof e.total === 'number' && e.total > 0) {
+                percent = (e.loaded / e.total) * 100;
+              } else if (e.loaded >= 0 && e.loaded <= 1) {
+                percent = e.loaded * 100;
+              } else {
+                percent = e.loaded;
+              }
+            }
+            const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+            onProgress?.(clamped);
+          });
+        },
+      });
+    } catch (err: unknown) {
+      if (
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError') ||
+        signal?.aborted
+      ) {
+        throw new DOMException('Téléchargement du modèle local annulé.', 'AbortError');
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    } finally {
+      try {
+        session?.destroy?.();
+      } catch {
+        // Ignorer les erreurs de nettoyage de session temporaire
+      }
+    }
+
+    return await CapabilityDetector.detect();
   }
 }

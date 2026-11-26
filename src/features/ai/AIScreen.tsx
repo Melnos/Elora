@@ -24,6 +24,7 @@ import {
   Edit3,
   AlertCircle,
   Loader2,
+  Square,
 } from 'lucide-react';
 import type { AIRequestAttachment } from '../../lib/ai/types';
 import {
@@ -41,6 +42,7 @@ export const AIScreen: React.FC = () => {
     deleteConversation,
     renameConversation,
     sendMessage,
+    cancelGeneration,
     isGenerating,
     executeProposedAction,
     rejectProposedAction,
@@ -896,14 +898,27 @@ export const AIScreen: React.FC = () => {
                 className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28 min-w-0"
               />
 
-              <button
-                type="submit"
-                disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
-                className="p-2.5 rounded-full bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 flex items-center justify-center shadow-xs cursor-pointer"
-                title="Envoyer"
-              >
-                <Send size={15} />
-              </button>
+              {isGenerating ? (
+                <button
+                  type="button"
+                  onClick={cancelGeneration}
+                  className="p-2.5 rounded-full bg-[var(--color-text-main)] text-[var(--color-bg-base)] hover:opacity-90 transition-opacity shrink-0 flex items-center justify-center shadow-xs cursor-pointer"
+                  title="Arrêter la génération"
+                  aria-label="Arrêter la génération"
+                >
+                  <Square size={14} fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!inputPrompt.trim() && attachments.length === 0}
+                  className="p-2.5 rounded-full bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 flex items-center justify-center shadow-xs cursor-pointer"
+                  title="Envoyer"
+                  aria-label="Envoyer"
+                >
+                  <Send size={15} />
+                </button>
+              )}
             </form>
           </div>
         </div>
