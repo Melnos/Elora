@@ -40,7 +40,7 @@ export interface ContextQuery {
 
 export interface ReferencedSource {
   id: string;
-  type: 'doc' | 'task' | 'goal' | 'memory' | 'opportunity';
+  type: 'doc' | 'task' | 'goal' | 'memory' | 'opportunity' | 'web';
   title: string;
   category?: string;
   snippet?: string;
@@ -66,6 +66,8 @@ export interface ResolvedContext {
   referencedSources: ReferencedSource[];
   /** Actions suggérées par l'analyse transversale (en attente de confirmation) */
   proposedActions: ProposedAction[];
+  /** Indique si la requête nécessite une recherche Internet réelle */
+  isWebSearch?: boolean;
   /** Métriques transversales calculées */
   stats: {
     totalEntitiesFound: number;

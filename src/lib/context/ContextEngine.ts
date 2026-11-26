@@ -51,27 +51,42 @@ export class ContextEngine {
     const promptLower = (prompt || '').toLowerCase();
     const keywords = this.extractKeywords(promptLower);
     const excludedTerms = this.extractExcludedTerms(promptLower);
-    const isPersonalQuery = this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId);
+    const isWebSearch = this.isWebSearchRequest(promptLower) && !activeEntityId;
+    const isIdentityQuery = this.isIdentityOrMemoryQuery(promptLower);
+    const isMetaQuestion = this.isMetaQuestionAboutContext(promptLower);
+    const asksGoalsOrTasks = this.asksAboutTasksOrGoals(promptLower);
+    const asksDocs = this.asksAboutDocuments(promptLower);
+    const isPersonalQuery =
+      this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId) || isIdentityQuery;
+
+    // Sur une recherche Web pure, une question d'identité ("Tu me connais ?") ou une question méta ("Pourquoi me parles-tu d'ECOGEN ?"),
+    // on n'injecte PAS automatiquement les tâches, objectifs ou documents Knowledge locaux.
+    const allowLocalTasksAndGoals =
+      Boolean(activeEntityId) || (!isWebSearch && !isIdentityQuery && !isMetaQuestion);
+    const allowLocalDocs =
+      Boolean(activeEntityId) || (!isWebSearch && !isIdentityQuery && !isMetaQuestion);
 
     const referencedSources: ReferencedSource[] = [];
     const proposedActions: ProposedAction[] = [];
 
-    // 1. Objectifs pertinents (uniquement si correspondance lexicale, entité ciblée ou demande personnelle explicite)
-    const scoredGoals = dataset.goals.map((g) => {
-      let keywordHits = 0;
-      const text = this.normalizeSearchText(`${g.title} ${g.category}`);
-      for (const kw of keywords) {
-        if (text.includes(kw)) keywordHits += 1;
-      }
-      const score =
-        keywordHits * 3 +
-        (activeEntityId === g.id ? 10 : 0) +
-        (keywordHits > 0 || isPersonalQuery ? (!g.completed ? 2 : 0) : 0);
-      return { goal: g, score, keywordHits };
-    });
+    // 1. Objectifs pertinents (uniquement si pertinents et autorisés pour cette intention)
+    const scoredGoals = allowLocalTasksAndGoals
+      ? dataset.goals.map((g) => {
+          let keywordHits = 0;
+          const text = this.normalizeSearchText(`${g.title} ${g.category}`);
+          for (const kw of keywords) {
+            if (text.includes(kw)) keywordHits += 1;
+          }
+          const score =
+            keywordHits * 3 +
+            (activeEntityId === g.id ? 10 : 0) +
+            (keywordHits > 0 || asksGoalsOrTasks ? (!g.completed ? 2 : 0) : 0);
+          return { goal: g, score, keywordHits };
+        })
+      : [];
     scoredGoals.sort((a, b) => b.score - a.score);
     const relevantGoals = scoredGoals
-      .filter((sg) => sg.keywordHits > 0 || activeEntityId === sg.goal.id || isPersonalQuery)
+      .filter((sg) => sg.keywordHits > 0 || activeEntityId === sg.goal.id || asksGoalsOrTasks)
       .slice(0, Math.min(maxItemsPerScope, 3))
       .map((sg) => sg.goal);
 
@@ -86,24 +101,31 @@ export class ContextEngine {
 
     const relevantGoalIds = new Set(relevantGoals.map((g) => g.id));
 
-    // 2. Tâches pertinentes (uniquement si correspondance lexicale, objectif retenu ou demande personnelle explicite)
-    const scoredTasks = dataset.tasks.map((t) => {
-      let keywordHits = 0;
-      const text = this.normalizeSearchText(`${t.title} ${t.description || ''} ${t.category}`);
-      for (const kw of keywords) {
-        if (text.includes(kw)) keywordHits += 1;
-      }
-      const linkedToGoal = Boolean(t.goalId && relevantGoalIds.has(t.goalId));
-      const score =
-        keywordHits * 3 +
-        (linkedToGoal ? 4 : 0) +
-        (activeEntityId === t.id ? 10 : 0) +
-        (keywordHits > 0 || linkedToGoal || isPersonalQuery ? (!t.completed ? 2 : 0) + (t.priority === 'high' ? 2 : 0) : 0);
-      return { task: t, score, keywordHits, linkedToGoal };
-    });
+    // 2. Tâches pertinentes (jamais injectées sans lien direct ou demande de planning/tâches)
+    const scoredTasks = allowLocalTasksAndGoals
+      ? dataset.tasks.map((t) => {
+          let keywordHits = 0;
+          const text = this.normalizeSearchText(`${t.title} ${t.description || ''} ${t.category}`);
+          for (const kw of keywords) {
+            if (text.includes(kw)) keywordHits += 1;
+          }
+          const linkedToGoal = Boolean(t.goalId && relevantGoalIds.has(t.goalId));
+          const score =
+            keywordHits * 3 +
+            (linkedToGoal ? 4 : 0) +
+            (activeEntityId === t.id ? 10 : 0) +
+            (keywordHits > 0 || linkedToGoal || asksGoalsOrTasks
+              ? (!t.completed ? 2 : 0) + (t.priority === 'high' ? 2 : 0)
+              : 0);
+          return { task: t, score, keywordHits, linkedToGoal };
+        })
+      : [];
     scoredTasks.sort((a, b) => b.score - a.score);
     const relevantTasks = scoredTasks
-      .filter((st) => st.keywordHits > 0 || st.linkedToGoal || activeEntityId === st.task.id || isPersonalQuery)
+      .filter(
+        (st) =>
+          st.keywordHits > 0 || st.linkedToGoal || activeEntityId === st.task.id || asksGoalsOrTasks
+      )
       .slice(0, maxItemsPerScope)
       .map((st) => st.task);
 
@@ -117,35 +139,37 @@ export class ContextEngine {
     });
 
     // 3. Documents Knowledge pertinents (avec extraits de contenu)
-    const scoredDocs = dataset.docs.map((doc) => {
-      const titleLower = this.normalizeSearchText(doc.title);
-      const collectionLower = this.normalizeSearchText(doc.collection);
-      const summaryLower = this.normalizeSearchText(doc.summary);
-      const tagsLower = this.normalizeSearchText(doc.tags.join(' '));
-      const contentLower = this.normalizeSearchText(doc.content);
+    const scoredDocs = allowLocalDocs
+      ? dataset.docs.map((doc) => {
+          const titleLower = this.normalizeSearchText(doc.title);
+          const collectionLower = this.normalizeSearchText(doc.collection);
+          const summaryLower = this.normalizeSearchText(doc.summary);
+          const tagsLower = this.normalizeSearchText(doc.tags.join(' '));
+          const contentLower = this.normalizeSearchText(doc.content);
 
-      const isExcluded = excludedTerms.some(
-        (term) => titleLower.includes(term) || tagsLower.includes(term)
-      );
-      if (isExcluded && activeEntityId !== doc.id) {
-        return { doc, score: 0 };
-      }
+          const isExcluded = excludedTerms.some(
+            (term) => titleLower.includes(term) || tagsLower.includes(term)
+          );
+          if (isExcluded && activeEntityId !== doc.id) {
+            return { doc, score: 0 };
+          }
 
-      let score = 0;
-      if (activeEntityId === doc.id) score += 10;
-      for (const kw of keywords) {
-        if (titleLower.includes(kw)) score += 5;
-        if (tagsLower.includes(kw)) score += 4;
-        if (summaryLower.includes(kw)) score += 3;
-        if (contentLower.includes(kw)) score += 2;
-        if (collectionLower.includes(kw)) score += 1;
-      }
-      return { doc, score };
-    });
+          let score = 0;
+          if (activeEntityId === doc.id) score += 10;
+          for (const kw of keywords) {
+            if (titleLower.includes(kw)) score += 5;
+            if (tagsLower.includes(kw)) score += 4;
+            if (summaryLower.includes(kw)) score += 3;
+            if (contentLower.includes(kw)) score += 2;
+            if (collectionLower.includes(kw)) score += 1;
+          }
+          return { doc, score };
+        })
+      : [];
     scoredDocs.sort((a, b) => b.score - a.score);
 
     const relevantDocs = scoredDocs
-      .filter((sd) => sd.score >= 4 || activeEntityId === sd.doc.id || (isPersonalQuery && scoredDocs.indexOf(sd) === 0 && sd.score > 0))
+      .filter((sd) => sd.score >= 4 || activeEntityId === sd.doc.id || (asksDocs && scoredDocs.indexOf(sd) === 0 && sd.score > 0))
       .slice(0, Math.min(maxItemsPerScope, 3))
       .map((sd) => sd.doc);
 
@@ -159,7 +183,7 @@ export class ContextEngine {
       });
     });
 
-    // 4. Mémoires actives filtrées (uniquement si demande personnelle ou correspondance réelle avec le contexte)
+    // 4. Mémoires actives filtrées (incluses si demande personnelle/identité, ou si correspondance réelle hors recherche Web)
     const serviceMemories = MemoryService.getAll(userId);
     const memoryPool = serviceMemories.length > 0 ? serviceMemories : (dataset.memories as any[]);
     const activeMemPool = memoryPool.filter(
@@ -171,10 +195,13 @@ export class ContextEngine {
     });
     const shouldIncludeMemories =
       isPersonalQuery ||
-      hasMemoryKeywordMatch ||
-      relevantGoals.length > 0 ||
-      relevantTasks.length > 0 ||
-      relevantDocs.length > 0;
+      isIdentityQuery ||
+      (!isWebSearch &&
+        !isMetaQuestion &&
+        (hasMemoryKeywordMatch ||
+          relevantGoals.length > 0 ||
+          relevantTasks.length > 0 ||
+          relevantDocs.length > 0));
 
     const activeMemories = shouldIncludeMemories
       ? MemoryService.getActiveContextForAI(userId, prompt, maxItemsPerScope)
@@ -187,7 +214,10 @@ export class ContextEngine {
       goals: relevantGoals,
       tasks: relevantTasks,
       docs: relevantDocs,
-      includePersonalProfile: isPersonalQuery,
+      includePersonalProfile: isPersonalQuery || isIdentityQuery,
+      isWebSearch,
+      isIdentityQuery,
+      isMetaQuestion,
     });
 
     // 6. Détection de propositions d'actions proactives fiabilisées (tâches + candidats mémoire)
@@ -235,6 +265,7 @@ export class ContextEngine {
       systemPromptBlock,
       referencedSources,
       proposedActions,
+      isWebSearch,
       stats: {
         totalEntitiesFound,
         tokensEstimated: Math.round(systemPromptBlock.length / 4),
@@ -438,6 +469,44 @@ export class ContextEngine {
     );
   }
 
+  private static isWebSearchRequest(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    if (/\b(mes documents|ma bibliotheque|mes taches|mon planning|mes objectifs)\b/i.test(normalized)) {
+      return false;
+    }
+    return /\b(hackathon|hackathons|concours|bourse|bourses|appel a projets|competition|competitions|opportunite|opportunites|trouve-moi|trouve moi|cherche sur internet|cherche sur le web|recherche web|google|ouverts actuellement|en ce moment|actualite|actualites|recemment|cette annee|en ligne)\b/i.test(
+      normalized
+    );
+  }
+
+  private static isIdentityOrMemoryQuery(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(tu me connais|que sais-tu de moi|que sais tu de moi|qui suis-je|qui suis je|tu te souviens de moi|qu est-ce que tu sais sur moi|tu connais mon nom|mon prenom|tu sais qui je suis)\b/i.test(
+      normalized
+    );
+  }
+
+  private static isMetaQuestionAboutContext(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(pourquoi me parles-tu|pourquoi me parles tu|pourquoi tu me parles|pourquoi mentionnes-tu|pourquoi parles-tu)\b/i.test(
+      normalized
+    );
+  }
+
+  private static asksAboutTasksOrGoals(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(mes taches|ma tache|mon planning|mon agenda|mes objectifs|mon objectif|ma progression|mon bilan)\b/i.test(
+      normalized
+    );
+  }
+
+  private static asksAboutDocuments(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(mes documents|mon document|ma bibliotheque|mes fiches|mes notes|dans mon pdf|dans mon fichier)\b/i.test(
+      normalized
+    );
+  }
+
   private static normalizeSearchText(text: string): string {
     return (text || '')
       .toLowerCase()
@@ -470,7 +539,14 @@ export class ContextEngine {
     tasks: TaskItem[];
     docs: KnowledgeDoc[];
     includePersonalProfile?: boolean;
+    isWebSearch?: boolean;
+    isIdentityQuery?: boolean;
+    isMetaQuestion?: boolean;
   }): string {
+    const todayIso = new Date().toISOString().split('T')[0];
+    const hasCustomName =
+      Boolean(data.profile.name?.trim()) &&
+      data.profile.name.trim().toLowerCase() !== 'étudiant';
     const hasPersonalContext = Boolean(
       data.includePersonalProfile ||
       data.activeMemoriesBlock ||
@@ -480,25 +556,62 @@ export class ContextEngine {
     );
 
     const sections: string[] = [
-      `### [CONSIGNES PRINCIPALES - ELORA]`,
-      `- **Priorité à la demande** : Réponds directement, clairement et complètement à la question actuelle de l'utilisateur.`,
-      `- **Structure exacte** : Respecte strictement le format et le nombre d'éléments demandés (ex: exactement 3 exemples).`,
-      `- **Continuité conversationnelle** : Si l'utilisateur fait référence à un élément précédent (ex: « le deuxième »), appuie-toi uniquement sur la liste réellement produite au tour précédent dans l'historique récent. Si le référent est absent ou ambigu, demande une précision sans inventer.`,
+      `### [CONSIGNES CONVERSATIONNELLES - ELORA]`,
+      `- **Date du jour** : ${todayIso}.`,
+      `- **Réponse directe** : Réponds immédiatement et naturellement à la demande dès la première phrase. Adapte ton ton avec justesse et respect au style de l'utilisateur sans familiarité artificielle.`,
+      `- **Continuité conversationnelle** : Si l'utilisateur fait référence à un élément précédent (ex: « le deuxième »), appuie-toi uniquement sur la liste produite au tour précédent dans l'historique récent sans inventer.`,
+      `- **Pas de format rigide** : Réponds de façon fluide et naturelle, sans rubriques mécaniques ni listes stéréotypées sur l'état de tes sources, et ne renvoie jamais vers une ancienne tâche non demandée.`,
+      `- **Honnêteté stricte** : N'invente jamais de souvenirs, de résultats web, d'URLs ou de dates. Explique honnêtement toute limite technique le cas échéant.`,
     ];
 
-    if (!hasPersonalContext) {
+    if (data.isWebSearch) {
       sections.push(
-        `- **Question générale** : Aucun document, tâche, objectif ou profil personnel n'est requis ici. N'évoque pas les projets, le profil ou les documents personnels de l'utilisateur.`
+        `\n### [RECHERCHE INTERNET RÉELLE]`,
+        `- Utilise la recherche Web (Google Search Grounding) pour trouver des résultats réels et vérifiables.`,
+        `- Pour chaque résultat pertinent : indique le **titre**, une **courte description**, la **source**, l'**URL complète** et la **date / date limite** si elle est disponible.`,
+        `- Vérifie chaque date limite par rapport à aujourd'hui (${todayIso}) et signale explicitement si une opportunité est expirée ou si la date n'est pas confirmée.`,
+        `- Si aucun résultat vérifiable n'est trouvé, dis-le clairement sans rien inventer.`
       );
+    }
+
+    if (data.isIdentityQuery) {
+      sections.push(
+        `\n### [IDENTITÉ & MÉMOIRE PERSONNELLE]`,
+        `- Réponds directement à la question sur ce que tu sais de l'utilisateur en t'appuyant uniquement sur le profil et les souvenirs confirmés ci-dessous.`,
+        `- Si aucun souvenir personnel n'est encore enregistré et que son prénom n'est pas connu, dis-le simplement et propose-lui de se présenter.`
+      );
+    }
+
+    if (data.isMetaQuestion) {
+      sections.push(
+        `\n### [QUESTION MÉTA]`,
+        `- Réponds directement et honnêtement à la remarque de l'utilisateur sans injecter de tâches ni de documents non demandés.`
+      );
+    }
+
+    if (!hasPersonalContext) {
+      if (!data.isWebSearch && !data.isIdentityQuery && !data.isMetaQuestion) {
+        sections.push(
+          `- **Question générale** : Aucun document, tâche ou profil personnel n'est nécessaire ici. Réponds de manière fluide et directe.`
+        );
+      }
       return sections.join('\n');
     }
 
-    sections.push(`\n### [CONTEXTE UTILISATEUR PERTINENT - ELORA CONTEXT ENGINE]`);
+    sections.push(`\n### [CONTEXTE UTILISATEUR PERTINENT]`);
     if (data.includePersonalProfile) {
-      sections.push(
-        `* **Utilisateur** : ${data.profile.name} (${data.profile.roleTitle})`,
-        `* **Objectif stratégique déclaré** : ${data.profile.currentObjective}`
-      );
+      if (hasCustomName) {
+        sections.push(
+          `* **Prénom / Profil** : ${data.profile.name} (${data.profile.roleTitle})`
+        );
+      } else {
+        sections.push(
+          `* **Profil** : ${data.profile.name?.trim() || 'Étudiant'} (${data.profile.roleTitle}) — prénom personnel non encore renseigné`
+        );
+      }
+      if (data.profile.currentObjective?.trim()) {
+        sections.push(`* **Objectif déclaré** : ${data.profile.currentObjective}`);
+      }
     }
 
     if (data.activeMemoriesBlock) {
@@ -506,7 +619,7 @@ export class ContextEngine {
     }
 
     if (data.goals.length > 0) {
-      sections.push(`\n* **Objectifs pertinents associés** :`);
+      sections.push(`\n* **Objectifs associés** :`);
       data.goals.forEach((g) => {
         sections.push(
           `  - [Objectif #${g.id}] "${g.title}" (${g.progressPercentage}% complété)`
@@ -515,7 +628,7 @@ export class ContextEngine {
     }
 
     if (data.tasks.length > 0) {
-      sections.push(`\n* **Tâches et échéances associées** :`);
+      sections.push(`\n* **Tâches associées** :`);
       data.tasks.forEach((t) => {
         sections.push(
           `  - [Tâche #${t.id}] "${t.title}" | Échéance: ${t.dueDate} | Priorité: ${t.priority} | ${t.completed ? 'Fait' : 'À faire'}`
@@ -524,7 +637,7 @@ export class ContextEngine {
     }
 
     if (data.docs.length > 0) {
-      sections.push(`\n* **Documents Knowledge référencés** :`);
+      sections.push(`\n* **Documents Knowledge** :`);
       data.docs.forEach((d) => {
         const excerpt = d.content ? d.content.trim().slice(0, 1200) : '';
         sections.push(
@@ -533,14 +646,14 @@ export class ContextEngine {
       });
     }
 
-    sections.push(
-      `\n### [CONSIGNES DE RAISONNEMENT & EXIGENCES DE VÉRITÉ]`,
-      `- **Faits établis** : Appuie-toi rigoureusement sur les faits avérés ci-dessus uniquement s'ils servent la question.`,
-      `- **Déductions & Hypothèses** : Distingue expressément ce qui est prouvé de ce qui est déduit.`,
-      `- **Informations manquantes** : Si un paramètre clé fait défaut, signale-le ouvertement sans extrapoler.`,
-      `- **Traçabilité stricte** : Cite expressément les identifiants de source (ex: [Doc #${data.docs[0]?.id || '...'}], [Tâche #${data.tasks[0]?.id || '...'}], [Objectif #${data.goals[0]?.id || '...'}]) dès qu'une information en est issue.`,
-      `- **Zéro hallucination de source** : Ne cite JAMAIS un document, une tâche ou un objectif absent de ce contexte.`
-    );
+    if (data.docs.length > 0 || data.tasks.length > 0 || data.goals.length > 0) {
+      sections.push(
+        `- **Faits établis** : Appuie-toi rigoureusement sur les éléments ci-dessus uniquement s'ils servent la question.`,
+        `- **Déductions & Hypothèses** : Distingue clairement ce qui vient d'un document ou d'une tâche de ce qui relève d'une déduction.`,
+        `- **Informations manquantes** : Si une donnée importante fait défaut, signale-le simplement sans extrapoler.`,
+        `- **Traçabilité** : Cite expressément les identifiants de source (ex: [Doc #${data.docs[0]?.id || '...'}], [Tâche #${data.tasks[0]?.id || '...'}], [Objectif #${data.goals[0]?.id || '...'}]) uniquement lorsque tu utilises une information qui en provient.`
+      );
+    }
 
     return sections.join('\n');
   }

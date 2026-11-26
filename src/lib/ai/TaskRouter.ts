@@ -92,7 +92,16 @@ export class TaskRouter {
       };
     }
 
-    // 5. Mode Auto / Hybride intelligent : Analyse de la complexité de la tâche
+    // 5. Mode Auto / Hybride intelligent : Analyse de la complexité et besoin de recherche Web
+    if (options.enableWebSearch) {
+      return {
+        target: 'cloud',
+        effectiveMode: 'prefer_in_cloud',
+        reason: 'Recherche Internet demandée : routage vers Firebase AI Logic Cloud avec Google Search Grounding.',
+        fallbackToCloudAllowed: false,
+      };
+    }
+
     const isHeavyTask =
       options.taskType === 'complex_reasoning' ||
       options.taskType === 'multimodal' ||

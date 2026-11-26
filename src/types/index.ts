@@ -93,7 +93,7 @@ export interface OpportunityItem {
 
 export interface ChatMessageSource {
   id: string;
-  type: 'doc' | 'task' | 'goal' | 'memory' | 'opportunity';
+  type: 'doc' | 'task' | 'goal' | 'memory' | 'opportunity' | 'web';
   title: string;
   category?: string;
   snippet?: string;

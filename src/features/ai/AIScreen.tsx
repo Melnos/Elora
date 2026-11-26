@@ -700,15 +700,17 @@ export const AIScreen: React.FC = () => {
                                 <div className="flex flex-wrap gap-1.5">
                                   {msg.sources.map((s, sIdx) => {
                                     const badgeLabel =
-                                      s.type === 'doc'
-                                        ? 'Doc'
-                                        : s.type === 'task'
-                                          ? 'Tâche'
-                                          : s.type === 'goal'
-                                            ? 'Objectif'
-                                            : s.type === 'opportunity'
-                                              ? 'Opport.'
-                                              : 'Source';
+                                      s.type === 'web'
+                                        ? 'Web'
+                                        : s.type === 'doc'
+                                          ? 'Doc'
+                                          : s.type === 'task'
+                                            ? 'Tâche'
+                                            : s.type === 'goal'
+                                              ? 'Objectif'
+                                              : s.type === 'opportunity'
+                                                ? 'Opport.'
+                                                : 'Source';
                                     const hasExternalUrl =
                                       typeof s.url === 'string' &&
                                       (s.url.startsWith('https://') || s.url.startsWith('http://'));

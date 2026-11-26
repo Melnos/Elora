@@ -6,9 +6,31 @@
  * RÈGLE D'OR : Si le réseau est absent, rejeter immédiatement sans simuler d'inférence distante.
  */
 
-import { getGenerativeModel, InferenceMode, InferenceSource } from 'firebase/ai';
+import { getGenerativeModel, InferenceMode, InferenceSource, type GroundingMetadata } from 'firebase/ai';
 import { getFirebaseAI } from '../firebase/config';
-import type { AIRequestOptions, AIResponse } from './types';
+import type { AIRequestOptions, AIResponse, WebSearchSource } from './types';
+
+function extractWebGrounding(grounding?: GroundingMetadata): {
+  webSources: WebSearchSource[];
+  webSearchQueries: string[];
+} {
+  if (!grounding) return { webSources: [], webSearchQueries: [] };
+  const seenUrls = new Set<string>();
+  const webSources: WebSearchSource[] = [];
+  for (const chunk of grounding.groundingChunks || []) {
+    const uri = chunk.web?.uri?.trim();
+    if (!uri || seenUrls.has(uri)) continue;
+    seenUrls.add(uri);
+    webSources.push({
+      title: chunk.web?.title?.trim() || uri,
+      url: uri,
+    });
+  }
+  const webSearchQueries = Array.isArray(grounding.webSearchQueries)
+    ? grounding.webSearchQueries.filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+    : [];
+  return { webSources, webSearchQueries };
+}
 
 function createAbortError(): DOMException {
   return new DOMException("Génération annulée par l'utilisateur.", 'AbortError');
@@ -63,7 +85,7 @@ export class CloudAIProvider {
       promptPayload = `${promptPayload}\n\n${attachmentContext}`;
     }
 
-    // 1. Voie d'architecture principale : Firebase AI Logic (SDK Officiel du Hackathon #BuildHybridAI)
+    // 1. Voie d'architecture principale : Firebase AI Logic
     let firebaseError: Error | null = null;
     try {
       const ai = getFirebaseAI();
@@ -71,6 +93,7 @@ export class CloudAIProvider {
         mode: InferenceMode.ONLY_IN_CLOUD,
         inCloudParams: {
           model: 'gemini-3.5-flash-lite',
+          ...(options.enableWebSearch ? { tools: [{ googleSearch: {} }] } : {}),
           generationConfig: {
             temperature: options.temperature ?? 0.7,
             maxOutputTokens: options.maxOutputTokens ?? 2048,
@@ -80,6 +103,7 @@ export class CloudAIProvider {
 
       let text = '';
       let certifiedSource: 'in_cloud' | 'on_device' = 'in_cloud';
+      let groundingMetadata: GroundingMetadata | undefined;
 
       if (options.onStreamChunk) {
         try {
@@ -117,6 +141,7 @@ export class CloudAIProvider {
           if (finalResp.inferenceSource === InferenceSource.ON_DEVICE) {
             certifiedSource = 'on_device';
           }
+          groundingMetadata = finalResp.candidates?.[0]?.groundingMetadata;
         } catch (streamErr: unknown) {
           if (isAbortError(streamErr) || options.signal?.aborted) {
             throw isAbortError(streamErr) ? streamErr : createAbortError();
@@ -143,6 +168,7 @@ export class CloudAIProvider {
           if (retryResult.response.inferenceSource === InferenceSource.ON_DEVICE) {
             certifiedSource = 'on_device';
           }
+          groundingMetadata = retryResult.response.candidates?.[0]?.groundingMetadata;
           if (text) {
             options.onStreamChunk(text, text);
           }
@@ -156,9 +182,11 @@ export class CloudAIProvider {
         if (result.response.inferenceSource === InferenceSource.ON_DEVICE) {
           certifiedSource = 'on_device';
         }
+        groundingMetadata = result.response.candidates?.[0]?.groundingMetadata;
       }
 
       const durationMs = Math.round(performance.now() - startTime);
+      const { webSources, webSearchQueries } = extractWebGrounding(groundingMetadata);
 
       return {
         text,
@@ -171,6 +199,8 @@ export class CloudAIProvider {
           fallbackOccurred: false,
           sdkProvider: 'firebase_ai_logic',
         },
+        ...(webSources.length > 0 ? { webSources } : {}),
+        ...(webSearchQueries.length > 0 ? { webSearchQueries } : {}),
       };
     } catch (fbErr: unknown) {
       if (isAbortError(fbErr) || options.signal?.aborted) {

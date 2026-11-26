@@ -954,6 +954,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           throw new Error('Impossible de persister ce souvenir localement.');
         }
         setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+        if (validated.category === 'profile' && validated.key.toLowerCase() === 'prénom' && validated.value.trim()) {
+          updateProfile({ name: validated.value.trim() });
+        }
         if (currentUser) {
           await saveUserMemory(currentUser.uid, validated as unknown as MemoryItem);
         }
@@ -1147,7 +1150,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
         {
           profile,
-          memories,
+          memories: MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[],
           goals,
           tasks,
           docs: knowledgeDocs,
@@ -1175,6 +1178,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         userQuestion: text,
         mode: options?.mode,
         localOnly: options?.localOnly,
+        enableWebSearch: resolvedContext.isWebSearch,
         attachments: options?.attachments,
         onStreamChunk: (_chunk: string, accumulated: string) => {
           setConversations((prev) =>
@@ -1212,11 +1216,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                       : aiResponse.metadata.source,
                   modelName: aiResponse.metadata.modelName,
                   durationMs: aiResponse.metadata.durationMs,
-                  sources: ContextEngine.filterUsedSources(
-                    resolvedContext.referencedSources,
-                    aiResponse.text,
-                    text
-                  ),
+                  sources: [
+                    ...ContextEngine.filterUsedSources(
+                      resolvedContext.referencedSources,
+                      aiResponse.text,
+                      text
+                    ),
+                    ...(aiResponse.webSources || []).map((ws, idx) => ({
+                      id: `web_${Date.now()}_${idx}`,
+                      type: 'web' as const,
+                      title: ws.title,
+                      category: 'Recherche Web',
+                      url: ws.url,
+                    })),
+                  ],
                   proposedActions: resolvedContext.proposedActions,
                   fallbackOccurred: aiResponse.metadata.fallbackOccurred,
                   fallbackReason: aiResponse.metadata.fallbackReason,

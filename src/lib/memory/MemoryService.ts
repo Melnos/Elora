@@ -323,12 +323,29 @@ export class MemoryService {
   }
 
   /**
+   * Extrait un prénom déclaré explicitement par l'utilisateur (ex: "Je m'appelle Mel").
+   */
+  public static extractExplicitName(userText: string): string | null {
+    const text = (userText || '').trim();
+    const match = text.match(
+      /(?:je m['’]appelle|mon pr[ée]nom est|appelle-moi)\s+([A-ZÀ-ÖØ-Þa-zà-öø-ÿ][A-ZÀ-ÖØ-Þa-zà-öø-ÿ'’-]{1,28})/i
+    );
+    if (!match) return null;
+    const rawName = match[1].trim();
+    const lower = rawName.toLowerCase();
+    if (['comment', 'quoi', 'qui', 'pas', 'bien', 'encore'].includes(lower)) {
+      return null;
+    }
+    return rawName.charAt(0).toUpperCase() + rawName.slice(1);
+  }
+
+  /**
    * Extraction prudente et déterministe de faits étudiants explicites depuis un message utilisateur.
    * Ne fabrique jamais d'hypothèse si l'énoncé est une simple question ou trop court.
    */
   public static extractCandidateFacts(userText: string): CandidateFact[] {
     const text = (userText || '').trim();
-    if (text.length < 12) return [];
+    if (text.length < 10) return [];
 
     // Découper en phrases déclaratives simples (ignorer les phrases purement interrogatives)
     const sentences = text
@@ -346,6 +363,18 @@ export class MemoryService {
         candidates.push(c);
       }
     };
+
+    // 0. Prénom / identité explicite ("Je m'appelle Mel")
+    const explicitName = this.extractExplicitName(text);
+    if (explicitName) {
+      pushCandidate({
+        category: 'profile',
+        key: 'Prénom',
+        value: explicitName,
+        justification: 'Prénom indiqué directement dans votre message.',
+        sourceExcerpt: text.slice(0, 120),
+      });
+    }
 
     for (const sentence of sentences) {
       const norm = normalizeMemoryText(sentence);

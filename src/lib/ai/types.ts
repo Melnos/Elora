@@ -71,8 +71,15 @@ export interface AIRequestOptions {
   attachments?: AIRequestAttachment[];
   /** Question brute de l'utilisateur, utilisée pour évaluer la complexité sans inclure le contexte injecté */
   userQuestion?: string;
+  /** Active la recherche Internet réelle (Google Search Grounding via Firebase AI Logic) */
+  enableWebSearch?: boolean;
   /** Signal d'annulation partagé pour le cycle de vie IA */
   signal?: AbortSignal;
+}
+
+export interface WebSearchSource {
+  title: string;
+  url: string;
 }
 
 export interface AIResponse {
@@ -80,6 +87,10 @@ export interface AIResponse {
   text: string;
   /** Métadonnées d'inférence certifiées */
   metadata: InferenceMetadata;
+  /** Sources Web réelles issues du grounding Google Search */
+  webSources?: WebSearchSource[];
+  /** Requêtes exécutées par Google Search Grounding */
+  webSearchQueries?: string[];
 }
 
 export interface CapabilityReport {
