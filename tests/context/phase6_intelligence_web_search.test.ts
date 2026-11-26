@@ -74,19 +74,25 @@ describe('Phase 6 — Intelligence, Recherche Web Réelle & Contexte Pertinent',
     store.clear();
   });
 
-  it('Scénario 1 : « Salut gros » -> échange général direct, zéro tâche/doc/ECOGEN, zéro rubrique rigide', () => {
-    const ctx = ContextEngine.buildContext(
-      { prompt: 'Salut gros', userId: 'mel_uid' },
-      ECOGEN_DATASET
-    );
+  it('Scénario 1 : « Salut » et « Salut gros » -> salutation brève, zéro tâche/doc/ECOGEN, zéro déni Internet', () => {
+    const appCtxSrc = fs.readFileSync(path.join(ROOT, 'src/context/AppContext.tsx'), 'utf-8');
+    ok(appCtxSrc.includes('resolvedContext.isGreeting'), 'AppContext doit ignorer recentHistory sur une salutation simple');
 
-    strictEqual(ctx.isWebSearch, false);
-    strictEqual(ctx.tasks.length, 0);
-    strictEqual(ctx.docs.length, 0);
-    strictEqual(ctx.goals.length, 0);
-    ok(!ctx.systemPromptBlock.includes('ECOGEN'));
-    ok(!ctx.systemPromptBlock.includes('Ce qui est avéré'));
-    ok(ctx.systemPromptBlock.includes('Réponse directe'));
+    for (const greeting of ['Salut', 'Salut gros']) {
+      const ctx = ContextEngine.buildContext(
+        { prompt: greeting, userId: 'mel_uid' },
+        ECOGEN_DATASET
+      );
+
+      strictEqual(ctx.isGreeting, true);
+      strictEqual(ctx.isWebSearch, false);
+      strictEqual(ctx.tasks.length, 0);
+      strictEqual(ctx.docs.length, 0);
+      strictEqual(ctx.goals.length, 0);
+      ok(!ctx.systemPromptBlock.includes('ECOGEN'));
+      ok(ctx.systemPromptBlock.includes('SALUTATION'));
+      ok(ctx.systemPromptBlock.includes("N'affirme jamais spontanément que tu n'as pas accès à Internet"));
+    }
   });
 
   it('Scénario 2 & 3 : « Tu me connais ? » et « Je m’appelle Mel » -> proposition candidate, confirmation explicite, persistance et isolation', () => {
@@ -199,24 +205,45 @@ describe('Phase 6 — Intelligence, Recherche Web Réelle & Contexte Pertinent',
     strictEqual(offlineRejected, true);
   });
 
-  it('Scénario 5 : « Pourquoi me parles-tu d’ECOGEN ? » -> question méta sans ré-injecter ECOGEN', () => {
-    const ctx = ContextEngine.buildContext(
-      { prompt: "Pourquoi me parles-tu d'ECOGEN ?", userId: 'mel_uid' },
+  it('Scénario 5 : « Pourquoi me parles-tu encore d’ECOGEN ? » et « As-tu accès à Internet ? »', () => {
+    const metaCtx = ContextEngine.buildContext(
+      { prompt: "Pourquoi me parles-tu encore d'ECOGEN ?", userId: 'mel_uid' },
       ECOGEN_DATASET
     );
 
-    strictEqual(ctx.tasks.length, 0);
-    strictEqual(ctx.docs.length, 0);
-    strictEqual(ctx.goals.length, 0);
-    ok(!ctx.systemPromptBlock.includes('Dossier ECOGEN'));
-    ok(ctx.systemPromptBlock.includes('QUESTION MÉTA'));
+    strictEqual(metaCtx.tasks.length, 0);
+    strictEqual(metaCtx.docs.length, 0);
+    strictEqual(metaCtx.goals.length, 0);
+    ok(!metaCtx.systemPromptBlock.includes('Dossier ECOGEN'));
+    ok(metaCtx.systemPromptBlock.includes('QUESTION MÉTA'));
+
+    const internetCtx = ContextEngine.buildContext(
+      { prompt: 'As-tu accès à Internet ?', userId: 'mel_uid' },
+      ECOGEN_DATASET
+    );
+    strictEqual(internetCtx.tasks.length, 0);
+    strictEqual(internetCtx.docs.length, 0);
+    ok(internetCtx.systemPromptBlock.includes('CAPACITÉ DE RECHERCHE INTERNET'));
+    ok(internetCtx.systemPromptBlock.includes('Google Search Grounding'));
+
+    const beninCtx = ContextEngine.buildContext(
+      { prompt: 'Trouve-moi des hackathons actuellement ouverts au Bénin.', userId: 'mel_uid' },
+      ECOGEN_DATASET
+    );
+    strictEqual(beninCtx.isWebSearch, true);
+    strictEqual(beninCtx.tasks.length, 0);
+    strictEqual(beninCtx.docs.length, 0);
+    ok(!beninCtx.systemPromptBlock.includes('ECOGEN'));
   });
 
-  it('Scénario 6 : Vérification technique du grounding Google Search dans CloudAIProvider et affichage Web dans AIScreen', () => {
+  it('Scénario 6 : Vérification technique du grounding Google Search, des logs et affichage Web dans AIScreen', () => {
     const cloudSrc = fs.readFileSync(path.join(ROOT, 'src/lib/ai/CloudAIProvider.ts'), 'utf-8');
     const aiScreenSrc = fs.readFileSync(path.join(ROOT, 'src/features/ai/AIScreen.tsx'), 'utf-8');
+    const appCtxSrc = fs.readFileSync(path.join(ROOT, 'src/context/AppContext.tsx'), 'utf-8');
 
     ok(cloudSrc.includes('googleSearch: {}'), 'CloudAIProvider doit activer googleSearch dans inCloudParams');
+    ok(cloudSrc.includes('Google Search Grounding activé'), 'CloudAIProvider doit journaliser activation Google Search');
+    ok(appCtxSrc.includes('Recherche Web détectée -> activation Google Search Grounding'), 'AppContext doit journaliser la recherche Web');
     ok(cloudSrc.includes('groundingMetadata'), 'CloudAIProvider doit extraire groundingMetadata');
     ok(aiScreenSrc.includes("s.type === 'web'"), 'AIScreen doit distinguer les sources Web');
   });

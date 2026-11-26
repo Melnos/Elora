@@ -51,20 +51,25 @@ export class ContextEngine {
     const promptLower = (prompt || '').toLowerCase();
     const keywords = this.extractKeywords(promptLower);
     const excludedTerms = this.extractExcludedTerms(promptLower);
-    const isWebSearch = this.isWebSearchRequest(promptLower) && !activeEntityId;
+    const isGreeting = this.isPureGreeting(promptLower) && !activeEntityId;
+    const isInternetQuery = this.isInternetCapabilityQuery(promptLower);
+    const isWebSearch = this.isWebSearchRequest(promptLower) && !activeEntityId && !isGreeting;
     const isIdentityQuery = this.isIdentityOrMemoryQuery(promptLower);
     const isMetaQuestion = this.isMetaQuestionAboutContext(promptLower);
-    const asksGoalsOrTasks = this.asksAboutTasksOrGoals(promptLower);
-    const asksDocs = this.asksAboutDocuments(promptLower);
+    const asksGoalsOrTasks = !isGreeting && this.asksAboutTasksOrGoals(promptLower);
+    const asksDocs = !isGreeting && this.asksAboutDocuments(promptLower);
     const isPersonalQuery =
-      this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId) || isIdentityQuery;
+      !isGreeting &&
+      (this.isPersonalizationRequest(promptLower) || Boolean(activeEntityId) || isIdentityQuery);
 
-    // Sur une recherche Web pure, une question d'identité ("Tu me connais ?") ou une question méta ("Pourquoi me parles-tu d'ECOGEN ?"),
+    // Sur une salutation simple, une recherche Web pure, une question d'identité ou une question méta,
     // on n'injecte PAS automatiquement les tâches, objectifs ou documents Knowledge locaux.
     const allowLocalTasksAndGoals =
-      Boolean(activeEntityId) || (!isWebSearch && !isIdentityQuery && !isMetaQuestion);
+      Boolean(activeEntityId) ||
+      (!isGreeting && !isWebSearch && !isIdentityQuery && !isMetaQuestion && !isInternetQuery);
     const allowLocalDocs =
-      Boolean(activeEntityId) || (!isWebSearch && !isIdentityQuery && !isMetaQuestion);
+      Boolean(activeEntityId) ||
+      (!isGreeting && !isWebSearch && !isIdentityQuery && !isMetaQuestion && !isInternetQuery);
 
     const referencedSources: ReferencedSource[] = [];
     const proposedActions: ProposedAction[] = [];
@@ -194,14 +199,16 @@ export class ContextEngine {
       return keywords.some((kw) => mText.includes(kw));
     });
     const shouldIncludeMemories =
-      isPersonalQuery ||
-      isIdentityQuery ||
-      (!isWebSearch &&
-        !isMetaQuestion &&
-        (hasMemoryKeywordMatch ||
-          relevantGoals.length > 0 ||
-          relevantTasks.length > 0 ||
-          relevantDocs.length > 0));
+      !isGreeting &&
+      (isPersonalQuery ||
+        isIdentityQuery ||
+        (!isWebSearch &&
+          !isMetaQuestion &&
+          !isInternetQuery &&
+          (hasMemoryKeywordMatch ||
+            relevantGoals.length > 0 ||
+            relevantTasks.length > 0 ||
+            relevantDocs.length > 0)));
 
     const activeMemories = shouldIncludeMemories
       ? MemoryService.getActiveContextForAI(userId, prompt, maxItemsPerScope)
@@ -215,6 +222,8 @@ export class ContextEngine {
       tasks: relevantTasks,
       docs: relevantDocs,
       includePersonalProfile: isPersonalQuery || isIdentityQuery,
+      isGreeting,
+      isInternetQuery,
       isWebSearch,
       isIdentityQuery,
       isMetaQuestion,
@@ -266,6 +275,7 @@ export class ContextEngine {
       referencedSources,
       proposedActions,
       isWebSearch,
+      isGreeting,
       stats: {
         totalEntitiesFound,
         tokensEstimated: Math.round(systemPromptBlock.length / 4),
@@ -486,6 +496,20 @@ export class ContextEngine {
     );
   }
 
+  private static isPureGreeting(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower).replace(/[!.,?]+$/g, '').trim();
+    return /^(salut|salut gros|bonjour|bonsoir|coucou|hello|hey|hi|yo|wesh|ca va|ça va|salut elora|bonjour elora)$/i.test(
+      normalized
+    );
+  }
+
+  private static isInternetCapabilityQuery(promptLower: string): boolean {
+    const normalized = this.normalizeSearchText(promptLower);
+    return /\b(as-tu acces a internet|as tu acces a internet|tu as acces a internet|tu as internet|peux-tu chercher sur internet|peux tu chercher sur internet|acces internet|recherche internet)\b/i.test(
+      normalized
+    );
+  }
+
   private static isMetaQuestionAboutContext(promptLower: string): boolean {
     const normalized = this.normalizeSearchText(promptLower);
     return /\b(pourquoi me parles-tu|pourquoi me parles tu|pourquoi tu me parles|pourquoi mentionnes-tu|pourquoi parles-tu)\b/i.test(
@@ -539,6 +563,8 @@ export class ContextEngine {
     tasks: TaskItem[];
     docs: KnowledgeDoc[];
     includePersonalProfile?: boolean;
+    isGreeting?: boolean;
+    isInternetQuery?: boolean;
     isWebSearch?: boolean;
     isIdentityQuery?: boolean;
     isMetaQuestion?: boolean;
@@ -559,10 +585,27 @@ export class ContextEngine {
       `### [CONSIGNES CONVERSATIONNELLES - ELORA]`,
       `- **Date du jour** : ${todayIso}.`,
       `- **Réponse directe** : Réponds immédiatement et naturellement à la demande dès la première phrase. Adapte ton ton avec justesse et respect au style de l'utilisateur sans familiarité artificielle.`,
+      `- **Capacité Web** : En mode Cloud (Firebase AI Logic), tu disposes de Google Search Grounding lorsque des informations en ligne sont demandées. N'affirme jamais spontanément que tu n'as pas accès à Internet.`,
       `- **Continuité conversationnelle** : Si l'utilisateur fait référence à un élément précédent (ex: « le deuxième »), appuie-toi uniquement sur la liste produite au tour précédent dans l'historique récent sans inventer.`,
       `- **Pas de format rigide** : Réponds de façon fluide et naturelle, sans rubriques mécaniques ni listes stéréotypées sur l'état de tes sources, et ne renvoie jamais vers une ancienne tâche non demandée.`,
       `- **Honnêteté stricte** : N'invente jamais de souvenirs, de résultats web, d'URLs ou de dates. Explique honnêtement toute limite technique le cas échéant.`,
     ];
+
+    if (data.isGreeting) {
+      sections.push(
+        `\n### [SALUTATION]`,
+        `- L'utilisateur te salue simplement${hasCustomName ? ` (prénom : ${data.profile.name})` : ''}. Réponds par une salutation brève, chaleureuse et naturelle (1 à 2 phrases), et demande-lui comment l'aider.`,
+        `- N'évoque ni accès Internet, ni anciens projets, ni documents ou tâches.`
+      );
+      return sections.join('\n');
+    }
+
+    if (data.isInternetQuery) {
+      sections.push(
+        `\n### [CAPACITÉ DE RECHERCHE INTERNET]`,
+        `- Réponds directement **oui** : en mode Cloud (Firebase AI Logic), ELORA dispose de la recherche Internet en temps réel via Google Search Grounding dès qu'une recherche en ligne est demandée (sauf si l'appareil est hors ligne ou en mode strictement local).`
+      );
+    }
 
     if (data.isWebSearch) {
       sections.push(

@@ -1164,14 +1164,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const activeConv = conversations.find((c) => c.id === effectiveConvId);
-      const recentHistory = (activeConv?.messages || [])
-        .filter((m) => m.id !== 'msg_1' && m.id !== 'msg_2' && m.content && m.content.trim().length > 0)
-        .slice(-6)
-        .map((m) => `${m.role === 'user' ? 'Utilisateur' : 'ELORA'} : ${m.content.slice(0, 1200)}`)
-        .join('\n');
+      const recentHistory = resolvedContext.isGreeting
+        ? ''
+        : (activeConv?.messages || [])
+            .filter((m) => m.id !== 'msg_1' && m.id !== 'msg_2' && m.content && m.content.trim().length > 0)
+            .slice(-6)
+            .map((m) => `${m.role === 'user' ? 'Utilisateur' : 'ELORA'} : ${m.content.slice(0, 1200)}`)
+            .join('\n');
       const historyBlock = recentHistory
         ? `\n\n### [HISTORIQUE RÉCENT DE LA CONVERSATION]\n${recentHistory}`
         : '';
+
+      if (resolvedContext.isWebSearch) {
+        console.info('[ELORA AI] Recherche Web détectée -> activation Google Search Grounding');
+      }
 
       const aiResponse: AIResponse = await orchestrator.process({
         prompt: `${resolvedContext.systemPromptBlock}${historyBlock}\n\nDemande actuelle de l'utilisateur : ${text}`,

@@ -68,6 +68,8 @@ export interface ResolvedContext {
   proposedActions: ProposedAction[];
   /** Indique si la requête nécessite une recherche Internet réelle */
   isWebSearch?: boolean;
+  /** Indique si la requête est une salutation simple (pas d'historique/projets résiduels) */
+  isGreeting?: boolean;
   /** Métriques transversales calculées */
   stats: {
     totalEntitiesFound: number;

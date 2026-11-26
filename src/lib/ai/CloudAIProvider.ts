@@ -89,11 +89,15 @@ export class CloudAIProvider {
     let firebaseError: Error | null = null;
     try {
       const ai = getFirebaseAI();
+      const useGoogleSearch = Boolean(options.enableWebSearch);
+      if (useGoogleSearch) {
+        console.info('[CloudAIProvider] Google Search Grounding activé (tools: [{ googleSearch: {} }])');
+      }
       const cloudModel = getGenerativeModel(ai, {
         mode: InferenceMode.ONLY_IN_CLOUD,
         inCloudParams: {
           model: 'gemini-3.5-flash-lite',
-          ...(options.enableWebSearch ? { tools: [{ googleSearch: {} }] } : {}),
+          ...(useGoogleSearch ? { tools: [{ googleSearch: {} }] } : {}),
           generationConfig: {
             temperature: options.temperature ?? 0.7,
             maxOutputTokens: options.maxOutputTokens ?? 2048,
@@ -198,6 +202,7 @@ export class CloudAIProvider {
           timestamp,
           fallbackOccurred: false,
           sdkProvider: 'firebase_ai_logic',
+          webSearchEnabled: useGoogleSearch,
         },
         ...(webSources.length > 0 ? { webSources } : {}),
         ...(webSearchQueries.length > 0 ? { webSearchQueries } : {}),
@@ -240,8 +245,11 @@ export class CloudAIProvider {
       }
     }
 
+    const webPrefix = options.enableWebSearch
+      ? 'La recherche Web en direct (Google Search Grounding) a échoué — '
+      : '';
     throw new Error(
-      `[CloudAIProvider] Échec de l'appel Cloud : ${firebaseError?.message || "Impossible de contacter l'intelligence Cloud."}`
+      `[CloudAIProvider] ${webPrefix}Échec de l'appel Cloud : ${firebaseError?.message || "Impossible de contacter l'intelligence Cloud."}`
     );
   }
 

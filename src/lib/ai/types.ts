@@ -36,6 +36,8 @@ export interface InferenceMetadata {
   fallbackReason?: string;
   /** Fournisseur SDK d'exécution sous-jacent */
   sdkProvider?: 'firebase_ai_logic' | 'gemini_direct_fallback' | 'chrome_prompt_api';
+  /** Indique si Google Search Grounding a été activé pour cette requête */
+  webSearchEnabled?: boolean;
   /** Tokens consommés si disponibles */
   tokenCount?: {
     promptTokens?: number;
