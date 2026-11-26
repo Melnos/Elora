@@ -35,6 +35,11 @@ import { ContextEngine } from '../lib/context/ContextEngine';
 import type { HomeBriefing, ProposedAction } from '../lib/context/types';
 import { ActionEngine } from '../lib/actions/ActionEngine';
 import {
+  buildOpportunitySearchPrompt,
+  extractOpportunitiesFromWebResponse,
+  deduplicateOpportunities,
+} from '../lib/opportunities/opportunityExtractor';
+import {
   generateConversationTitle,
   sortConversationsByDate,
   DEFAULT_CONVERSATION_TITLE,
@@ -108,6 +113,10 @@ interface AppContextType {
   // Planner & Tâches
   tasks: TaskItem[];
   addTask: (task: Omit<TaskItem, 'id'>) => void;
+  updateTask: (
+    id: string,
+    updates: Partial<Pick<TaskItem, 'title' | 'description' | 'dueDate' | 'priority' | 'completed' | 'category' | 'goalId'>>
+  ) => void;
   toggleTaskCompleted: (id: string) => void;
   deleteTask: (id: string) => void;
 
@@ -151,6 +160,8 @@ interface AppContextType {
   matchedOpportunities: OpportunityItem[];
   toggleSaveOpportunity: (id: string) => void;
   addOpportunityToPlanner: (opp: OpportunityItem) => void;
+  searchWebOpportunities: (customQuery?: string) => Promise<{ addedCount: number; error?: string }>;
+  isSearchingOpportunities: boolean;
 
   // Intelligence Transversale & Briefing (ContextEngine & ActionEngine)
   homeBriefing: HomeBriefing;
@@ -235,6 +246,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSearchingOpportunities, setIsSearchingOpportunities] = useState(false);
   const [caps, setCaps] = useState<CapabilityReport | null>(null);
 
   // Synchronisation des thèmes
@@ -464,6 +476,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTasks(EloraDB.getTasks());
     if (currentUser) {
       saveUserTask(currentUser.uid, newTask);
+    }
+  };
+
+  const updateTask = (
+    id: string,
+    updates: Partial<Pick<TaskItem, 'title' | 'description' | 'dueDate' | 'priority' | 'completed' | 'category' | 'goalId'>>
+  ) => {
+    const updated = EloraDB.updateTask(id, updates);
+    setTasks(updated);
+    if (currentUser) {
+      const target = updated.find((t) => t.id === id);
+      if (target) saveUserTask(currentUser.uid, target);
     }
   };
 
@@ -779,6 +803,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const searchWebOpportunities = async (
+    customQuery = ''
+  ): Promise<{ addedCount: number; error?: string }> => {
+    if (isSearchingOpportunities) {
+      return { addedCount: 0, error: 'Une recherche est déjà en cours.' };
+    }
+    setIsSearchingOpportunities(true);
+    try {
+      const activeMems = MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[];
+      const prompt = buildOpportunitySearchPrompt(customQuery, profile, activeMems, goals);
+      const aiResponse = await orchestrator.process({
+        prompt,
+        userQuestion: customQuery.trim() || 'Trouve-moi des opportunités ouvertes actuellement',
+        enableWebSearch: true,
+      });
+
+      const webSources = aiResponse.webSources || [];
+      if (webSources.length === 0) {
+        return {
+          addedCount: 0,
+          error:
+            "Google Search Grounding n'a renvoyé aucune source Web vérifiable pour cette requête.",
+        };
+      }
+
+      const extracted = extractOpportunitiesFromWebResponse(aiResponse.text, webSources);
+      if (extracted.length === 0) {
+        return {
+          addedCount: 0,
+          error: 'Aucune opportunité non expirée avec URL vérifiée n’a été trouvée.',
+        };
+      }
+
+      const { added, all } = EloraDB.addOpportunities(extracted, false);
+      setOpportunities(all);
+      if (currentUser && added.length > 0) {
+        await Promise.all(added.map((opp) => saveUserOpportunity(currentUser.uid, opp)));
+      }
+      return { addedCount: added.length };
+    } catch (err: unknown) {
+      return {
+        addedCount: 0,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    } finally {
+      setIsSearchingOpportunities(false);
+    }
+  };
+
   // Déconnexion : nettoie les données locales privées pour garantir l'isolation multi-comptes
   const logout = async () => {
     await logoutUser();
@@ -945,6 +1018,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       },
       onToggleMilestone: async (goalId, milestoneId) => {
         toggleMilestone(goalId, milestoneId);
+      },
+      onUpdateTask: async (taskId, updates) => {
+        updateTask(taskId, updates);
+      },
+      onDeleteTask: async (taskId) => {
+        deleteTask(taskId);
+      },
+      onUpdateGoal: async (goalId, updates) => {
+        updateGoal(goalId, updates);
+      },
+      onSaveOpportunity: async (oppData) => {
+        const { added, all } = EloraDB.addOpportunities([oppData], true);
+        setOpportunities(all);
+        const saved = added[0];
+        if (currentUser && saved) {
+          await saveUserOpportunity(currentUser.uid, saved);
+        }
+        return saved?.id || 'existing_opportunity';
       },
       onValidateMemory: async (memoryId) => {
         const targetStatus =
@@ -1201,6 +1292,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
       });
 
+      const webOpportunityActions: ProposedAction[] =
+        resolvedContext.isWebSearch && aiResponse.webSources && aiResponse.webSources.length > 0
+          ? deduplicateOpportunities(
+              opportunities,
+              extractOpportunitiesFromWebResponse(aiResponse.text, aiResponse.webSources).map(
+                (o, idx) => ({ ...o, id: `preview_${idx}`, saved: false })
+              )
+            ).added
+              .slice(0, 3)
+              .map((opp, idx) => ({
+                id: `act_opp_${Date.now()}_${idx}`,
+                type: 'save_opportunity' as const,
+                title: `Enregistrer l'opportunité : ${opp.title}`,
+                description: `${opp.organization} • Échéance : ${opp.deadline}`,
+                payload: {
+                  title: opp.title,
+                  organization: opp.organization,
+                  type: opp.type,
+                  deadline: opp.deadline,
+                  location: opp.location,
+                  eligibility: opp.eligibility,
+                  skillsRequired: opp.skillsRequired,
+                  matchReason: opp.matchReason,
+                  officialUrl: opp.officialUrl,
+                },
+                status: 'pending' as const,
+              }))
+          : [];
+
       const completedIso = new Date().toISOString();
       let completedConv: Conversation | undefined;
       setConversations((prev) => {
@@ -1236,7 +1356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                       url: ws.url,
                     })),
                   ],
-                  proposedActions: resolvedContext.proposedActions,
+                  proposedActions: [...resolvedContext.proposedActions, ...webOpportunityActions],
                   fallbackOccurred: aiResponse.metadata.fallbackOccurred,
                   fallbackReason: aiResponse.metadata.fallbackReason,
                 }
@@ -1320,6 +1440,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteMemory,
         tasks,
         addTask,
+        updateTask,
         toggleTaskCompleted,
         deleteTask,
         goals,
@@ -1349,6 +1470,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         matchedOpportunities,
         toggleSaveOpportunity,
         addOpportunityToPlanner,
+        searchWebOpportunities,
+        isSearchingOpportunities,
         homeBriefing,
         executeProposedAction,
         rejectProposedAction,

@@ -9,6 +9,8 @@ import {
   Compass,
   Check,
   Award,
+  Search,
+  Loader2,
 } from 'lucide-react';
 import type { OpportunityItem } from '../../types';
 
@@ -26,12 +28,35 @@ export const OpportunitiesScreen: React.FC = () => {
     matchedOpportunities,
     toggleSaveOpportunity,
     addOpportunityToPlanner,
+    searchWebOpportunities,
+    isSearchingOpportunities,
     setActiveTab,
     sendMessage,
   } = useApp();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'saved' | 'hackathon' | 'scholarship' | 'program'>('all');
   const [plannerAddedId, setPlannerAddedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFeedback, setSearchFeedback] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
+
+  const handleSearchOpportunities = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchFeedback(null);
+    const res = await searchWebOpportunities(searchQuery);
+    if (res.error) {
+      setSearchFeedback({ type: 'error', message: res.error });
+    } else if (res.addedCount > 0) {
+      setSearchFeedback({
+        type: 'info',
+        message: `${res.addedCount} opportunité(s) vérifiée(s) ajoutée(s).`,
+      });
+    } else {
+      setSearchFeedback({
+        type: 'info',
+        message: 'Toutes les opportunités trouvées sont déjà dans votre liste.',
+      });
+    }
+  };
 
   const displayList = matchedOpportunities.length > 0 ? matchedOpportunities : opportunities;
 
@@ -78,6 +103,52 @@ export const OpportunitiesScreen: React.FC = () => {
           <span>Sélection curatée</span>
         </div>
       </div>
+
+      {/* Recherche réelle d'opportunités sur Internet */}
+      <form
+        onSubmit={handleSearchOpportunities}
+        className="mb-4 p-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5"
+      >
+        <div className="flex items-center gap-2 flex-1 px-1">
+          <Search size={15} className="text-[var(--color-accent)] shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher emplois, stages, hackathons, bourses (ex: robotique, web, Bénin)..."
+            className="w-full text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none bg-transparent"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isSearchingOpportunities}
+          className="bento-btn-primary py-2 px-4 text-xs justify-center shrink-0 disabled:opacity-50"
+        >
+          {isSearchingOpportunities ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              <span>Recherche Web...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={14} />
+              <span>Rechercher avec ELORA</span>
+            </>
+          )}
+        </button>
+      </form>
+
+      {searchFeedback && (
+        <div
+          className={`mb-4 p-3 rounded-xl text-xs font-medium border ${
+            searchFeedback.type === 'error'
+              ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+              : 'bg-[var(--color-accent-bg)] border-[var(--color-accent)]/20 text-[var(--color-text-main)]'
+          }`}
+        >
+          {searchFeedback.message}
+        </div>
+      )}
 
       {/* Barre de Filtres */}
       <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">

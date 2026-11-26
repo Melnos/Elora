@@ -3,14 +3,17 @@
  * Modèle formel pour l'audit, la validation et l'exécution fiabilisée des actions transversales.
  */
 
-import type { TaskItem, GoalItem, KnowledgeDoc, MemoryItem } from '../../types';
+import type { TaskItem, GoalItem, KnowledgeDoc, MemoryItem, OpportunityItem } from '../../types';
 
 export type ActionType =
   | 'create_task'
+  | 'update_task'
+  | 'delete_task'
   | 'complete_milestone'
   | 'update_goal'
   | 'validate_memory'
-  | 'add_knowledge_doc';
+  | 'add_knowledge_doc'
+  | 'save_opportunity';
 
 export type ActionStatus =
   | 'pending'    // En attente d'arbitrage utilisateur
@@ -86,8 +89,11 @@ export interface ActionExecutionContext {
   docs: KnowledgeDoc[];
   memories: MemoryItem[];
   onAddTask: (task: Omit<TaskItem, 'id'>) => Promise<string> | string;
+  onUpdateTask?: (taskId: string, updates: Partial<TaskItem>) => Promise<void> | void;
+  onDeleteTask?: (taskId: string) => Promise<void> | void;
   onToggleMilestone: (goalId: string, milestoneId: string) => Promise<void> | void;
   onUpdateGoal?: (goalId: string, updates: Partial<GoalItem>) => Promise<void> | void;
   onValidateMemory: (memoryId: string) => Promise<void> | void;
   onAddKnowledgeDoc?: (doc: Omit<KnowledgeDoc, 'id' | 'addedAt'>) => Promise<string> | string;
+  onSaveOpportunity?: (opp: Omit<OpportunityItem, 'id' | 'saved'>) => Promise<string> | string;
 }

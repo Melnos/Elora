@@ -102,7 +102,15 @@ export interface ChatMessageSource {
 
 export interface ChatProposedAction {
   id: string;
-  type: 'create_task' | 'complete_milestone' | 'validate_memory' | 'update_goal' | 'add_knowledge_doc';
+  type:
+    | 'create_task'
+    | 'update_task'
+    | 'delete_task'
+    | 'complete_milestone'
+    | 'validate_memory'
+    | 'update_goal'
+    | 'add_knowledge_doc'
+    | 'save_opportunity';
   title: string;
   description: string;
   payload: Record<string, unknown>;

@@ -233,6 +233,7 @@ export class ContextEngine {
     if (query.allowProposedActions) {
       const proactiveAction = ActionEngine.extractProactiveAction(prompt, {
         goals: relevantGoals,
+        tasks: dataset.tasks,
       });
       if (proactiveAction) {
         proposedActions.push(proactiveAction);

@@ -12,7 +12,7 @@
  * 7. Statut 'accepted' acté uniquement après confirmation de l'exécution et de la persistance.
  */
 
-import type { GoalItem } from '../../types';
+import type { GoalItem, OpportunityItem, TaskItem } from '../../types';
 import type {
   ProposedAction,
   ActionValidationResult,
@@ -146,6 +146,101 @@ export class ActionEngine {
         return { isValid: true, missingFields: [], sanitizedPayload: sanitized as unknown as Record<string, unknown> };
       }
 
+      case 'update_task': {
+        const taskId = typeof p.taskId === 'string' ? p.taskId.trim() : '';
+        if (!taskId) {
+          return { isValid: false, missingFields: ['taskId'], error: 'Identifiant de tâche requis.' };
+        }
+        if (context?.tasks && !context.tasks.some((t) => t.id === taskId)) {
+          return { isValid: false, missingFields: [], error: `Tâche [${taskId}] introuvable.` };
+        }
+        const updates: Partial<TaskItem> = {};
+        if (typeof p.title === 'string' && p.title.trim().length >= 3) updates.title = p.title.trim();
+        if (typeof p.dueDate === 'string' && p.dueDate.trim()) updates.dueDate = p.dueDate.trim();
+        if (p.priority === 'high' || p.priority === 'medium' || p.priority === 'low') updates.priority = p.priority;
+        if (typeof p.completed === 'boolean') updates.completed = p.completed;
+        if (typeof p.category === 'string' && p.category.trim()) updates.category = p.category.trim();
+        if (typeof p.goalId === 'string') updates.goalId = p.goalId.trim() || undefined;
+        return { isValid: true, missingFields: [], sanitizedPayload: { taskId, updates } };
+      }
+
+      case 'delete_task': {
+        const taskId = typeof p.taskId === 'string' ? p.taskId.trim() : '';
+        if (!taskId) {
+          return { isValid: false, missingFields: ['taskId'], error: 'Identifiant de tâche requis.' };
+        }
+        if (context?.tasks && !context.tasks.some((t) => t.id === taskId)) {
+          return { isValid: false, missingFields: [], error: `Tâche [${taskId}] introuvable.` };
+        }
+        return { isValid: true, missingFields: [], sanitizedPayload: { taskId } };
+      }
+
+      case 'update_goal': {
+        const goalId = typeof p.goalId === 'string' ? p.goalId.trim() : '';
+        if (!goalId) {
+          return { isValid: false, missingFields: ['goalId'], error: "Identifiant d'objectif requis." };
+        }
+        if (context?.goals && !context.goals.some((g) => g.id === goalId)) {
+          return { isValid: false, missingFields: [], error: `Objectif [${goalId}] introuvable.` };
+        }
+        const updates: Partial<GoalItem> = {};
+        if (typeof p.title === 'string' && p.title.trim().length >= 2) updates.title = p.title.trim();
+        if (typeof p.category === 'string' && p.category.trim()) updates.category = p.category.trim();
+        if (typeof p.targetDate === 'string' && p.targetDate.trim()) updates.targetDate = p.targetDate.trim();
+        if (typeof p.completed === 'boolean') updates.completed = p.completed;
+        if (typeof p.progressPercentage === 'number') {
+          updates.progressPercentage = Math.min(100, Math.max(0, Math.round(p.progressPercentage)));
+        }
+        return { isValid: true, missingFields: [], sanitizedPayload: { goalId, updates } };
+      }
+
+      case 'save_opportunity': {
+        const title = typeof p.title === 'string' ? p.title.trim() : '';
+        const officialUrl = typeof p.officialUrl === 'string' ? p.officialUrl.trim() : '';
+        if (!title || title.length < 3) missingFields.push('title');
+        if (!/^https?:\/\//i.test(officialUrl)) missingFields.push('officialUrl');
+        if (missingFields.length > 0) {
+          return {
+            isValid: false,
+            missingFields,
+            error: `Opportunité invalide (champs requis : ${missingFields.join(', ')}).`,
+          };
+        }
+        const sanitized: Omit<OpportunityItem, 'id' | 'saved'> = {
+          title: title.slice(0, 140),
+          organization:
+            typeof p.organization === 'string' && p.organization.trim()
+              ? p.organization.trim().slice(0, 100)
+              : 'Source Web',
+          type:
+            p.type === 'hackathon' ||
+            p.type === 'internship' ||
+            p.type === 'scholarship' ||
+            p.type === 'competition' ||
+            p.type === 'program'
+              ? p.type
+              : 'program',
+          deadline:
+            typeof p.deadline === 'string' && p.deadline.trim()
+              ? p.deadline.trim()
+              : 'À vérifier sur le site officiel',
+          location:
+            typeof p.location === 'string' && p.location.trim()
+              ? p.location.trim().slice(0, 80)
+              : 'En ligne',
+          isVerified: true,
+          matchScore: typeof p.matchScore === 'number' ? Math.min(100, Math.max(0, Math.round(p.matchScore))) : 75,
+          matchReason:
+            typeof p.matchReason === 'string' && p.matchReason.trim()
+              ? p.matchReason.trim().slice(0, 220)
+              : 'Opportunité vérifiée via recherche Web.',
+          eligibility: Array.isArray(p.eligibility) ? p.eligibility.map(String) : ['Consulter le site officiel'],
+          skillsRequired: Array.isArray(p.skillsRequired) ? p.skillsRequired.map(String) : [],
+          officialUrl,
+        };
+        return { isValid: true, missingFields: [], sanitizedPayload: sanitized as unknown as Record<string, unknown> };
+      }
+
       case 'add_knowledge_doc': {
         const title = typeof p.title === 'string' ? p.title.trim() : '';
         const content = typeof p.content === 'string' ? p.content.trim() : '';
@@ -255,6 +350,51 @@ export class ActionEngine {
           break;
         }
 
+        case 'update_task': {
+          const { taskId, updates } = validation.sanitizedPayload as {
+            taskId: string;
+            updates: Partial<TaskItem>;
+          };
+          if (!context.onUpdateTask) {
+            throw new Error('Mise à jour de tâche non configurée.');
+          }
+          await Promise.resolve(context.onUpdateTask(taskId, updates));
+          createdEntityId = taskId;
+          break;
+        }
+
+        case 'delete_task': {
+          const { taskId } = validation.sanitizedPayload as { taskId: string };
+          if (!context.onDeleteTask) {
+            throw new Error('Suppression de tâche non configurée.');
+          }
+          await Promise.resolve(context.onDeleteTask(taskId));
+          createdEntityId = taskId;
+          break;
+        }
+
+        case 'update_goal': {
+          const { goalId, updates } = validation.sanitizedPayload as {
+            goalId: string;
+            updates: Partial<GoalItem>;
+          };
+          if (!context.onUpdateGoal) {
+            throw new Error("Mise à jour d'objectif non configurée.");
+          }
+          await Promise.resolve(context.onUpdateGoal(goalId, updates));
+          createdEntityId = goalId;
+          break;
+        }
+
+        case 'save_opportunity': {
+          if (!context.onSaveOpportunity) {
+            throw new Error("Enregistrement d'opportunité non configuré.");
+          }
+          const oppData = validation.sanitizedPayload as unknown as Omit<OpportunityItem, 'id' | 'saved'>;
+          createdEntityId = await Promise.resolve(context.onSaveOpportunity(oppData));
+          break;
+        }
+
         case 'add_knowledge_doc': {
           const p = validation.sanitizedPayload as unknown as ActionPayloadKnowledgeDoc;
           if (context.onAddKnowledgeDoc) {
@@ -298,9 +438,39 @@ export class ActionEngine {
    */
   public static extractProactiveAction(
     prompt: string,
-    context: { goals: GoalItem[] }
+    context: { goals: GoalItem[]; tasks?: TaskItem[] }
   ): ProposedAction | null {
     const promptLower = prompt.toLowerCase();
+
+    // 0. Suppression ou validation d'une tâche existante (toujours soumise à confirmation)
+    if (context.tasks && context.tasks.length > 0) {
+      const matchedTask = context.tasks.find((t) =>
+        promptLower.includes(t.title.toLowerCase().slice(0, 24))
+      );
+      if (matchedTask) {
+        if (/\b(supprime|supprimer|efface|retire)\b/i.test(promptLower)) {
+          return {
+            id: `act_${Date.now()}_del_task`,
+            type: 'delete_task',
+            title: `Supprimer la tâche : ${matchedTask.title}`,
+            description: 'Action irréversible dans le Planner — confirmation requise.',
+            payload: { taskId: matchedTask.id },
+            status: 'pending',
+            isDestructive: true,
+          };
+        }
+        if (/\b(termine|terminer|valide|valider|marque.*faite|compl[eè]te)\b/i.test(promptLower)) {
+          return {
+            id: `act_${Date.now()}_done_task`,
+            type: 'update_task',
+            title: `Marquer comme terminée : ${matchedTask.title}`,
+            description: 'Met à jour le statut de cette tâche dans le Planner.',
+            payload: { taskId: matchedTask.id, completed: true },
+            status: 'pending',
+          };
+        }
+      }
+    }
 
     // Détection d'intention d'ajout de tâche
     const taskTriggers = [

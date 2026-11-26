@@ -27,6 +27,7 @@ import {
 } from '../mockData';
 import { MemoryService } from '../memory/MemoryService';
 import type { MemoryItem as ServiceMemoryItem } from '../memory/types';
+import { deduplicateOpportunities } from '../opportunities/opportunityExtractor';
 
 const KEYS = {
   PROFILE: 'elora_db_profile',
@@ -128,6 +129,15 @@ export const EloraDB = {
     const next = tasks.map((t) =>
       t.id === id ? { ...t, completed: !t.completed } : t
     );
+    this.saveTasks(next);
+    return next;
+  },
+  updateTask(
+    id: string,
+    updates: Partial<Pick<TaskItem, 'title' | 'description' | 'dueDate' | 'priority' | 'completed' | 'category' | 'goalId'>>
+  ): TaskItem[] {
+    const tasks = this.getTasks();
+    const next = tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
     this.saveTasks(next);
     return next;
   },
@@ -303,6 +313,22 @@ export const EloraDB = {
   },
   saveOpportunities(opps: OpportunityItem[]): void {
     safeSet(KEYS.OPPORTUNITIES, opps);
+  },
+  addOpportunities(
+    items: Omit<OpportunityItem, 'id' | 'saved'>[],
+    savedByDefault = false
+  ): { added: OpportunityItem[]; all: OpportunityItem[] } {
+    const existing = this.getOpportunities();
+    const incoming: OpportunityItem[] = items.map((item, idx) => ({
+      ...item,
+      id: `opp_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+      saved: savedByDefault,
+    }));
+    const { added, merged } = deduplicateOpportunities(existing, incoming);
+    if (added.length > 0) {
+      this.saveOpportunities(merged);
+    }
+    return { added, all: merged };
   },
   toggleSaveOpportunity(id: string): OpportunityItem[] {
     const opps = this.getOpportunities();
