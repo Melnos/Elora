@@ -27,7 +27,13 @@ export const PlannerScreen: React.FC = () => {
     sendMessage,
   } = useApp();
 
-  const [activeTabMode, setActiveTabMode] = useState<'tasks' | 'focus'>('tasks');
+  const [activeTabMode, setActiveTabMode] = useState<'tasks' | 'focus'>(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('elora_planner_mode') === 'focus') {
+      sessionStorage.removeItem('elora_planner_mode');
+      return 'focus';
+    }
+    return 'tasks';
+  });
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [quickTitle, setQuickTitle] = useState('');
   const [quickPriority, setQuickPriority] = useState<'high' | 'medium' | 'low'>('medium');
@@ -56,6 +62,9 @@ export const PlannerScreen: React.FC = () => {
   }, [isFocusRunning, focusSecondsLeft]);
 
   const handleStartFocus = () => {
+    if (focusSecondsLeft === 0) {
+      setFocusSecondsLeft(focusDurationMinutes * 60);
+    }
     setIsFocusRunning(true);
   };
 
@@ -100,7 +109,7 @@ export const PlannerScreen: React.FC = () => {
       dueDate: new Date().toISOString().split('T')[0], // Échéance du jour par défaut pour une action rapide
       priority: quickPriority,
       completed: false,
-      category: 'Projet',
+      category: filterCategory !== 'all' ? filterCategory : 'Projet',
     });
 
     setQuickTitle('');
@@ -254,10 +263,22 @@ export const PlannerScreen: React.FC = () => {
               </span>
 
               {pendingTasks.length === 0 ? (
-                <div className="p-8 text-center rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
-                  <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2 opacity-80" />
-                  <p className="text-xs text-[var(--color-text-muted)]">Toutes les tâches de cette catégorie sont accomplies.</p>
-                </div>
+                tasks.length === 0 ? (
+                  <div className="p-8 text-center rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
+                    <Calendar size={32} className="text-[var(--color-accent)] mx-auto mb-2 opacity-80" />
+                    <p className="text-xs font-semibold text-[var(--color-text-main)] mb-1">
+                      Aucune tâche pour le moment
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Utilisez le champ ci-dessus pour créer votre première tâche.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
+                    <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2 opacity-80" />
+                    <p className="text-xs text-[var(--color-text-muted)]">Toutes les tâches de cette catégorie sont accomplies.</p>
+                  </div>
+                )
               ) : (
                 pendingTasks.map((t) => (
                   <div
@@ -273,7 +294,7 @@ export const PlannerScreen: React.FC = () => {
                     </button>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-xs sm:text-sm font-semibold text-[var(--color-text-main)] leading-snug">
+                      <h4 className="text-xs sm:text-sm font-semibold text-[var(--color-text-main)] leading-snug break-words">
                         {t.title}
                       </h4>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -308,7 +329,7 @@ export const PlannerScreen: React.FC = () => {
                         {t.priority === 'high' ? 'Urgent' : t.priority === 'medium' ? 'Normal' : 'Secondaire'}
                       </span>
                       <button
-                        className="opacity-0 group-hover:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 transition-opacity p-1 rounded-lg"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 transition-opacity p-1 rounded-lg"
                         onClick={() => deleteTask(t.id)}
                         title="Supprimer la tâche"
                       >
@@ -345,12 +366,12 @@ export const PlannerScreen: React.FC = () => {
                       <Check size={13} className="text-[var(--color-accent)]" />
                     </button>
 
-                    <div className="flex-1 min-w-0 text-xs text-[var(--color-text-main)] opacity-85 leading-snug">
+                    <div className="flex-1 min-w-0 text-xs text-[var(--color-text-main)] opacity-85 leading-snug break-words">
                       {t.title}
                     </div>
 
                     <button
-                      className="opacity-0 group-hover:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 transition-opacity p-1 rounded-lg"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-[var(--color-text-muted)] hover:text-red-500 transition-opacity p-1 rounded-lg"
                       onClick={() => deleteTask(t.id)}
                       title="Supprimer définitivement"
                     >

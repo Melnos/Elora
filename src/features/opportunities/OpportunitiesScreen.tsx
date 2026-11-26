@@ -12,6 +12,14 @@ import {
 } from 'lucide-react';
 import type { OpportunityItem } from '../../types';
 
+const OPPORTUNITY_TYPE_LABELS: Record<OpportunityItem['type'], string> = {
+  hackathon: 'Hackathon',
+  scholarship: 'Bourse',
+  program: 'Programme',
+  internship: 'Stage',
+  competition: 'Compétition',
+};
+
 export const OpportunitiesScreen: React.FC = () => {
   const {
     opportunities,
@@ -149,7 +157,7 @@ export const OpportunitiesScreen: React.FC = () => {
           return (
             <div
               key={opp.id}
-              className={`p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] flex flex-col justify-between transition-all ${
+              className={`p-6 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] flex flex-col justify-between transition-all min-w-0 ${
                 isFeatured ? 'lg:col-span-2 border-l-2 border-l-[var(--color-accent)]' : ''
               }`}
             >
@@ -164,7 +172,7 @@ export const OpportunitiesScreen: React.FC = () => {
                       </span>
                     )}
                     <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)]">
-                      {opp.type}
+                      {OPPORTUNITY_TYPE_LABELS[opp.type] ?? opp.type}
                     </span>
                     <span className="text-[10px] font-semibold text-[var(--color-accent)] font-mono">
                       {opp.matchScore}% de compatibilité
@@ -185,7 +193,7 @@ export const OpportunitiesScreen: React.FC = () => {
                 </div>
 
                 {/* Titre & Organisation */}
-                <h3 className="text-lg font-bold text-[var(--color-text-main)]">
+                <h3 className="text-lg font-bold text-[var(--color-text-main)] break-words">
                   {opp.title}
                 </h3>
                 <p className="text-xs text-[var(--color-text-muted)] mt-1">
@@ -193,7 +201,7 @@ export const OpportunitiesScreen: React.FC = () => {
                 </p>
 
                 {/* Raison du Match */}
-                <div className="p-3 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] my-4 text-xs text-[var(--color-text-main)] leading-relaxed">
+                <div className="p-3 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] my-4 text-xs text-[var(--color-text-main)] leading-relaxed break-words">
                   <span className="font-semibold text-[var(--color-accent)] block mb-1">
                     Alignement ELORA :
                   </span>

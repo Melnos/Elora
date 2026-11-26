@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   TrendingUp,
@@ -9,6 +9,7 @@ import {
   BookOpen,
   Calendar,
   Check,
+  Plus,
 } from 'lucide-react';
 
 export const ProgressScreen: React.FC = () => {
@@ -17,10 +18,37 @@ export const ProgressScreen: React.FC = () => {
     goals,
     focusSessions,
     knowledgeDocs,
+    addGoal,
     toggleMilestone,
     setActiveTab,
     sendMessage,
   } = useApp();
+
+  const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [newGoalCategory, setNewGoalCategory] = useState('Projet');
+  const [newGoalTargetDate, setNewGoalTargetDate] = useState(
+    () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+  const [newGoalMilestone, setNewGoalMilestone] = useState('');
+
+  const handleCreateGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGoalTitle.trim()) return;
+
+    addGoal({
+      title: newGoalTitle.trim(),
+      category: newGoalCategory.trim() || 'Projet',
+      targetDate: newGoalTargetDate || new Date().toISOString().split('T')[0],
+      progressPercentage: 0,
+      milestones: newGoalMilestone.trim()
+        ? [{ id: `m-${Date.now()}`, title: newGoalMilestone.trim(), completed: false }]
+        : [],
+      completed: false,
+    });
+
+    setNewGoalTitle('');
+    setNewGoalMilestone('');
+  };
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.completed);
@@ -159,7 +187,61 @@ export const ProgressScreen: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              {goals.map((goal) => (
+              {goals.length === 0 ? (
+                <div className="p-6 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-center space-y-4">
+                  <div>
+                    <Target size={32} className="text-[var(--color-accent)] mx-auto mb-2 opacity-80" />
+                    <h3 className="text-sm font-bold text-[var(--color-text-main)]">
+                      Aucun objectif actif pour le moment
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-md mx-auto">
+                      Définissez votre premier objectif et un jalon initial pour suivre votre progression réelle.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleCreateGoal} className="max-w-md mx-auto text-left space-y-3 pt-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Titre de l'objectif (ex: Maîtriser TypeScript)"
+                      value={newGoalTitle}
+                      onChange={(e) => setNewGoalTitle(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <input
+                        type="text"
+                        placeholder="Catégorie (ex: Projet)"
+                        value={newGoalCategory}
+                        onChange={(e) => setNewGoalCategory(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                      />
+                      <input
+                        type="date"
+                        value={newGoalTargetDate}
+                        onChange={(e) => setNewGoalTargetDate(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Premier jalon optionnel (ex: Lire la documentation)"
+                      value={newGoalMilestone}
+                      onChange={(e) => setNewGoalMilestone(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-strong)]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newGoalTitle.trim()}
+                      className="bento-btn-primary w-full justify-center py-2 text-xs disabled:opacity-40"
+                    >
+                      <Plus size={14} />
+                      <span>Créer un objectif</span>
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                goals.map((goal) => (
                 <div
                   key={goal.id}
                   className="p-5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] space-y-4"
@@ -220,7 +302,8 @@ export const ProgressScreen: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>
@@ -261,7 +344,7 @@ export const ProgressScreen: React.FC = () => {
                         </span>
                         <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{s.completedAt}</span>
                       </div>
-                      <p className="text-xs font-medium text-[var(--color-text-main)]">{s.goalTitle}</p>
+                      <p className="text-xs font-medium text-[var(--color-text-main)] break-words">{s.goalTitle}</p>
                     </div>
                   ))}
                 </div>
@@ -271,7 +354,12 @@ export const ProgressScreen: React.FC = () => {
             <div className="pt-4 mt-5 border-t border-[var(--color-border-subtle)]">
               <button
                 className="bento-btn-secondary w-full"
-                onClick={() => setActiveTab('planner')}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('elora_planner_mode', 'focus');
+                  }
+                  setActiveTab('planner');
+                }}
               >
                 <Calendar size={13} />
                 <span>Lancer un Focus</span>

@@ -39,8 +39,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div
           style={{
             minHeight: '100vh',
-            backgroundColor: '#0B0A09',
-            color: '#FAF8F5',
+            backgroundColor: 'var(--color-bg-base)',
+            color: 'var(--color-text-main)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -53,12 +53,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             style={{
               maxWidth: '560px',
               width: '100%',
-              background: '#151413',
-              border: '1px solid rgba(197, 154, 88, 0.3)',
+              background: 'var(--color-bg-surface)',
+              border: '1px solid var(--color-border-subtle)',
               borderRadius: '24px',
               padding: '2.5rem',
               textAlign: 'center',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.12)',
             }}
           >
             <div
@@ -66,8 +66,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 width: '56px',
                 height: '56px',
                 borderRadius: '16px',
-                background: 'rgba(197, 154, 88, 0.12)',
-                color: '#C59A58',
+                background: 'var(--color-accent-bg)',
+                color: 'var(--color-accent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -77,20 +77,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             >
               ⚠️
             </div>
-            <h1 style={{ color: '#FAF8F5', fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.75rem' }}>
+            <h1 style={{ color: 'var(--color-text-main)', fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.75rem' }}>
               Récupération automatique ELORA
             </h1>
-            <p style={{ color: '#A39D93', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
               Une erreur inattendue s'est produite lors de l'exécution :
             </p>
             <pre
               style={{
-                background: '#0B0A09',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--color-bg-base)',
+                border: '1px solid var(--color-border-subtle)',
                 padding: '1rem',
                 borderRadius: '16px',
                 fontSize: '0.75rem',
-                color: '#F87171',
+                color: 'var(--color-danger)',
                 textAlign: 'left',
                 overflowX: 'auto',
                 marginBottom: '1.5rem',
@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <button
               onClick={this.handleReset}
               style={{
-                background: '#C59A58',
+                background: 'var(--color-accent)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '9999px',
@@ -112,7 +112,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 fontSize: '0.875rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
               }}
             >
               Réinitialiser le cache et recharger

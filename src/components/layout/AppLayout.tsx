@@ -40,12 +40,13 @@ export const AppLayout: React.FC = () => {
     const currentScrollY = e.currentTarget.scrollTop;
     const isScrolled = currentScrollY > 15;
     let isCompact = headerState.isCompact;
+    const delta = currentScrollY - lastScrollY.current;
 
     if (currentScrollY > 50) {
-      if (currentScrollY > lastScrollY.current + 3) {
+      if (delta > 3) {
         // Défilement vers le bas : passer en mode compact
         isCompact = true;
-      } else if (currentScrollY < lastScrollY.current - 4) {
+      } else if (delta < -4) {
         // Défilement vers le haut : redéployer l'en-tête complet
         isCompact = false;
       }
@@ -54,7 +55,9 @@ export const AppLayout: React.FC = () => {
       isCompact = false;
     }
 
-    lastScrollY.current = currentScrollY;
+    if (Math.abs(delta) > 3) {
+      lastScrollY.current = currentScrollY;
+    }
     if (headerState.isScrolled !== isScrolled || headerState.isCompact !== isCompact) {
       setHeaderState({ isScrolled, isCompact });
     }

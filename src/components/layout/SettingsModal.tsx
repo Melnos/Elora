@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   X,
@@ -39,6 +39,17 @@ export const SettingsModal: React.FC = () => {
     (new URLSearchParams(window.location.search).get('dev') === '1' ||
       localStorage.getItem('elora_dev_mode') === 'true');
 
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, setIsSettingsOpen]);
+
   if (!isSettingsOpen) return null;
 
   const handleAddMemorySubmit = (e: React.FormEvent) => {
@@ -58,14 +69,24 @@ export const SettingsModal: React.FC = () => {
 
   return (
     <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-      <div className="modal-dialog settings-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-dialog settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header de la modale */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <h2 className="modal-title">Paramètres & Contrôle</h2>
+            <h2 id="settings-modal-title" className="modal-title">Paramètres & Contrôle</h2>
             <p className="modal-subtitle">Gérez votre profil, votre mémoire personnelle et vos préférences IA.</p>
           </div>
-          <button className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+          <button
+            className="modal-close-btn"
+            onClick={() => setIsSettingsOpen(false)}
+            aria-label="Fermer les paramètres"
+          >
             <X size={20} />
           </button>
         </div>
@@ -118,8 +139,9 @@ export const SettingsModal: React.FC = () => {
             <div className="settings-section">
               <h3 className="section-title">Informations Personnelles</h3>
               <div className="form-group">
-                <label className="form-label">Nom d'affichage</label>
+                <label className="form-label" htmlFor="settings-profile-name">Nom d'affichage</label>
                 <input
+                  id="settings-profile-name"
                   type="text"
                   className="form-input"
                   value={profile.name}
@@ -128,8 +150,9 @@ export const SettingsModal: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Titre / Activité actuelle</label>
+                <label className="form-label" htmlFor="settings-profile-role">Titre / Activité actuelle</label>
                 <input
+                  id="settings-profile-role"
                   type="text"
                   className="form-input"
                   value={profile.roleTitle}
@@ -138,8 +161,9 @@ export const SettingsModal: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Objectif prioritaire communiqué à ELORA</label>
+                <label className="form-label" htmlFor="settings-profile-objective">Objectif prioritaire communiqué à ELORA</label>
                 <textarea
+                  id="settings-profile-objective"
                   className="form-textarea"
                   rows={3}
                   placeholder="Ex. Valider mon semestre, préparer mon mémoire ou un concours"
@@ -149,8 +173,9 @@ export const SettingsModal: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Domaines d'étude (séparés par des virgules)</label>
+                <label className="form-label" htmlFor="settings-profile-focus">Domaines d'étude (séparés par des virgules)</label>
                 <input
+                  id="settings-profile-focus"
                   type="text"
                   className="form-input"
                   placeholder="Ex. Mathématiques, Algorithmique, Droit, Biologie"
@@ -240,6 +265,7 @@ export const SettingsModal: React.FC = () => {
                           className={`btn-icon-toggle ${mem.enabledForAI ? 'enabled' : 'disabled'}`}
                           onClick={() => toggleMemoryAI(mem.id)}
                           title={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
+                          aria-label={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
                         >
                           {mem.enabledForAI ? <Eye size={15} /> : <EyeOff size={15} />}
                         </button>
@@ -247,6 +273,7 @@ export const SettingsModal: React.FC = () => {
                           className="btn-icon-delete"
                           onClick={() => deleteMemory(mem.id)}
                           title="Supprimer définitivement ce fait"
+                          aria-label="Supprimer définitivement ce fait"
                         >
                           <Trash2 size={15} />
                         </button>

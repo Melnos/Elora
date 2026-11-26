@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   BookOpen,
@@ -86,6 +86,15 @@ export const KnowledgeScreen: React.FC = () => {
 
   const collections = ['all', ...existingCategories];
 
+  useEffect(() => {
+    if (
+      selectedCollection !== 'all' &&
+      !knowledgeDocs.some((d) => d.collection === selectedCollection)
+    ) {
+      setSelectedCollection('all');
+    }
+  }, [selectedCollection, knowledgeDocs]);
+
   const filteredDocs = knowledgeDocs.filter((doc) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
@@ -144,10 +153,12 @@ export const KnowledgeScreen: React.FC = () => {
 
     const extraction = await extractDocumentText(file);
     if (!extraction.success) {
+      setAttachedFile(null);
       setAttachedMeta(null);
       setNewContent('');
       setImportStatus('error');
       setImportError(extraction.error || "Impossible d'extraire le texte.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -206,9 +217,16 @@ export const KnowledgeScreen: React.FC = () => {
 
     setImportStatus('saving');
 
+    const MAX_CONTENT_CHARS = 50000;
+    const trimmedContent = newContent.trim();
+    const isContentTruncated = trimmedContent.length > MAX_CONTENT_CHARS;
+    const boundedContent = isContentTruncated
+      ? trimmedContent.slice(0, MAX_CONTENT_CHARS)
+      : trimmedContent;
+
     const refPrefix = personalRef.trim() ? `[Réf: ${personalRef.trim()}] ` : '';
     const rawSummary =
-      newSummary.trim() || newContent.trim().slice(0, 160).replace(/\s+/g, ' ') + '...';
+      newSummary.trim() || boundedContent.slice(0, 160).replace(/\s+/g, ' ') + '...';
     const finalSummary = `${refPrefix}${rawSummary}`.slice(0, 4800);
 
     const insights: string[] = [];
@@ -223,6 +241,11 @@ export const KnowledgeScreen: React.FC = () => {
       insights.push(`Texte indexé : ${attachedMeta.charCount.toLocaleString('fr-FR')} caractères`);
     } else {
       insights.push(`Note ajoutée dans la catégorie ${targetCategory}.`);
+    }
+    if (isContentTruncated) {
+      insights.push(
+        `Contenu limité à ${MAX_CONTENT_CHARS.toLocaleString('fr-FR')} caractères (sur ${trimmedContent.length.toLocaleString('fr-FR')} saisis/extraits).`
+      );
     }
 
     const tagsList = Array.from(
@@ -242,9 +265,13 @@ export const KnowledgeScreen: React.FC = () => {
       type: attachedMeta?.docType || 'notes',
       summary: finalSummary,
       keyInsights: insights.slice(0, 50),
-      content: newContent.trim(),
+      content: boundedContent,
       tags: tagsList,
     });
+
+    const truncationSuffix = isContentTruncated
+      ? ` (contenu tronqué à ${MAX_CONTENT_CHARS.toLocaleString('fr-FR')} caractères)`
+      : '';
 
     // Tentative réelle d'upload vers Firebase Storage si connecté et fichier présent
     if (attachedFile && currentUser) {
@@ -257,13 +284,13 @@ export const KnowledgeScreen: React.FC = () => {
       updateKnowledgeDoc(createdDoc.id, {
         keyInsights: nextInsights,
       });
-      setStatusNotice(storageRes.message);
+      setStatusNotice(`${storageRes.message}${truncationSuffix}`);
     } else if (attachedFile) {
       setStatusNotice(
-        'Document enregistré localement (connectez-vous pour synchroniser vers Firestore/Storage).'
+        `Document enregistré localement (connectez-vous pour synchroniser vers Firestore/Storage).${truncationSuffix}`
       );
     } else {
-      setStatusNotice(`Document "${finalTitle}" enregistré dans ${targetCategory}.`);
+      setStatusNotice(`Document "${finalTitle}" enregistré dans ${targetCategory}.${truncationSuffix}`);
     }
 
     resetModal();
@@ -556,7 +583,7 @@ export const KnowledgeScreen: React.FC = () => {
                 <h4 className="text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-wider mb-1">
                   Synthèse & Référence
                 </h4>
-                <p className="text-xs text-[var(--color-text-muted)]">{selectedDoc.summary}</p>
+                <p className="text-xs text-[var(--color-text-muted)] break-words">{selectedDoc.summary}</p>
               </div>
 
               <div>
@@ -565,7 +592,7 @@ export const KnowledgeScreen: React.FC = () => {
                 </h4>
                 <ul className="list-disc pl-5 space-y-1 text-xs text-[var(--color-text-muted)]">
                   {selectedDoc.keyInsights.map((insight, idx) => (
-                    <li key={idx}>{insight}</li>
+                    <li key={idx} className="break-words">{insight}</li>
                   ))}
                 </ul>
               </div>
@@ -574,7 +601,7 @@ export const KnowledgeScreen: React.FC = () => {
                 <h4 className="text-[11px] font-semibold text-[var(--color-text-main)] uppercase tracking-wider mb-1.5">
                   Contenu extrait
                 </h4>
-                <div className="p-3.5 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] whitespace-pre-wrap font-sans text-xs">
+                <div className="p-3.5 rounded-xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] whitespace-pre-wrap break-words font-sans text-xs">
                   {selectedDoc.content}
                 </div>
               </div>
@@ -618,8 +645,10 @@ export const KnowledgeScreen: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-2xl p-5 sm:p-7">
             <button
+              type="button"
+              disabled={importStatus === 'saving'}
               onClick={() => setShowAddModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
+              className="absolute top-5 right-5 p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Fermer"
             >
               <X size={16} />
@@ -842,13 +871,19 @@ export const KnowledgeScreen: React.FC = () => {
                   onChange={(e) => setNewContent(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] resize-y"
                 />
+                {newContent.trim().length > 50000 && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                    Le contenu dépasse 50 000 caractères ({newContent.trim().length.toLocaleString('fr-FR')} caractères) et sera tronqué à 50 000 caractères lors de l'enregistrement.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">
                 <button
                   type="button"
+                  disabled={importStatus === 'saving'}
                   onClick={() => setShowAddModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Annuler
                 </button>

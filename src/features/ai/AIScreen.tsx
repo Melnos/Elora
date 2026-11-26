@@ -30,6 +30,7 @@ import {
   formatConversationRelativeDate,
   MAX_CONVERSATION_TITLE_LENGTH,
 } from '../../lib/conversations/conversationUtils';
+import { extractDocumentText } from '../../lib/knowledge/documentExtractor';
 
 export const AIScreen: React.FC = () => {
   const {
@@ -43,6 +44,7 @@ export const AIScreen: React.FC = () => {
     isGenerating,
     executeProposedAction,
     rejectProposedAction,
+    caps,
   } = useApp();
 
   const [inputPrompt, setInputPrompt] = useState('');
@@ -66,6 +68,15 @@ export const AIScreen: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentConversation?.messages, isGenerating]);
+
+  // Arrête la synthèse vocale si l'utilisateur quitte l'écran IA
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Rafraîchit automatiquement les dates relatives (« À l'instant », « Il y a 1 min »...) toutes les 30s
   useEffect(() => {
@@ -96,12 +107,32 @@ export const AIScreen: React.FC = () => {
     };
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const files = input.files;
     if (!files || files.length === 0) return;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+      if (isPdf) {
+        const result = await extractDocumentText(file);
+        if (result.success && result.text) {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              name: file.name,
+              mimeType: 'text/plain',
+              data: result.text,
+            },
+          ]);
+        } else {
+          console.warn(`Extraction PDF échouée pour ${file.name}:`, result.error);
+        }
+        continue;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         const content = reader.result as string;
@@ -116,7 +147,7 @@ export const AIScreen: React.FC = () => {
       };
       reader.readAsText(file);
     }
-    e.target.value = '';
+    input.value = '';
   };
 
   const removeAttachment = (index: number) => {
@@ -355,7 +386,7 @@ export const AIScreen: React.FC = () => {
           </button>
         </div>
 
-        <div className="threads-list flex-1 overflow-y-auto p-2.5 space-y-1">
+        <div className="threads-list flex-1 overflow-y-auto p-2.5 pb-24 lg:pb-3 space-y-1">
           {conversations.map((conv) => {
             const isEditing = editingConvId === conv.id;
             const isConfirmingDelete = confirmDeleteConvId === conv.id;
@@ -516,7 +547,10 @@ export const AIScreen: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] shrink-0">
             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shrink-0" />
             <span className="text-xs font-semibold text-[var(--color-text-main)]">
-              ELORA AI <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">• Assistant Hybride (Local & Cloud)</span>
+              ELORA AI{' '}
+              <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">
+                • {caps?.onDeviceStatus === 'readily' ? 'Assistant Hybride (Local & Cloud)' : 'Assistant Cloud (Firebase AI Logic)'}
+              </span>
             </span>
           </div>
 
@@ -778,97 +812,100 @@ export const AIScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Fichiers joints en attente d'envoi */}
-        {attachments.length > 0 && (
-          <div className="absolute bottom-[136px] lg:bottom-16 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg z-20 flex flex-wrap gap-2 items-center min-w-0">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1 shrink-0">Pièces jointes :</span>
-            {attachments.map((att, i) => {
-              const badge = getFileBadge(att.name);
-              return (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] max-w-full"
-                >
-                  {badge.icon}
-                  <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(i)}
-                    className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer shrink-0"
+        {/* Zone inférieure : pièces jointes, suggestions contextuelles & compositeur */}
+        <div className="absolute bottom-[calc(74px+env(safe-area-inset-bottom,0px))] lg:bottom-4 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-20 flex flex-col gap-2 min-w-0 pointer-events-none">
+          {/* Fichiers joints en attente d'envoi */}
+          {attachments.length > 0 && (
+            <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg flex flex-wrap gap-2 items-center min-w-0 pointer-events-auto">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1 shrink-0">Pièces jointes :</span>
+              {attachments.map((att, i) => {
+                const badge = getFileBadge(att.name);
+                return (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] max-w-full"
                   >
-                    <X size={12} />
-                  </button>
-                </span>
-              );
-            })}
+                    {badge.icon}
+                    <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(i)}
+                      className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer shrink-0"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Dock de suggestions rapides contextuelles */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pointer-events-auto">
+            {contextualPrompts.map((cp, idx) => (
+              <button
+                key={idx}
+                className="text-[10px] sm:text-[11px] font-medium px-2.5 sm:px-3 py-1 rounded-full bg-[var(--color-bg-surface)]/95 border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors whitespace-nowrap shadow-2xs backdrop-blur-xs cursor-pointer"
+                onClick={() => {
+                  setInputPrompt(cp.prompt);
+                  textareaRef.current?.focus();
+                }}
+              >
+                {cp.label}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Dock de suggestions rapides contextuelles */}
-        <div className="absolute bottom-[130px] lg:bottom-[68px] left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-15 flex items-center gap-1.5 overflow-x-auto no-scrollbar pointer-events-auto">
-          {contextualPrompts.map((cp, idx) => (
-            <button
-              key={idx}
-              className="text-[10px] sm:text-[11px] font-medium px-2.5 sm:px-3 py-1 rounded-full bg-[var(--color-bg-surface)]/95 border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors whitespace-nowrap shadow-2xs backdrop-blur-xs cursor-pointer"
-              onClick={() => {
-                setInputPrompt(cp.prompt);
-                textareaRef.current?.focus();
-              }}
-            >
-              {cp.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Compositeur épuré & accessible */}
-        <div className="absolute bottom-[74px] lg:bottom-4 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-20 min-w-0">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-            className="hidden"
-            multiple
-            accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf"
-          />
-
-          <form
-            onSubmit={handleSend}
-            className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-md transition-all min-w-0"
-          >
-            <button
-              type="button"
-              className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-surface-elevated)] transition-all shrink-0 cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-              title="Joindre un fichier"
-            >
-              <Paperclip size={16} />
-            </button>
-
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={inputPrompt}
-              onChange={(e) => setInputPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Écrivez votre message ou déposez un fichier..."
-              className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28 min-w-0"
+          {/* Compositeur épuré & accessible */}
+          <div className="min-w-0 pointer-events-auto">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              className="hidden"
+              multiple
+              accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf"
             />
 
-            <button
-              type="submit"
-              disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
-              className="p-2.5 rounded-full bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 flex items-center justify-center shadow-xs cursor-pointer"
-              title="Envoyer"
+            <form
+              onSubmit={handleSend}
+              className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-md transition-all min-w-0"
             >
-              <Send size={15} />
-            </button>
-          </form>
+              <button
+                type="button"
+                className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-surface-elevated)] transition-all shrink-0 cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                title="Joindre un fichier"
+              >
+                <Paperclip size={16} />
+              </button>
+
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={inputPrompt}
+                onChange={(e) => setInputPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Écrivez votre message ou déposez un fichier..."
+                className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28 min-w-0"
+              />
+
+              <button
+                type="submit"
+                disabled={(!inputPrompt.trim() && attachments.length === 0) || isGenerating}
+                className="p-2.5 rounded-full bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 flex items-center justify-center shadow-xs cursor-pointer"
+                title="Envoyer"
+              >
+                <Send size={15} />
+              </button>
+            </form>
+          </div>
         </div>
       </section>
     </div>

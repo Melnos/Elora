@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { loginWithEmail, signupWithEmail, loginWithGoogle, sendResetPassword, formatAuthError } from '../../lib/firebase/auth';
 
@@ -10,6 +10,16 @@ interface AuthModalProps {
 
 type AuthMode = 'login' | 'signup' | 'reset';
 
+function extractAuthErrorCode(err: unknown): string {
+  if (err && typeof err === 'object' && 'code' in err) {
+    const code = (err as { code?: unknown }).code;
+    if (typeof code === 'string') {
+      return code.trim();
+    }
+  }
+  return '';
+}
+
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -19,6 +29,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMode('login');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setDisplayName('');
+    setError(null);
+    setSuccessMsg(null);
+    setLoading(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const handleAuthError = useCallback((err: unknown) => {
+    const code = extractAuthErrorCode(err);
+    const message = formatAuthError(code);
+    if (!code || message === formatAuthError('')) {
+      console.warn(
+        '[AuthModal] Erreur d\'authentification:',
+        code || (err instanceof Error ? err.message : 'Erreur inconnue')
+      );
+    }
+    setError(message);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -57,9 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         setSuccessMsg('Un lien de réinitialisation vous a été envoyé par email.');
       }
     } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const code = (err as any)?.code || '';
-      setError(formatAuthError(code));
+      handleAuthError(err);
     } finally {
       setLoading(false);
     }
@@ -74,9 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       onAuthSuccess?.();
       onClose();
     } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const code = (err as any)?.code || '';
-      setError(formatAuthError(code));
+      handleAuthError(err);
     } finally {
       setLoading(false);
     }
@@ -84,12 +124,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-2xl p-5 sm:p-8">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        className="relative w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-2xl p-5 sm:p-8"
+      >
         {/* Bouton de fermeture */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-base)] transition-colors"
           title="Fermer"
+          aria-label="Fermer"
         >
           <X size={18} />
         </button>
@@ -99,7 +146,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           <div className="w-12 h-12 rounded-xl bg-[var(--color-accent)]/10 text-[var(--color-accent)] flex items-center justify-center mx-auto mb-3">
             <UserIcon size={24} />
           </div>
-          <h2 className="text-xl font-bold text-[var(--color-text-main)]">
+          <h2 id="auth-modal-title" className="text-xl font-bold text-[var(--color-text-main)]">
             {mode === 'login' && 'Connexion à ELORA'}
             {mode === 'signup' && 'Créer votre profil ELORA'}
             {mode === 'reset' && 'Réinitialiser votre mot de passe'}
@@ -172,12 +219,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+              <label htmlFor="auth-display-name" className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
                 Nom complet
               </label>
               <div className="relative">
                 <UserIcon size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
                 <input
+                  id="auth-display-name"
                   type="text"
                   required
                   placeholder="Jean Dupont"
@@ -190,12 +238,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           )}
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+            <label htmlFor="auth-email" className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
               Adresse Email
             </label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
               <input
+                id="auth-email"
                 type="email"
                 required
                 placeholder="votre.email@exemple.com"
@@ -209,7 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           {mode !== 'reset' && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-[var(--color-text-main)]">
+                <label htmlFor="auth-password" className="text-xs font-medium text-[var(--color-text-main)]">
                   Mot de passe
                 </label>
                 {mode === 'login' && (
@@ -229,6 +278,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
                 <input
+                  id="auth-password"
                   type="password"
                   required
                   placeholder="••••••••"
@@ -242,12 +292,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
+              <label htmlFor="auth-confirm-password" className="block text-xs font-medium text-[var(--color-text-main)] mb-1">
                 Confirmer le mot de passe
               </label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
                 <input
+                  id="auth-confirm-password"
                   type="password"
                   required
                   placeholder="••••••••"

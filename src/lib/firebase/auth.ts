@@ -41,12 +41,26 @@ export function formatAuthError(errorCode: string): string {
       return 'Le mot de passe doit contenir au moins 6 caractères.';
     case 'auth/popup-closed-by-user':
       return 'La fenêtre de connexion Google a été fermée.';
+    case 'auth/popup-blocked':
+      return 'La fenêtre de connexion a été bloquée par votre navigateur. Veuillez autoriser les pop-ups.';
+    case 'auth/cancelled-popup-request':
+      return 'La demande de connexion a été annulée.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Un compte existe déjà avec cette adresse email via une autre méthode de connexion.';
+    case 'auth/unauthorized-domain':
+      return 'Ce domaine n\'est pas autorisé pour l\'authentification.';
+    case 'auth/operation-not-allowed':
+      return 'Cette méthode de connexion n\'est pas activée.';
+    case 'auth/invalid-api-key':
+      return 'Configuration d\'authentification invalide.';
+    case 'auth/app-not-authorized':
+      return 'Cette application n\'est pas autorisée à utiliser l\'authentification Firebase.';
     case 'auth/network-request-failed':
       return 'Connexion réseau impossible. Vérifiez votre accès internet.';
     case 'auth/too-many-requests':
       return 'Trop de tentatives. Veuillez patienter avant de réessayer.';
     default:
-      return 'Une erreur d\'authentification est survenue. Connexion sécurisée locale activée.';
+      return 'Une erreur d\'authentification est survenue. Veuillez réessayer.';
   }
 }
 

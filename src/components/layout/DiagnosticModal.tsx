@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   X,
@@ -39,6 +39,17 @@ export const DiagnosticModal: React.FC = () => {
   const [testPrompt, setTestPrompt] = useState(
     'Explique en 2 phrases pourquoi une IA hybride est plus résiliente et respectueuse de la vie privée.'
   );
+
+  useEffect(() => {
+    if (!isDiagnosticOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDiagnosticOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDiagnosticOpen, setIsDiagnosticOpen]);
 
   if (!isDiagnosticOpen) return null;
 
@@ -215,15 +226,25 @@ export const DiagnosticModal: React.FC = () => {
 
   return (
     <div className="modal-backdrop" onClick={() => setIsDiagnosticOpen(false)}>
-      <div className="modal-dialog diagnostic-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-dialog diagnostic-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="diagnostic-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div className="modal-title-group">
-            <h2 className="modal-title">Banc de Test & Diagnostic IA Hybride</h2>
+            <h2 id="diagnostic-modal-title" className="modal-title">Banc de Test & Diagnostic IA Hybride</h2>
             <p className="modal-subtitle">
               Preuve technique officielle pour le hackathon Firebase #BuildHybridAI
             </p>
           </div>
-          <button className="modal-close-btn" onClick={() => setIsDiagnosticOpen(false)}>
+          <button
+            className="modal-close-btn"
+            onClick={() => setIsDiagnosticOpen(false)}
+            aria-label="Fermer le diagnostic"
+          >
             <X size={20} />
           </button>
         </div>
@@ -234,7 +255,12 @@ export const DiagnosticModal: React.FC = () => {
             <div className="diag-card-header">
               <Server size={18} />
               <h3>État de l'Environnement</h3>
-              <button className="btn-icon-refresh" onClick={refreshCapabilities}>
+              <button
+                className="btn-icon-refresh"
+                onClick={refreshCapabilities}
+                title="Actualiser les capacités"
+                aria-label="Actualiser les capacités"
+              >
                 <RotateCw size={14} />
               </button>
             </div>
@@ -250,7 +276,7 @@ export const DiagnosticModal: React.FC = () => {
               </div>
               <div className="diag-item">
                 <span>Moteur Cloud :</span>
-                <strong style={{ color: 'var(--cloud-blue)' }}>Gemini 3.5 Flash Lite</strong>
+                <strong className="text-blue-600 dark:text-blue-400">Gemini 3.5 Flash Lite</strong>
               </div>
               <div className="diag-item">
                 <span>Moteur Local :</span>
@@ -258,8 +284,8 @@ export const DiagnosticModal: React.FC = () => {
                   style={{
                     color:
                       caps?.onDeviceStatus === 'readily'
-                        ? 'var(--local-green)'
-                        : 'var(--accent-gold)',
+                        ? 'var(--color-emerald)'
+                        : 'var(--color-accent)',
                   }}
                 >
                   {caps?.onDeviceStatus === 'readily'
@@ -356,10 +382,10 @@ export const DiagnosticModal: React.FC = () => {
                 <div key={log.id} className="console-log-entry">
                   <div className="log-entry-top">
                     <div className="flex-align-center">
-                      {log.status === 'success' && <CheckCircle2 size={15} color="var(--local-green)" />}
-                      {log.status === 'warning' && <AlertTriangle size={15} color="var(--accent-gold)" />}
-                      {log.status === 'error' && <XCircle size={15} color="var(--danger-red)" />}
-                      {log.status === 'running' && <RotateCw size={15} className="spin" />}
+                      {log.status === 'success' && <CheckCircle2 size={15} color="var(--color-emerald)" />}
+                      {log.status === 'warning' && <AlertTriangle size={15} color="var(--color-accent)" />}
+                      {log.status === 'error' && <XCircle size={15} color="var(--color-danger)" />}
+                      {log.status === 'running' && <RotateCw size={15} className="animate-spin" />}
                       <span className="log-title">{log.name}</span>
                     </div>
 

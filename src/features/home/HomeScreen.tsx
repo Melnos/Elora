@@ -20,6 +20,7 @@ export const HomeScreen: React.FC = () => {
     tasks,
     goals,
     opportunities,
+    matchedOpportunities,
     homeBriefing,
     setActiveTab,
     setIsSettingsOpen,
@@ -42,7 +43,8 @@ export const HomeScreen: React.FC = () => {
   const primaryGoal = homeBriefing.priorityGoal || goals.find((g) => !g.completed) || goals[0];
 
   // Opportunité en vedette réelle
-  const featuredOpportunity = opportunities.find((o) => o.saved) || opportunities[0];
+  const opportunityPool = matchedOpportunities.length > 0 ? matchedOpportunities : opportunities;
+  const featuredOpportunity = opportunityPool.find((o) => o.saved) || opportunityPool[0];
 
   const handleAskAboutTask = async (taskTitle: string) => {
     setActiveTab('ai');
@@ -77,7 +79,7 @@ export const HomeScreen: React.FC = () => {
                 <span>{currentUser ? 'Mémoire synchronisée Cloud' : 'Mémoire locale active'}</span>
               </span>
               <span className="hidden sm:inline">•</span>
-              <span>{pendingAllCount} tâche(s) au total dans le Planner</span>
+              <span>{homeBriefing.metrics.tasksTotalCount} tâche(s) au total dans le Planner</span>
             </div>
 
             {needsProfileCompletion && (
@@ -106,7 +108,10 @@ export const HomeScreen: React.FC = () => {
 
             <button
               className="w-full justify-center px-4 py-2 sm:py-2.5 rounded-xl bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors flex items-center gap-2 cursor-pointer"
-              onClick={() => setActiveTab('planner')}
+              onClick={() => {
+                sessionStorage.setItem('elora_planner_mode', 'focus');
+                setActiveTab('planner');
+              }}
             >
               <Flame size={14} className="text-[var(--color-accent)] shrink-0" />
               <span className="truncate">Démarrer un Focus (25 min)</span>
@@ -365,7 +370,12 @@ export const HomeScreen: React.FC = () => {
               </button>
               <button
                 className="bento-btn-primary w-full sm:w-auto justify-center py-2 sm:py-2.5 px-4 text-xs font-bold cursor-pointer"
-                onClick={() => setActiveTab('ai')}
+                onClick={async () => {
+                  setActiveTab('ai');
+                  await sendMessage(
+                    `Aide-moi à préparer ma candidature pour l'opportunité suivante : "${featuredOpportunity.title}" (${featuredOpportunity.organization}).\n\nCompétences demandées :\n${featuredOpportunity.skillsRequired.map((s) => `- ${s}`).join('\n')}\n\nIdentifie mes points forts, les éléments clés à mettre en valeur et les étapes à planifier.`
+                  );
+                }}
               >
                 <Sparkles size={13} />
                 <span>Préparer avec ELORA</span>

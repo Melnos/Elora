@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { NavTab } from '../../types';
 import {
@@ -22,10 +22,26 @@ export const Sidebar: React.FC = () => {
     setIsSettingsOpen,
     setIsAuthModalOpen,
     currentUser,
+    isSyncingCloud,
     logout,
     tasks,
     opportunities,
   } = useApp();
+
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'home', label: 'Espace Personnel', icon: <Home size={19} /> },
@@ -86,7 +102,20 @@ export const Sidebar: React.FC = () => {
       <div className="sidebar-bottom-card">
         <div
           className="user-profile-row"
+          role="button"
+          tabIndex={0}
+          aria-label={currentUser ? 'Ouvrir les paramètres du profil' : 'Se connecter ou créer un compte'}
           onClick={() => (currentUser ? setIsSettingsOpen(true) : setIsAuthModalOpen(true))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (currentUser) {
+                setIsSettingsOpen(true);
+              } else {
+                setIsAuthModalOpen(true);
+              }
+            }
+          }}
         >
           <div className="user-avatar-circle">
             <User size={16} />
@@ -94,7 +123,13 @@ export const Sidebar: React.FC = () => {
           <div className="user-info-text">
             <span className="user-display-name">{currentUser?.displayName || profile.name}</span>
             <span className="user-status-text">
-              {currentUser ? 'Synchronisé Cloud' : 'Mode Local'}
+              {currentUser
+                ? !isOnline
+                  ? 'Hors ligne'
+                  : isSyncingCloud
+                  ? 'Synchronisation...'
+                  : 'Synchronisé Cloud'
+                : 'Mode Local'}
             </span>
           </div>
         </div>
@@ -104,6 +139,7 @@ export const Sidebar: React.FC = () => {
             className="quick-action-btn"
             onClick={() => setIsSettingsOpen(true)}
             title="Paramètres et Mémoire"
+            aria-label="Paramètres et Mémoire"
           >
             <Settings size={16} />
           </button>
@@ -113,6 +149,7 @@ export const Sidebar: React.FC = () => {
               className="quick-action-btn hover:text-red-500"
               onClick={() => logout()}
               title="Déconnexion"
+              aria-label="Déconnexion"
             >
               <LogOut size={16} />
             </button>
@@ -121,6 +158,7 @@ export const Sidebar: React.FC = () => {
               className="quick-action-btn text-[var(--color-accent)]"
               onClick={() => setIsAuthModalOpen(true)}
               title="Connexion"
+              aria-label="Connexion"
             >
               <LogIn size={16} />
             </button>
