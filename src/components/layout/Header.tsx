@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getNavHeaderTitle } from '../../config/navigation';
+import { OfflineQueue } from '../../lib/offline/OfflineQueue';
 import {
   Moon,
   Sun,
   Settings,
   LogIn,
-  Sparkles,
 } from 'lucide-react';
+import { EloraLogo } from '../ui/EloraLogo';
 
 interface HeaderProps {
   isScrolled?: boolean;
@@ -93,24 +95,7 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, [activeTab, propIsScrolled]);
 
-  const getPageTitle = () => {
-    switch (activeTab) {
-      case 'home':
-        return 'Espace Personnel';
-      case 'ai':
-        return 'Intelligence ELORA';
-      case 'knowledge':
-        return 'Bibliothèque & Savoir';
-      case 'planner':
-        return 'Organisation & Focus';
-      case 'opportunities':
-        return 'Opportunités Vérifiées';
-      case 'progress':
-        return 'Évolution & Bilan';
-      default:
-        return 'ELORA';
-    }
-  };
+  const pendingCount = OfflineQueue.getPendingCount();
 
   return (
     <header className={`elora-topbar ${isScrolled ? 'scrolled' : ''} ${isCompact ? 'compact' : ''}`}>
@@ -118,12 +103,12 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Titre et Espace actif */}
         <div className="topbar-branding min-w-0 flex-1 mr-2">
           <div className="topbar-logo-badge shrink-0">
-            <Sparkles size={isCompact ? 14 : 16} className="text-[var(--color-bg-base)]" />
+            <EloraLogo size={isCompact ? 15 : 17} />
           </div>
           <div className="topbar-title-group min-w-0">
             <span className="topbar-app-name shrink-0">ELORA</span>
             <span className="topbar-separator shrink-0">/</span>
-            <span className="topbar-space-name truncate max-w-[110px] sm:max-w-none">{getPageTitle()}</span>
+            <span className="topbar-space-name truncate max-w-[110px] sm:max-w-none">{getNavHeaderTitle(activeTab)}</span>
           </div>
         </div>
 
@@ -176,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
               />
               <span className="user-label truncate max-w-[80px] sm:max-w-none">
                 {!isOnline
-                  ? 'Hors ligne'
+                  ? `Hors ligne${pendingCount > 0 ? ` (${pendingCount})` : ''}`
                   : isSyncingCloud
                   ? 'Sync...'
                   : currentUser.displayName || profile.name.split(' ')[0]}

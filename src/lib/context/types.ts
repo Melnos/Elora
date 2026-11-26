@@ -44,6 +44,7 @@ export interface ReferencedSource {
   title: string;
   category?: string;
   snippet?: string;
+  url?: string;
 }
 
 export interface ResolvedContext {

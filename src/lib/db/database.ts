@@ -25,6 +25,8 @@ import {
   initialOpportunities,
   initialConversations,
 } from '../mockData';
+import { MemoryService } from '../memory/MemoryService';
+import type { MemoryItem as ServiceMemoryItem } from '../memory/types';
 
 const KEYS = {
   PROFILE: 'elora_db_profile',
@@ -69,37 +71,39 @@ export const EloraDB = {
     safeSet(KEYS.PROFILE, profile);
   },
 
-  // Mémoire Personnelle
-  getMemories(): MemoryItem[] {
+  // Mémoire Personnelle (délègue à la source unique MemoryService, isolée par userId)
+  getLegacyMemories(): MemoryItem[] {
     return safeGet<MemoryItem[]>(KEYS.MEMORIES, initialMemories);
   },
-  saveMemories(memories: MemoryItem[]): void {
-    safeSet(KEYS.MEMORIES, memories);
+  getMemories(userId = 'local_user'): MemoryItem[] {
+    const legacy = this.getLegacyMemories();
+    return MemoryService.migrateLegacyMemories(userId, legacy as unknown as ServiceMemoryItem[]) as unknown as MemoryItem[];
   },
-  addMemory(item: Omit<MemoryItem, 'id' | 'dateAdded'>): MemoryItem {
-    const memories = this.getMemories();
-    const newMem: MemoryItem = {
-      ...item,
-      id: `mem_${Date.now()}`,
-      dateAdded: new Date().toISOString().split('T')[0],
-    };
-    const next = [newMem, ...memories];
-    this.saveMemories(next);
-    return newMem;
+  saveMemories(memories: MemoryItem[], userId = 'local_user'): void {
+    MemoryService.syncFromFirestore(userId, memories as unknown as ServiceMemoryItem[]);
   },
-  toggleMemory(id: string): MemoryItem[] {
-    const memories = this.getMemories();
-    const next = memories.map((m) =>
-      m.id === id ? { ...m, enabledForAI: !m.enabledForAI } : m
-    );
-    this.saveMemories(next);
-    return next;
+  addMemory(item: Omit<MemoryItem, 'id' | 'dateAdded'>, userId = 'local_user'): MemoryItem | null {
+    return MemoryService.addMemory(userId, {
+      category: (item.category || 'context') as ServiceMemoryItem['category'],
+      key: item.key,
+      value: item.value,
+      enabledForAI: item.enabledForAI,
+      source: (item.source as ServiceMemoryItem['source']) || 'user_explicit',
+      status: item.status === 'temporary' ? 'temporary' : 'active',
+      expiresAt: item.expiresAt,
+    }) as unknown as MemoryItem | null;
   },
-  deleteMemory(id: string): MemoryItem[] {
-    const memories = this.getMemories();
-    const next = memories.filter((m) => m.id !== id);
-    this.saveMemories(next);
-    return next;
+  toggleMemory(id: string, userId = 'local_user'): MemoryItem[] {
+    const current = this.getMemories(userId);
+    const target = current.find((m) => m.id === id);
+    if (target) {
+      MemoryService.updateMemory(userId, id, { enabledForAI: !target.enabledForAI });
+    }
+    return MemoryService.getMemories(userId) as unknown as MemoryItem[];
+  },
+  deleteMemory(id: string, userId = 'local_user'): MemoryItem[] {
+    MemoryService.deleteMemory(userId, id);
+    return MemoryService.getMemories(userId) as unknown as MemoryItem[];
   },
 
   // Tâches Planner
@@ -141,6 +145,93 @@ export const EloraDB = {
   saveGoals(goals: GoalItem[]): void {
     safeSet(KEYS.GOALS, goals);
   },
+  recomputeGoalProgress(goal: GoalItem): GoalItem {
+    const total = goal.milestones.length;
+    if (total === 0) {
+      return {
+        ...goal,
+        progressPercentage: goal.completed ? 100 : 0,
+      };
+    }
+    const completedCount = goal.milestones.filter((m) => m.completed).length;
+    const newPercentage = Math.round((completedCount / total) * 100);
+    return {
+      ...goal,
+      progressPercentage: newPercentage,
+      completed: newPercentage === 100,
+    };
+  },
+  updateGoal(
+    goalId: string,
+    updates: Partial<Pick<GoalItem, 'title' | 'category' | 'targetDate' | 'completed'>>
+  ): GoalItem[] {
+    const goals = this.getGoals();
+    const next = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      const merged: GoalItem = {
+        ...g,
+        ...updates,
+      };
+      return this.recomputeGoalProgress(merged);
+    });
+    this.saveGoals(next);
+    return next;
+  },
+  deleteGoal(goalId: string): GoalItem[] {
+    const next = this.getGoals().filter((g) => g.id !== goalId);
+    this.saveGoals(next);
+    return next;
+  },
+  addMilestone(goalId: string, title: string): GoalItem[] {
+    const trimmed = title.trim();
+    if (!trimmed) return this.getGoals();
+    const goals = this.getGoals();
+    const next = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      const newMilestone = {
+        id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: trimmed,
+        completed: false,
+      };
+      return this.recomputeGoalProgress({
+        ...g,
+        milestones: [...g.milestones, newMilestone],
+      });
+    });
+    this.saveGoals(next);
+    return next;
+  },
+  updateMilestone(goalId: string, milestoneId: string, title: string): GoalItem[] {
+    const trimmed = title.trim();
+    if (!trimmed) return this.getGoals();
+    const goals = this.getGoals();
+    const next = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      const updatedMilestones = g.milestones.map((m) =>
+        m.id === milestoneId ? { ...m, title: trimmed } : m
+      );
+      return this.recomputeGoalProgress({
+        ...g,
+        milestones: updatedMilestones,
+      });
+    });
+    this.saveGoals(next);
+    return next;
+  },
+  deleteMilestone(goalId: string, milestoneId: string): GoalItem[] {
+    const goals = this.getGoals();
+    const next = goals.map((g) => {
+      if (g.id !== goalId) return g;
+      const updatedMilestones = g.milestones.filter((m) => m.id !== milestoneId);
+      return this.recomputeGoalProgress({
+        ...g,
+        milestones: updatedMilestones,
+        completed: updatedMilestones.length > 0 ? g.completed : false,
+      });
+    });
+    this.saveGoals(next);
+    return next;
+  },
   toggleMilestone(goalId: string, milestoneId: string): GoalItem[] {
     const goals = this.getGoals();
     const next = goals.map((g) => {
@@ -148,14 +239,10 @@ export const EloraDB = {
       const updatedMilestones = g.milestones.map((m) =>
         m.id === milestoneId ? { ...m, completed: !m.completed } : m
       );
-      const completedCount = updatedMilestones.filter((m) => m.completed).length;
-      const newPercentage = Math.round((completedCount / updatedMilestones.length) * 100);
-      return {
+      return this.recomputeGoalProgress({
         ...g,
         milestones: updatedMilestones,
-        progressPercentage: newPercentage,
-        completed: newPercentage === 100,
-      };
+      });
     });
     this.saveGoals(next);
     return next;

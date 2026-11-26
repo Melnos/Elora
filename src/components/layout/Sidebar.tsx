@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import type { NavTab } from '../../types';
+import { NAV_ITEMS } from '../../config/navigation';
+import { OfflineQueue } from '../../lib/offline/OfflineQueue';
 import {
-  Home,
-  Sparkles,
-  BookOpen,
-  Calendar,
-  Compass,
-  TrendingUp,
   Settings,
   LogIn,
   LogOut,
   User,
 } from 'lucide-react';
+import { EloraLogo } from '../ui/EloraLogo';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -43,31 +39,19 @@ export const Sidebar: React.FC = () => {
     };
   }, []);
 
-  const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'home', label: 'Espace Personnel', icon: <Home size={19} /> },
-    { id: 'ai', label: 'Intelligence ELORA', icon: <Sparkles size={19} /> },
-    { id: 'knowledge', label: 'Bibliothèque', icon: <BookOpen size={19} /> },
-    {
-      id: 'planner',
-      label: 'Organisation & Focus',
-      icon: <Calendar size={19} />,
-      badge: tasks.filter((t) => !t.completed).length,
-    },
-    {
-      id: 'opportunities',
-      label: 'Opportunités',
-      icon: <Compass size={19} />,
-      badge: opportunities.filter((o) => o.saved).length,
-    },
-    { id: 'progress', label: 'Évolution & Bilan', icon: <TrendingUp size={19} /> },
-  ];
+  const getBadgeForTab = (id: string): number | undefined => {
+    if (id === 'planner') return tasks.filter((t) => !t.completed).length;
+    if (id === 'opportunities') return opportunities.filter((o) => o.saved).length;
+    return undefined;
+  };
+  const pendingCount = OfflineQueue.getPendingCount();
 
   return (
     <aside className="elora-sidebar">
       {/* Marque & Symbole ELORA */}
       <div className="sidebar-brand-container">
         <div className="brand-gem">
-          <Sparkles size={18} className="text-white" />
+          <EloraLogo size={20} />
         </div>
         <div className="brand-text-block">
           <span className="brand-main-title">ELORA</span>
@@ -76,21 +60,25 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Navigation des 6 Espaces */}
-      <nav className="sidebar-navigation">
+      <nav className="sidebar-navigation" aria-label="Navigation principale">
         <div className="nav-group-label">Espaces de travail</div>
         <div className="nav-items-stack">
-          {navItems.map((item) => {
+          {NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
+            const Icon = item.icon;
+            const badge = getBadgeForTab(item.id);
             return (
               <button
                 key={item.id}
+                type="button"
                 className={`sidebar-nav-link ${isActive ? 'active' : ''}`}
                 onClick={() => setActiveTab(item.id)}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <span className="nav-link-icon">{item.icon}</span>
+                <span className="nav-link-icon"><Icon size={19} /></span>
                 <span className="nav-link-text">{item.label}</span>
-                {item.badge !== undefined && item.badge > 0 && (
-                  <span className="nav-counter-pill">{item.badge}</span>
+                {badge !== undefined && badge > 0 && (
+                  <span className="nav-counter-pill">{badge}</span>
                 )}
               </button>
             );
@@ -125,9 +113,11 @@ export const Sidebar: React.FC = () => {
             <span className="user-status-text">
               {currentUser
                 ? !isOnline
-                  ? 'Hors ligne'
+                  ? `Hors ligne${pendingCount > 0 ? ` (${pendingCount})` : ''}`
                   : isSyncingCloud
                   ? 'Synchronisation...'
+                  : pendingCount > 0
+                  ? `${pendingCount} en attente`
                   : 'Synchronisé Cloud'
                 : 'Mode Local'}
             </span>

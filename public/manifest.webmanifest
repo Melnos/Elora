@@ -7,9 +7,13 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0F0E0D",
-  "theme_color": "#FAF8F5",
-  "categories": ["productivity", "education", "utilities"],
+  "background_color": "#FAF8F5",
+  "theme_color": "#8B5E1A",
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/favicon.svg",

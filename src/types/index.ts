@@ -24,11 +24,13 @@ export interface MemoryItem {
   source: string;
   dateAdded?: string;
   enabledForAI: boolean;
-  status?: 'active' | 'candidate' | 'archived';
+  status?: 'active' | 'candidate' | 'temporary' | 'archived';
   userId?: string;
   confidence?: number;
   createdAt?: string;
   updatedAt?: string;
+  expiresAt?: string;
+  isTemporary?: boolean;
   relatedEntityIds?: string[];
 }
 
@@ -95,6 +97,7 @@ export interface ChatMessageSource {
   title: string;
   category?: string;
   snippet?: string;
+  url?: string;
 }
 
 export interface ChatProposedAction {
@@ -121,6 +124,7 @@ export interface ChatMessage {
   referencedDocIds?: string[];
   sources?: ChatMessageSource[];
   proposedActions?: ChatProposedAction[];
+  attachments?: { name: string; mimeType: string }[];
   fallbackOccurred?: boolean;
   fallbackReason?: string;
 }

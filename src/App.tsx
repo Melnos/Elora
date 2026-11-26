@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AppProvider } from './context/AppContext';
 import { AppLayout } from './components/layout/AppLayout';
+import { ToastProvider } from './components/ui/ToastProvider';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -128,9 +129,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 export const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <AppLayout />
-      </AppProvider>
+      <ToastProvider>
+        <AppProvider>
+          <AppLayout />
+        </AppProvider>
+      </ToastProvider>
     </ErrorBoundary>
   );
 };

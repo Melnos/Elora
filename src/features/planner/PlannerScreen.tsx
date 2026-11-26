@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Calendar,
@@ -22,7 +22,15 @@ export const PlannerScreen: React.FC = () => {
     addTask,
     toggleTaskCompleted,
     deleteTask,
-    addFocusSession,
+    activeFocus,
+    focusSecondsLeft,
+    focusCompletedPendingSave,
+    startFocusTimer,
+    pauseFocusTimer,
+    resetFocusTimer,
+    setFocusConfig,
+    saveCompletedFocusSession,
+    dismissCompletedFocusSession,
     setActiveTab,
     sendMessage,
   } = useApp();
@@ -37,61 +45,22 @@ export const PlannerScreen: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [quickTitle, setQuickTitle] = useState('');
   const [quickPriority, setQuickPriority] = useState<'high' | 'medium' | 'low'>('medium');
-
-  // État Mode FOCUS
-  const [focusGoal, setFocusGoal] = useState('Finaliser l\'architecture et les tests');
-  const [focusDurationMinutes, setFocusDurationMinutes] = useState(25);
-  const [focusSecondsLeft, setFocusSecondsLeft] = useState(25 * 60);
-  const [isFocusRunning, setIsFocusRunning] = useState(false);
+  const [quickDueDate, setQuickDueDate] = useState<string>(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [quickGoalId, setQuickGoalId] = useState<string>('');
   const [focusSuccessNotice, setFocusSuccessNotice] = useState<string | null>(null);
 
-  // Chronomètre de Focus
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isFocusRunning && focusSecondsLeft > 0) {
-      interval = setInterval(() => {
-        setFocusSecondsLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (focusSecondsLeft === 0 && isFocusRunning) {
-      setIsFocusRunning(false);
-      handleFinishFocus();
+  const isFocusRunning = activeFocus.status === 'running';
+  const focusDurationMinutes = activeFocus.durationMinutes;
+  const focusGoal = activeFocus.goalTitle;
+
+  const handleSaveFocusSession = (useElapsedIfRunning = false) => {
+    const saved = saveCompletedFocusSession({ useElapsedIfRunning });
+    if (saved) {
+      setFocusSuccessNotice('Session Deep Work enregistrée dans votre historique.');
+      setTimeout(() => setFocusSuccessNotice(null), 4000);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isFocusRunning, focusSecondsLeft]);
-
-  const handleStartFocus = () => {
-    if (focusSecondsLeft === 0) {
-      setFocusSecondsLeft(focusDurationMinutes * 60);
-    }
-    setIsFocusRunning(true);
-  };
-
-  const handlePauseFocus = () => {
-    setIsFocusRunning(false);
-  };
-
-  const handleResetFocus = () => {
-    setIsFocusRunning(false);
-    setFocusSecondsLeft(focusDurationMinutes * 60);
-  };
-
-  const handleSelectPreset = (mins: number) => {
-    setFocusDurationMinutes(mins);
-    setFocusSecondsLeft(mins * 60);
-    setIsFocusRunning(false);
-  };
-
-  const handleFinishFocus = () => {
-    setIsFocusRunning(false);
-    addFocusSession({
-      goalTitle: focusGoal,
-      durationMinutes: focusDurationMinutes,
-      notes: 'Session de concentration Deep Work validée.',
-    });
-    setFocusSuccessNotice(`Félicitations ! Votre session de ${focusDurationMinutes} min a été enregistrée.`);
-    setTimeout(() => setFocusSuccessNotice(null), 4000);
   };
 
   const formatTimer = (totalSeconds: number) => {
@@ -106,13 +75,15 @@ export const PlannerScreen: React.FC = () => {
 
     addTask({
       title: quickTitle.trim(),
-      dueDate: new Date().toISOString().split('T')[0], // Échéance du jour par défaut pour une action rapide
+      dueDate: quickDueDate || new Date().toISOString().split('T')[0],
       priority: quickPriority,
       completed: false,
       category: filterCategory !== 'all' ? filterCategory : 'Projet',
+      ...(quickGoalId ? { goalId: quickGoalId } : {}),
     });
 
     setQuickTitle('');
+    setQuickGoalId('');
   };
 
   const categories = ['all', 'Projet', 'Développement', 'Personnel', 'Apprentissage'];
@@ -215,7 +186,31 @@ export const PlannerScreen: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 justify-end shrink-0 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 justify-end shrink-0 w-full sm:w-auto">
+              <input
+                type="date"
+                aria-label="Échéance"
+                value={quickDueDate}
+                onChange={(e) => setQuickDueDate(e.target.value)}
+                className="bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] text-xs font-medium rounded-xl px-2.5 py-2 border border-[var(--color-border-subtle)] focus:outline-none"
+              />
+
+              {goals.length > 0 && (
+                <select
+                  aria-label="Objectif lié"
+                  value={quickGoalId}
+                  onChange={(e) => setQuickGoalId(e.target.value)}
+                  className="bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-main)] text-xs font-medium rounded-xl px-2.5 py-2 border border-[var(--color-border-subtle)] focus:outline-none cursor-pointer max-w-[160px]"
+                >
+                  <option value="">Aucun objectif</option>
+                  {goals.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+              )}
+
               <select
                 value={quickPriority}
                 onChange={(e) => setQuickPriority(e.target.value as 'high' | 'medium' | 'low')}
@@ -396,6 +391,31 @@ export const PlannerScreen: React.FC = () => {
               </div>
             )}
 
+            {focusCompletedPendingSave && (
+              <div className="mb-6 p-4 rounded-2xl bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/30 text-left space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-text-main)]">
+                  <CheckCircle2 size={16} className="text-[var(--color-accent)] shrink-0" />
+                  <span>Session terminée ({focusDurationMinutes} min) — enregistrer dans l&apos;historique ?</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={dismissCompletedFocusSession}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+                  >
+                    Ignorer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveFocusSession(false)}
+                    className="bento-btn-primary py-1.5 px-4 text-xs"
+                  >
+                    Enregistrer la session
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bento-tag mx-auto mb-4 sm:mb-5">
               <Flame size={13} className="text-[var(--color-accent)]" />
               <span>Studio de Concentration</span>
@@ -408,7 +428,7 @@ export const PlannerScreen: React.FC = () => {
               <input
                 type="text"
                 value={focusGoal}
-                onChange={(e) => setFocusGoal(e.target.value)}
+                onChange={(e) => setFocusConfig({ goalTitle: e.target.value })}
                 placeholder="Sur quoi vous concentrez-vous ?"
                 className="w-full text-center text-xs font-semibold text-[var(--color-text-main)] bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl py-2 sm:py-2.5 px-3 focus:outline-none"
               />
@@ -431,7 +451,7 @@ export const PlannerScreen: React.FC = () => {
                       ? 'bg-[var(--color-accent)] text-white'
                       : 'bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] border border-[var(--color-border-subtle)]'
                   }`}
-                  onClick={() => handleSelectPreset(mins)}
+                  onClick={() => setFocusConfig({ durationMinutes: mins })}
                   disabled={isFocusRunning}
                 >
                   {mins} min
@@ -440,10 +460,10 @@ export const PlannerScreen: React.FC = () => {
             </div>
 
             {/* Contrôles du Focus */}
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               {isFocusRunning ? (
                 <button
-                  onClick={handlePauseFocus}
+                  onClick={pauseFocusTimer}
                   className="px-6 py-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-strong)] text-[var(--color-text-main)] font-semibold text-xs flex items-center gap-2 hover:bg-[var(--color-bg-surface)] transition-all"
                 >
                   <Pause size={15} />
@@ -451,16 +471,26 @@ export const PlannerScreen: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={handleStartFocus}
+                  onClick={startFocusTimer}
                   className="bento-btn-primary px-6 py-2.5"
                 >
                   <Play size={15} />
-                  <span>Démarrer le Focus</span>
+                  <span>{activeFocus.status === 'paused' ? 'Reprendre le Focus' : 'Démarrer le Focus'}</span>
+                </button>
+              )}
+
+              {(activeFocus.status === 'running' || activeFocus.status === 'paused') && (
+                <button
+                  type="button"
+                  onClick={() => handleSaveFocusSession(true)}
+                  className="px-4 py-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors"
+                >
+                  Terminer &amp; enregistrer
                 </button>
               )}
 
               <button
-                onClick={handleResetFocus}
+                onClick={() => resetFocusTimer()}
                 className="p-2.5 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
                 title="Réinitialiser le chronomètre"
               >

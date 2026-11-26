@@ -14,6 +14,18 @@ import type {
   ChatMessage,
 } from '../types';
 import { EloraDB } from '../lib/db/database';
+import {
+  type ActiveFocusTimerState,
+  createInitialFocusState,
+  loadActiveFocusTimer,
+  saveActiveFocusTimer,
+  clearActiveFocusTimer,
+  computeRemainingSeconds,
+  computeElapsedMinutes,
+  hasRecordedFocusSessionId,
+  markFocusSessionIdRecorded,
+  generateFocusSessionId,
+} from '../lib/focus/focusTimer';
 import { OfflineQueue } from '../lib/offline/OfflineQueue';
 import { MemoryService } from '../lib/memory/MemoryService';
 import { orchestrator } from '../lib/ai/AIOrchestrator';
@@ -41,6 +53,7 @@ import {
   saveUserTask,
   deleteUserTask,
   saveUserGoal,
+  deleteUserGoal,
   saveUserFocusSession,
   saveUserMemory,
   deleteUserMemory,
@@ -83,9 +96,14 @@ interface AppContextType {
   profile: UserProfile;
   updateProfile: (updated: Partial<UserProfile>) => void;
   memories: MemoryItem[];
-  addMemory: (item: Omit<MemoryItem, 'id' | 'dateAdded'>) => void;
+  addMemory: (item: Omit<MemoryItem, 'id' | 'dateAdded'>) => MemoryItem | null;
+  updateMemory: (
+    id: string,
+    updates: Partial<Pick<MemoryItem, 'key' | 'value' | 'category' | 'status' | 'enabledForAI' | 'expiresAt'>>
+  ) => MemoryItem | null;
+  confirmMemory: (id: string, targetStatus?: 'active' | 'temporary') => MemoryItem | null;
   toggleMemoryAI: (id: string) => void;
-  deleteMemory: (id: string) => void;
+  deleteMemory: (id: string) => boolean;
 
   // Planner & Tâches
   tasks: TaskItem[];
@@ -96,11 +114,28 @@ interface AppContextType {
   // Objectifs
   goals: GoalItem[];
   addGoal: (goal: Omit<GoalItem, 'id'>) => void;
+  updateGoal: (
+    goalId: string,
+    updates: Partial<Pick<GoalItem, 'title' | 'category' | 'targetDate' | 'completed'>>
+  ) => void;
+  deleteGoal: (goalId: string) => void;
+  addMilestone: (goalId: string, title: string) => void;
+  updateMilestone: (goalId: string, milestoneId: string, title: string) => void;
+  deleteMilestone: (goalId: string, milestoneId: string) => void;
   toggleMilestone: (goalId: string, milestoneId: string) => void;
 
-  // Sessions Focus
+  // Sessions Focus & Minuteur persistant
   focusSessions: FocusSession[];
   addFocusSession: (session: Omit<FocusSession, 'id' | 'completedAt'>) => void;
+  activeFocus: ActiveFocusTimerState;
+  focusSecondsLeft: number;
+  focusCompletedPendingSave: boolean;
+  startFocusTimer: () => void;
+  pauseFocusTimer: () => void;
+  resetFocusTimer: (durationMinutes?: number) => void;
+  setFocusConfig: (config: { goalTitle?: string; durationMinutes?: number }) => void;
+  saveCompletedFocusSession: (options?: { notes?: string; useElapsedIfRunning?: boolean }) => boolean;
+  dismissCompletedFocusSession: () => void;
 
   // Connaissances
   knowledgeDocs: KnowledgeDoc[];
@@ -180,10 +215,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Données avec persistance base de données locale (EloraDB)
   const [profile, setProfile] = useState<UserProfile>(() => EloraDB.getProfile());
-  const [memories, setMemories] = useState<MemoryItem[]>(() => EloraDB.getMemories());
+  const [memories, setMemories] = useState<MemoryItem[]>(() => {
+    const uid = currentUser?.uid || 'local_user';
+    return EloraDB.getMemories(uid);
+  });
   const [tasks, setTasks] = useState<TaskItem[]>(() => EloraDB.getTasks());
   const [goals, setGoals] = useState<GoalItem[]>(() => EloraDB.getGoals());
   const [focusSessions, setFocusSessions] = useState<FocusSession[]>(() => EloraDB.getFocusSessions());
+  const [activeFocus, setActiveFocus] = useState<ActiveFocusTimerState>(() => loadActiveFocusTimer());
+  const [focusSecondsLeft, setFocusSecondsLeft] = useState<number>(() =>
+    computeRemainingSeconds(loadActiveFocusTimer())
+  );
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(() => EloraDB.getKnowledge());
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>(() => EloraDB.getOpportunities());
   const [conversations, setConversations] = useState<Conversation[]>(() => EloraDB.getConversations());
@@ -260,10 +302,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           EloraDB.saveFocusSessions(merged);
         }
         if (cloudData.memories.length > 0) {
-          const merged = mergeCollectionById(EloraDB.getMemories(), cloudData.memories);
-          setMemories(merged);
-          EloraDB.saveMemories(merged);
-          MemoryService.syncFromFirestore(currentUser.uid, merged as any);
+          const synced = MemoryService.syncFromFirestore(currentUser.uid, cloudData.memories as any);
+          setMemories(synced as unknown as MemoryItem[]);
+        } else {
+          setMemories(MemoryService.getMemories(currentUser.uid) as unknown as MemoryItem[]);
         }
         if (cloudData.knowledgeDocs.length > 0) {
           const merged = mergeCollectionById(EloraDB.getKnowledge(), cloudData.knowledgeDocs);
@@ -348,47 +390,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  // Actions Mémoire
-  const addMemory = (item: Omit<MemoryItem, 'id' | 'dateAdded'>) => {
-    const newMem = EloraDB.addMemory(item);
-    MemoryService.addMemory(currentUser?.uid || 'local_user', {
-      category: item.category as any,
+  // Actions Mémoire (source de vérité unique : MemoryService, isolée par userId)
+  const activeMemoryUid = currentUser?.uid || 'local_user';
+
+  const addMemory = (item: Omit<MemoryItem, 'id' | 'dateAdded'>): MemoryItem | null => {
+    const created = MemoryService.addMemory(activeMemoryUid, {
+      category: (item.category || 'context') as any,
       key: item.key,
       value: item.value,
       enabledForAI: item.enabledForAI,
       source: (item.source as any) || 'user_explicit',
+      status: item.status === 'temporary' ? 'temporary' : 'active',
+      expiresAt: item.expiresAt,
     });
-    setMemories(EloraDB.getMemories());
+    if (!created) return null;
+    setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
     if (currentUser) {
-      saveUserMemory(currentUser.uid, {
-        ...newMem,
-        userId: currentUser.uid,
-        status: 'active',
-      });
+      saveUserMemory(currentUser.uid, created as unknown as MemoryItem);
     }
+    return created as unknown as MemoryItem;
+  };
+
+  const updateMemory = (
+    id: string,
+    updates: Partial<Pick<MemoryItem, 'key' | 'value' | 'category' | 'status' | 'enabledForAI' | 'expiresAt'>>
+  ): MemoryItem | null => {
+    const updatedItem = MemoryService.updateMemory(activeMemoryUid, id, updates as any);
+    if (!updatedItem) return null;
+    setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+    if (currentUser) {
+      saveUserMemory(currentUser.uid, updatedItem as unknown as MemoryItem);
+    }
+    return updatedItem as unknown as MemoryItem;
+  };
+
+  const confirmMemory = (id: string, targetStatus?: 'active' | 'temporary'): MemoryItem | null => {
+    const confirmed = MemoryService.confirmCandidate(activeMemoryUid, id, targetStatus);
+    if (!confirmed) return null;
+    setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+    if (currentUser) {
+      saveUserMemory(currentUser.uid, confirmed as unknown as MemoryItem);
+    }
+    return confirmed as unknown as MemoryItem;
   };
 
   const toggleMemoryAI = (id: string) => {
-    const updated = EloraDB.toggleMemory(id);
-    setMemories(updated);
-    const target = updated.find((m) => m.id === id);
-    if (target) {
-      MemoryService.updateMemory(currentUser?.uid || 'local_user', id, {
-        enabledForAI: target.enabledForAI,
-      });
-      if (currentUser) {
-        saveUserMemory(currentUser.uid, target);
-      }
+    const current = MemoryService.getMemories(activeMemoryUid);
+    const target = current.find((m) => m.id === id);
+    if (!target) return;
+    const updatedItem = MemoryService.updateMemory(activeMemoryUid, id, {
+      enabledForAI: !target.enabledForAI,
+    });
+    if (!updatedItem) return;
+    setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+    if (currentUser) {
+      saveUserMemory(currentUser.uid, updatedItem as unknown as MemoryItem);
     }
   };
 
-  const deleteMemory = (id: string) => {
-    const updated = EloraDB.deleteMemory(id);
-    MemoryService.deleteMemory(currentUser?.uid || 'local_user', id);
-    setMemories(updated);
+  const deleteMemory = (id: string): boolean => {
+    const deleted = MemoryService.deleteMemory(activeMemoryUid, id);
+    if (!deleted) return false;
+    setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
     if (currentUser) {
       deleteUserMemory(currentUser.uid, id);
     }
+    return true;
   };
 
   // Actions Tâches (Planner)
@@ -419,15 +486,80 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Actions Objectifs
   const addGoal = (goal: Omit<GoalItem, 'id'>) => {
-    const newGoal: GoalItem = {
+    const baseGoal: GoalItem = {
       ...goal,
       id: `goal_${Date.now()}`,
     };
+    const newGoal = EloraDB.recomputeGoalProgress(baseGoal);
     const goalsList = [...goals, newGoal];
     EloraDB.saveGoals(goalsList);
     setGoals(goalsList);
     if (currentUser) {
       saveUserGoal(currentUser.uid, newGoal);
+    }
+  };
+
+  const updateGoal = (
+    goalId: string,
+    updates: Partial<Pick<GoalItem, 'title' | 'category' | 'targetDate' | 'completed'>>
+  ) => {
+    const updated = EloraDB.updateGoal(goalId, updates);
+    setGoals(updated);
+    if (currentUser) {
+      const target = updated.find((g) => g.id === goalId);
+      if (target) saveUserGoal(currentUser.uid, target);
+    }
+  };
+
+  const deleteGoal = (goalId: string) => {
+    const updatedGoals = EloraDB.deleteGoal(goalId);
+    setGoals(updatedGoals);
+    if (currentUser) {
+      deleteUserGoal(currentUser.uid, goalId);
+    }
+
+    // Détacher proprement les tâches liées à l'objectif supprimé
+    const affectedTasks = tasks.filter((t) => t.goalId === goalId);
+    if (affectedTasks.length > 0) {
+      const updatedTasks = tasks.map((t) => {
+        if (t.goalId !== goalId) return t;
+        const { goalId: _removed, ...rest } = t;
+        return rest;
+      });
+      EloraDB.saveTasks(updatedTasks);
+      setTasks(updatedTasks);
+      if (currentUser) {
+        updatedTasks
+          .filter((t) => affectedTasks.some((at) => at.id === t.id))
+          .forEach((t) => saveUserTask(currentUser.uid, t));
+      }
+    }
+  };
+
+  const addMilestone = (goalId: string, title: string) => {
+    const updated = EloraDB.addMilestone(goalId, title);
+    setGoals(updated);
+    if (currentUser) {
+      const target = updated.find((g) => g.id === goalId);
+      if (target) saveUserGoal(currentUser.uid, target);
+    }
+  };
+
+  const updateMilestone = (goalId: string, milestoneId: string, title: string) => {
+    const updated = EloraDB.updateMilestone(goalId, milestoneId, title);
+    setGoals(updated);
+    if (currentUser) {
+      const target = updated.find((g) => g.id === goalId);
+      if (target) saveUserGoal(currentUser.uid, target);
+    }
+  };
+
+  const deleteMilestone = (goalId: string, milestoneId: string) => {
+    const updated = EloraDB.deleteMilestone(goalId, milestoneId);
+    setGoals(updated);
+    if (currentUser) {
+      const target = updated.find((g) => g.id === goalId);
+      if (target) saveUserGoal(currentUser.uid, target);
     }
   };
 
@@ -440,14 +572,152 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Actions Sessions Focus
-  const addFocusSession = (session: Omit<FocusSession, 'id' | 'completedAt'>) => {
-    const newSession = EloraDB.addFocusSession(session);
-    setFocusSessions(EloraDB.getFocusSessions());
-    if (currentUser) {
-      saveUserFocusSession(currentUser.uid, newSession);
-    }
-  };
+  // Actions Sessions Focus & Minuteur persistant (horloge murale)
+  const addFocusSession = useCallback(
+    (session: Omit<FocusSession, 'id' | 'completedAt'>) => {
+      const newSession = EloraDB.addFocusSession(session);
+      setFocusSessions(EloraDB.getFocusSessions());
+      if (currentUser) {
+        saveUserFocusSession(currentUser.uid, newSession);
+      }
+    },
+    [currentUser]
+  );
+
+  // Persister l'état du minuteur à chaque changement
+  useEffect(() => {
+    saveActiveFocusTimer(activeFocus);
+    setFocusSecondsLeft(computeRemainingSeconds(activeFocus));
+  }, [activeFocus]);
+
+  // Horloge murale : recalcule le temps restant sans dérive et survit aux changements d'écran
+  useEffect(() => {
+    if (activeFocus.status !== 'running') return;
+
+    const tick = () => {
+      const remaining = computeRemainingSeconds(activeFocus, Date.now());
+      setFocusSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setActiveFocus((prev) =>
+          prev.status === 'running'
+            ? {
+                ...prev,
+                status: 'completed',
+                endsAtMs: null,
+                remainingSecondsWhenPaused: 0,
+              }
+            : prev
+        );
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [activeFocus.status, activeFocus.endsAtMs]);
+
+  const startFocusTimer = useCallback(() => {
+    const now = Date.now();
+    setActiveFocus((prev) => {
+      const remaining =
+        prev.status === 'completed' || prev.remainingSecondsWhenPaused <= 0
+          ? prev.durationMinutes * 60
+          : computeRemainingSeconds(prev, now);
+      return {
+        ...prev,
+        sessionId: prev.status === 'completed' ? generateFocusSessionId() : prev.sessionId,
+        status: 'running',
+        startedAtMs: prev.startedAtMs ?? now,
+        endsAtMs: now + remaining * 1000,
+        remainingSecondsWhenPaused: remaining,
+        recorded: prev.status === 'completed' ? false : prev.recorded,
+      };
+    });
+  }, []);
+
+  const pauseFocusTimer = useCallback(() => {
+    const now = Date.now();
+    setActiveFocus((prev) => {
+      if (prev.status !== 'running') return prev;
+      const remaining = computeRemainingSeconds(prev, now);
+      return {
+        ...prev,
+        status: 'paused',
+        endsAtMs: null,
+        remainingSecondsWhenPaused: remaining,
+      };
+    });
+  }, []);
+
+  const resetFocusTimer = useCallback((durationMinutes?: number) => {
+    setActiveFocus((prev) => {
+      const mins = durationMinutes ?? prev.durationMinutes;
+      return {
+        ...createInitialFocusState(mins, prev.goalTitle),
+      };
+    });
+  }, []);
+
+  const setFocusConfig = useCallback(
+    (config: { goalTitle?: string; durationMinutes?: number }) => {
+      setActiveFocus((prev) => {
+        const nextGoalTitle =
+          config.goalTitle !== undefined ? config.goalTitle : prev.goalTitle;
+        const canChangeDuration =
+          config.durationMinutes !== undefined && prev.status !== 'running';
+        const nextDuration = canChangeDuration
+          ? config.durationMinutes!
+          : prev.durationMinutes;
+        return {
+          ...prev,
+          goalTitle: nextGoalTitle,
+          durationMinutes: nextDuration,
+          remainingSecondsWhenPaused: canChangeDuration
+            ? nextDuration * 60
+            : prev.remainingSecondsWhenPaused,
+          status: canChangeDuration && prev.status === 'completed' ? 'idle' : prev.status,
+          recorded: canChangeDuration ? false : prev.recorded,
+          sessionId: canChangeDuration ? generateFocusSessionId() : prev.sessionId,
+        };
+      });
+    },
+    []
+  );
+
+  const saveCompletedFocusSession = useCallback(
+    (options?: { notes?: string; useElapsedIfRunning?: boolean }): boolean => {
+      if (activeFocus.recorded || hasRecordedFocusSessionId(activeFocus.sessionId)) {
+        return false;
+      }
+
+      const durationMinutes = options?.useElapsedIfRunning
+        ? computeElapsedMinutes(activeFocus, Date.now())
+        : activeFocus.durationMinutes;
+
+      markFocusSessionIdRecorded(activeFocus.sessionId);
+      addFocusSession({
+        goalTitle: activeFocus.goalTitle.trim() || 'Session Deep Work',
+        durationMinutes,
+        notes: options?.notes?.trim() || 'Session de concentration Deep Work validée.',
+      });
+
+      setActiveFocus((prev) => ({
+        ...createInitialFocusState(prev.durationMinutes, prev.goalTitle),
+        recorded: false,
+      }));
+      return true;
+    },
+    [activeFocus, addFocusSession]
+  );
+
+  const dismissCompletedFocusSession = useCallback(() => {
+    setActiveFocus((prev) => createInitialFocusState(prev.durationMinutes, prev.goalTitle));
+  }, []);
+
+  const focusCompletedPendingSave =
+    activeFocus.status === 'completed' &&
+    !activeFocus.recorded &&
+    !hasRecordedFocusSessionId(activeFocus.sessionId);
 
   // Actions Connaissances
   const addKnowledgeDoc = (docData: Omit<KnowledgeDoc, 'id' | 'addedAt'>): KnowledgeDoc => {
@@ -514,8 +784,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await logoutUser();
     EloraDB.resetAll();
     OfflineQueue.clear();
+    clearActiveFocusTimer();
+    const freshFocus = createInitialFocusState();
+    setActiveFocus(freshFocus);
+    setFocusSecondsLeft(computeRemainingSeconds(freshFocus));
     setProfile(EloraDB.getProfile());
-    setMemories(EloraDB.getMemories());
+    setMemories(MemoryService.getMemories('local_user') as unknown as MemoryItem[]);
     setTasks(EloraDB.getTasks());
     setGoals(EloraDB.getGoals());
     setFocusSessions(EloraDB.getFocusSessions());
@@ -673,12 +947,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleMilestone(goalId, milestoneId);
       },
       onValidateMemory: async (memoryId) => {
+        const targetStatus =
+          action.payload?.targetStatus === 'temporary' ? 'temporary' : 'active';
+        const validated = MemoryService.confirmCandidate(activeMemoryUid, memoryId, targetStatus);
+        if (!validated) {
+          throw new Error('Impossible de persister ce souvenir localement.');
+        }
+        setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
         if (currentUser) {
-          MemoryService.updateMemory(currentUser.uid, memoryId, { status: 'active', enabledForAI: true });
-          const mems = MemoryService.getMemories(currentUser.uid);
-          setMemories(mems);
-          const validated = mems.find((m) => m.id === memoryId);
-          if (validated) await saveUserMemory(currentUser.uid, validated);
+          await saveUserMemory(currentUser.uid, validated as unknown as MemoryItem);
         }
       },
       onAddKnowledgeDoc: async (docData) => {
@@ -735,6 +1012,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const rejectProposedAction = (actionId: string, messageId?: string) => {
+    // Nettoyer l'hypothèse candidate rejetée si l'action portait sur une validation mémoire
+    const currentConv = conversations.find((c) => c.id === currentConversationId);
+    const targetAction = currentConv?.messages
+      .flatMap((m) => m.proposedActions || [])
+      .find((pa) => pa.id === actionId);
+    if (targetAction?.type === 'validate_memory' && typeof targetAction.payload?.memoryId === 'string') {
+      MemoryService.deleteMemory(activeMemoryUid, targetAction.payload.memoryId);
+      setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+    }
+
     setConversations((prev) => {
       const next = prev.map((c) => {
         if (c.id !== currentConversationId) return c;
@@ -793,6 +1080,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       role: 'user',
       content: text,
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      attachments:
+        options?.attachments && options.attachments.length > 0
+          ? options.attachments.map((a) => ({ name: a.name, mimeType: a.mimeType }))
+          : undefined,
     };
 
     const assistantMsgId = `msg_${Date.now()}_a`;
@@ -851,7 +1142,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const resolvedContext = ContextEngine.buildContext(
         {
           prompt: text,
-          userId: currentUser?.uid || 'local_user',
+          userId: activeMemoryUid,
           allowProposedActions: true,
         },
         {
@@ -864,6 +1155,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           conversations,
         }
       );
+
+      if (resolvedContext.proposedActions.some((a) => a.type === 'validate_memory')) {
+        setMemories(MemoryService.getMemories(activeMemoryUid) as unknown as MemoryItem[]);
+      }
 
       const activeConv = conversations.find((c) => c.id === effectiveConvId);
       const recentHistory = (activeConv?.messages || [])
@@ -1000,6 +1295,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateProfile,
         memories,
         addMemory,
+        updateMemory,
+        confirmMemory,
         toggleMemoryAI,
         deleteMemory,
         tasks,
@@ -1008,9 +1305,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteTask,
         goals,
         addGoal,
+        updateGoal,
+        deleteGoal,
+        addMilestone,
+        updateMilestone,
+        deleteMilestone,
         toggleMilestone,
         focusSessions,
         addFocusSession,
+        activeFocus,
+        focusSecondsLeft,
+        focusCompletedPendingSave,
+        startFocusTimer,
+        pauseFocusTimer,
+        resetFocusTimer,
+        setFocusConfig,
+        saveCompletedFocusSession,
+        dismissCompletedFocusSession,
         knowledgeDocs,
         addKnowledgeDoc,
         updateKnowledgeDoc,

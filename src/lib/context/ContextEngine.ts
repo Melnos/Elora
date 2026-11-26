@@ -160,8 +160,10 @@ export class ContextEngine {
     });
 
     // 4. Mémoires actives filtrées (uniquement si demande personnelle ou correspondance réelle avec le contexte)
-    const activeMemPool = dataset.memories.filter(
-      (m) => m.status === 'active' && m.enabledForAI
+    const serviceMemories = MemoryService.getAll(userId);
+    const memoryPool = serviceMemories.length > 0 ? serviceMemories : (dataset.memories as any[]);
+    const activeMemPool = memoryPool.filter(
+      (m) => (m.status === 'active' || m.status === 'temporary') && m.enabledForAI
     );
     const hasMemoryKeywordMatch = activeMemPool.some((m) => {
       const mText = this.normalizeSearchText(`${m.key} ${m.value} ${m.category}`);
@@ -188,13 +190,36 @@ export class ContextEngine {
       includePersonalProfile: isPersonalQuery,
     });
 
-    // 6. Détection de propositions d'actions proactives fiabilisées (Zéro J+2 arbitraire)
+    // 6. Détection de propositions d'actions proactives fiabilisées (tâches + candidats mémoire)
     if (query.allowProposedActions) {
       const proactiveAction = ActionEngine.extractProactiveAction(prompt, {
         goals: relevantGoals,
       });
       if (proactiveAction) {
         proposedActions.push(proactiveAction);
+      }
+
+      const candidateFacts = MemoryService.extractCandidateFacts(prompt);
+      for (const cand of candidateFacts) {
+        const persistedCandidate = MemoryService.proposeCandidate(userId, cand);
+        if (persistedCandidate && persistedCandidate.status === 'candidate') {
+          proposedActions.push({
+            id: `act_mem_${persistedCandidate.id}`,
+            type: 'validate_memory',
+            title: persistedCandidate.isTemporary
+              ? `Mémoriser temporairement : ${persistedCandidate.key}`
+              : `Mémoriser : ${persistedCandidate.key}`,
+            description: `${persistedCandidate.value} (${cand.justification})`,
+            payload: {
+              memoryId: persistedCandidate.id,
+              category: persistedCandidate.category,
+              key: persistedCandidate.key,
+              value: persistedCandidate.value,
+              targetStatus: persistedCandidate.isTemporary ? 'temporary' : 'active',
+            },
+            status: 'pending',
+          });
+        }
       }
     }
 
@@ -408,7 +433,7 @@ export class ContextEngine {
 
   private static isPersonalizationRequest(promptLower: string): boolean {
     const normalized = this.normalizeSearchText(promptLower);
-    return /\b(mon profil|mes objectifs|mon objectif|mes taches|ma tache|mon planning|mon agenda|mes documents|ma bibliotheque|mes memoires|mes preferences|mes competences|ma progression|mon bilan|mes opportunites|mon projet|a partir de mes|selon mon|adapte a mon|personnalise|dans mon contexte|hackathon|elora|ecogen)\b/i.test(
+    return /\b(mon profil|mes objectifs|mon objectif|mes taches|ma tache|mon planning|mon agenda|mes documents|ma bibliotheque|mes memoires|mes preferences|mes competences|ma progression|mon bilan|mes opportunites|mon projet|a partir de mes|selon mon|adapte a mon|personnalise|dans mon contexte)\b/i.test(
       normalized
     );
   }
@@ -463,7 +488,7 @@ export class ContextEngine {
 
     if (!hasPersonalContext) {
       sections.push(
-        `- **Question générale** : Aucun document, tâche, objectif ou profil personnel n'est requis ici. N'évoque pas les projets, le profil, le hackathon ou les documents personnels de l'utilisateur.`
+        `- **Question générale** : Aucun document, tâche, objectif ou profil personnel n'est requis ici. N'évoque pas les projets, le profil ou les documents personnels de l'utilisateur.`
       );
       return sections.join('\n');
     }

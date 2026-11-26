@@ -20,8 +20,9 @@ export type MemorySource =
   | 'onboarding';                 // Initialisé lors du cadrage de profil
 
 export type MemoryStatus =
-  | 'active'     // En mémoire vive, disponible pour enrichir le contexte IA
-  | 'candidate'  // Suggestion d'apprentissage en attente de validation explicite
+  | 'active'     // Confirmé et durable, disponible pour enrichir le contexte IA
+  | 'candidate'  // Hypothèse / suggestion en attente de validation explicite
+  | 'temporary'  // Contexte temporaire (échéance courte, examen, contrainte ponctuelle)
   | 'archived';  // Conservé pour historique mais non injecté dans les prompts
 
 export interface MemoryItem {
@@ -49,6 +50,10 @@ export interface MemoryItem {
   dateAdded?: string;
   /** Dernière date de mise à jour ISO */
   updatedAt: string;
+  /** Date d'expiration ISO optionnelle pour les mémoires temporaires */
+  expiresAt?: string;
+  /** Indique si le fait est de nature temporaire */
+  isTemporary?: boolean;
   /** Références éventuelles vers des documents Knowledge ou Tâches */
   relatedEntityIds?: string[];
 }
@@ -64,6 +69,10 @@ export interface CandidateFact {
   justification: string;
   /** Extrait du message source */
   sourceExcerpt?: string;
+  /** Indique si l'information est temporaire (ex: examen cette semaine) */
+  isTemporary?: boolean;
+  /** Date d'expiration ISO optionnelle */
+  expiresAt?: string;
 }
 
 export interface MemoryContextPayload {

@@ -1,44 +1,30 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import type { NavTab } from '../../types';
-import {
-  Home,
-  Sparkles,
-  BookOpen,
-  Calendar,
-  Compass,
-  TrendingUp,
-} from 'lucide-react';
+import { NAV_ITEMS } from '../../config/navigation';
 
 export const BottomNav: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
 
-  const navItems: { id: NavTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'home', label: 'Accueil', icon: <Home size={19} /> },
-    { id: 'planner', label: 'Planner', icon: <Calendar size={19} /> },
-    { id: 'ai', label: 'ELORA', icon: <Sparkles size={20} /> },
-    { id: 'knowledge', label: 'Savoir', icon: <BookOpen size={19} /> },
-    { id: 'opportunities', label: 'Opportunités', icon: <Compass size={19} /> },
-    { id: 'progress', label: 'Bilan', icon: <TrendingUp size={19} /> },
-  ];
-
   return (
-    <nav className="elora-floating-bottom-bar">
+    <nav className="elora-floating-bottom-bar" aria-label="Navigation principale mobile">
       <div className="bottom-bar-dock">
-        {navItems.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const isActive = activeTab === item.id;
           const isAI = item.id === 'ai';
+          const Icon = item.icon;
           return (
             <button
               key={item.id}
+              type="button"
               className={`dock-item ${isActive ? 'active' : ''} ${isAI ? 'dock-item-ai' : ''}`}
               onClick={() => setActiveTab(item.id)}
               aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
             >
               <div className="dock-icon-wrapper">
-                {item.icon}
+                <Icon size={isAI ? 20 : 18} />
               </div>
-              <span className="dock-label">{item.label}</span>
+              <span className="dock-label">{item.mobileLabel}</span>
             </button>
           );
         })}

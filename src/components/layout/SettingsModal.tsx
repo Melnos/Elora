@@ -12,8 +12,16 @@ import {
   Eye,
   EyeOff,
   Download,
+  Cloud,
+  RefreshCw,
+  LogIn,
+  LogOut,
+  Terminal,
+  Pencil,
 } from 'lucide-react';
 import { CapabilityDetector } from '../../lib/ai/CapabilityDetector';
+import { OfflineQueue } from '../../lib/offline/OfflineQueue';
+import { useToast } from '../ui/ToastProvider';
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -24,19 +32,35 @@ export const SettingsModal: React.FC = () => {
     updateProfile,
     memories,
     addMemory,
+    updateMemory,
+    confirmMemory,
     toggleMemoryAI,
     deleteMemory,
     theme,
     setTheme,
     caps,
     refreshCapabilities,
+    currentUser,
+    isSyncingCloud,
+    triggerCloudSync,
+    logout,
+    setIsAuthModalOpen,
   } = useApp();
+  const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'privacy' | 'appearance' | 'dev'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'memory' | 'privacy' | 'appearance' | 'dev'>('profile');
+  const [confirmLogoutWithPending, setConfirmLogoutWithPending] = useState(false);
   const [newMemoryKey, setNewMemoryKey] = useState('');
   const [newMemoryValue, setNewMemoryValue] = useState('');
-  const [newMemoryCategory, setNewMemoryCategory] = useState<'preference' | 'objective' | 'skill' | 'habit' | 'context'>('preference');
+  const [newMemoryCategory, setNewMemoryCategory] = useState<'preference' | 'objective' | 'project' | 'habit' | 'knowledge' | 'profile' | 'constraint' | 'context'>('preference');
+  const [newMemoryStatus, setNewMemoryStatus] = useState<'active' | 'temporary'>('active');
   const [showAddMemory, setShowAddMemory] = useState(false);
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [editMemoryKey, setEditMemoryKey] = useState('');
+  const [editMemoryValue, setEditMemoryValue] = useState('');
+  const [editMemoryCategory, setEditMemoryCategory] = useState<'preference' | 'objective' | 'project' | 'habit' | 'knowledge' | 'profile' | 'constraint' | 'context'>('preference');
+  const [editMemoryStatus, setEditMemoryStatus] = useState<'active' | 'temporary'>('active');
+  const [memoryError, setMemoryError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -114,16 +138,53 @@ export const SettingsModal: React.FC = () => {
   const handleAddMemorySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemoryKey.trim() || !newMemoryValue.trim()) return;
-    addMemory({
+    setMemoryError(null);
+    const saved = addMemory({
       key: newMemoryKey.trim(),
       value: newMemoryValue.trim(),
       category: newMemoryCategory,
-      source: 'Ajout manuel utilisateur',
+      source: 'user_explicit',
+      status: newMemoryStatus,
       enabledForAI: true,
+      ...(newMemoryStatus === 'temporary'
+        ? { expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() }
+        : {}),
     });
+    if (!saved) {
+      setMemoryError("Impossible d'enregistrer ce souvenir dans le stockage local.");
+      return;
+    }
     setNewMemoryKey('');
     setNewMemoryValue('');
+    setNewMemoryStatus('active');
     setShowAddMemory(false);
+    showToast('Souvenir enregistré.', 'success');
+  };
+
+  const startEditingMemory = (mem: typeof memories[number]) => {
+    setEditingMemoryId(mem.id);
+    setEditMemoryKey(mem.key);
+    setEditMemoryValue(mem.value);
+    setEditMemoryCategory((mem.category as any) || 'context');
+    setEditMemoryStatus(mem.status === 'temporary' ? 'temporary' : 'active');
+    setMemoryError(null);
+  };
+
+  const handleSaveMemoryEdit = (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editMemoryKey.trim() || !editMemoryValue.trim()) return;
+    const updated = updateMemory(id, {
+      key: editMemoryKey.trim(),
+      value: editMemoryValue.trim(),
+      category: editMemoryCategory,
+      status: editMemoryStatus,
+    });
+    if (!updated) {
+      setMemoryError('Impossible de sauvegarder la modification.');
+      return;
+    }
+    setEditingMemoryId(null);
+    showToast('Souvenir mis à jour.', 'success');
   };
 
   return (
@@ -160,6 +221,13 @@ export const SettingsModal: React.FC = () => {
             <span>Profil</span>
           </button>
           <button
+            className={`tab-btn ${activeTab === 'account' ? 'active' : ''}`}
+            onClick={() => setActiveTab('account')}
+          >
+            <Cloud size={16} />
+            <span>Compte & Sync</span>
+          </button>
+          <button
             className={`tab-btn ${activeTab === 'memory' ? 'active' : ''}`}
             onClick={() => setActiveTab('memory')}
           >
@@ -185,7 +253,7 @@ export const SettingsModal: React.FC = () => {
               className={`tab-btn ${activeTab === 'dev' ? 'active' : ''}`}
               onClick={() => setActiveTab('dev')}
             >
-              <Shield size={16} />
+              <Terminal size={16} />
               <span>Développeur</span>
             </button>
           )}
@@ -252,7 +320,111 @@ export const SettingsModal: React.FC = () => {
             </div>
           )}
 
-          {/* ONGLET 2 : MÉMOIRE PERSONNELLE */}
+          {/* ONGLET 2 : COMPTE & SYNCHRONISATION */}
+          {activeTab === 'account' && (
+            <div className="settings-section">
+              <h3 className="section-title">Compte & Synchronisation Cloud</h3>
+              <p className="section-desc">
+                Gérez votre session Firebase, la file hors ligne et la synchronisation multi-appareils.
+              </p>
+
+              <div className="p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--color-text-main)]">
+                      {currentUser ? (currentUser.displayName || profile.name) : 'Session locale (Invité)'}
+                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">
+                      {currentUser ? currentUser.email : 'Connectez-vous pour sauvegarder vos données dans le Cloud.'}
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[var(--color-accent-bg)] text-[var(--color-accent)] border border-[var(--color-accent)]/20">
+                    {currentUser ? (navigator.onLine ? 'Connecté' : 'Hors ligne') : 'Mode Local'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-[var(--color-text-muted)] flex items-center justify-between pt-2 border-t border-[var(--color-border-subtle)]">
+                  <span>Opérations locales en attente de sync :</span>
+                  <strong className="text-[var(--color-text-main)]">{OfflineQueue.getPendingCount()}</strong>
+                </div>
+              </div>
+
+              {currentUser ? (
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isSyncingCloud || !navigator.onLine}
+                    onClick={async () => {
+                      await triggerCloudSync();
+                      showToast('Synchronisation Cloud terminée.', 'success');
+                    }}
+                    className="btn-accent-sm justify-center disabled:opacity-50"
+                  >
+                    <RefreshCw size={14} className={isSyncingCloud ? 'animate-spin' : ''} />
+                    <span>{isSyncingCloud ? 'Synchronisation...' : 'Synchroniser maintenant'}</span>
+                  </button>
+
+                  {!confirmLogoutWithPending ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (OfflineQueue.getPendingCount() > 0) {
+                          setConfirmLogoutWithPending(true);
+                          return;
+                        }
+                        await logout();
+                        setIsSettingsOpen(false);
+                        showToast('Vous êtes déconnecté.', 'info');
+                      }}
+                      className="px-4 py-2 rounded-xl border border-[var(--color-border-strong)] text-xs font-semibold text-[var(--color-danger)] hover:bg-[var(--color-bg-base)] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <LogOut size={14} />
+                      <span>Déconnexion</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                      <span className="text-[var(--color-text-main)]">
+                        {OfflineQueue.getPendingCount()} opération(s) non synchronisée(s). Confirmer ?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setConfirmLogoutWithPending(false);
+                          await logout();
+                          setIsSettingsOpen(false);
+                          showToast('Déconnexion effectuée.', 'info');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-[var(--color-danger)] text-white font-semibold cursor-pointer"
+                      >
+                        Oui
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmLogoutWithPending(false)}
+                        className="px-2.5 py-1 rounded-lg border border-[var(--color-border-subtle)] cursor-pointer"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="btn-accent-sm self-start"
+                >
+                  <LogIn size={14} />
+                  <span>Se connecter / Créer un compte</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ONGLET 3 : MÉMOIRE PERSONNELLE */}
           {activeTab === 'memory' && (
             <div className="settings-section">
               <div className="section-header-flex">
@@ -271,6 +443,12 @@ export const SettingsModal: React.FC = () => {
                 </button>
               </div>
 
+              {memoryError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                  {memoryError}
+                </div>
+              )}
+
               {showAddMemory && (
                 <form className="add-memory-card" onSubmit={handleAddMemorySubmit}>
                   <div className="form-row">
@@ -288,9 +466,23 @@ export const SettingsModal: React.FC = () => {
                     >
                       <option value="preference">Préférence</option>
                       <option value="objective">Objectif</option>
-                      <option value="skill">Compétence</option>
-                      <option value="habit">Habitude</option>
+                      <option value="project">Projet</option>
+                      <option value="habit">Méthode / Habitude</option>
+                      <option value="knowledge">Connaissance</option>
+                      <option value="profile">Parcours / Profil</option>
+                      <option value="constraint">Contrainte</option>
                       <option value="context">Contexte</option>
+                    </select>
+                  </div>
+                  <div className="form-row">
+                    <select
+                      className="form-select"
+                      aria-label="Durabilité du souvenir"
+                      value={newMemoryStatus}
+                      onChange={(e) => setNewMemoryStatus(e.target.value as 'active' | 'temporary')}
+                    >
+                      <option value="active">Confirmé (durable)</option>
+                      <option value="temporary">Temporaire (7 jours)</option>
                     </select>
                   </div>
                   <textarea
@@ -312,39 +504,142 @@ export const SettingsModal: React.FC = () => {
               )}
 
               <div className="memory-list">
-                {memories.map((mem) => (
+                {memories.map((mem) => {
+                  const statusLabel =
+                    mem.status === 'candidate'
+                      ? 'Hypothèse'
+                      : mem.status === 'temporary'
+                      ? 'Temporaire'
+                      : 'Confirmé';
+                  const statusClass =
+                    mem.status === 'candidate'
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                      : mem.status === 'temporary'
+                      ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20'
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+
+                  return (
                   <div key={mem.id} className="memory-item-card">
-                    <div className="memory-item-header">
-                      <div className="memory-badge-group">
-                        <span className="memory-cat-badge">{mem.category}</span>
-                        <strong className="memory-key">{mem.key}</strong>
-                      </div>
-                      <div className="memory-item-actions">
-                        <button
-                          className={`btn-icon-toggle ${mem.enabledForAI ? 'enabled' : 'disabled'}`}
-                          onClick={() => toggleMemoryAI(mem.id)}
-                          title={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
-                          aria-label={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
+                    {editingMemoryId === mem.id ? (
+                      <form onSubmit={(e) => handleSaveMemoryEdit(e, mem.id)} className="space-y-2.5">
+                        <div className="form-row">
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={editMemoryKey}
+                            onChange={(e) => setEditMemoryKey(e.target.value)}
+                            required
+                          />
+                          <select
+                            className="form-select"
+                            value={editMemoryCategory}
+                            onChange={(e) => setEditMemoryCategory(e.target.value as any)}
+                          >
+                            <option value="preference">Préférence</option>
+                            <option value="objective">Objectif</option>
+                            <option value="project">Projet</option>
+                            <option value="habit">Méthode / Habitude</option>
+                            <option value="knowledge">Connaissance</option>
+                            <option value="profile">Parcours / Profil</option>
+                            <option value="constraint">Contrainte</option>
+                            <option value="context">Contexte</option>
+                          </select>
+                        </div>
+                        <select
+                          className="form-select"
+                          value={editMemoryStatus}
+                          onChange={(e) => setEditMemoryStatus(e.target.value as 'active' | 'temporary')}
                         >
-                          {mem.enabledForAI ? <Eye size={15} /> : <EyeOff size={15} />}
-                        </button>
-                        <button
-                          className="btn-icon-delete"
-                          onClick={() => deleteMemory(mem.id)}
-                          title="Supprimer définitivement ce fait"
-                          aria-label="Supprimer définitivement ce fait"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="memory-val">{mem.value}</p>
-                    <div className="memory-footer">
-                      <span className="memory-source">Source : {mem.source}</span>
-                      <span className="memory-date">{mem.dateAdded}</span>
-                    </div>
+                          <option value="active">Confirmé (durable)</option>
+                          <option value="temporary">Temporaire</option>
+                        </select>
+                        <textarea
+                          className="form-textarea"
+                          rows={2}
+                          value={editMemoryValue}
+                          onChange={(e) => setEditMemoryValue(e.target.value)}
+                          required
+                        />
+                        <div className="form-actions">
+                          <button
+                            type="button"
+                            className="btn-secondary-sm"
+                            onClick={() => setEditingMemoryId(null)}
+                          >
+                            Annuler
+                          </button>
+                          <button type="submit" className="btn-primary-sm">
+                            Enregistrer
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="memory-item-header">
+                          <div className="memory-badge-group flex-wrap">
+                            <span className="memory-cat-badge">{mem.category}</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusClass}`}>
+                              {statusLabel}
+                            </span>
+                            <strong className="memory-key">{mem.key}</strong>
+                          </div>
+                          <div className="memory-item-actions">
+                            {mem.status === 'candidate' && (
+                              <button
+                                type="button"
+                                className="px-2 py-1 rounded-lg bg-[var(--color-accent)] text-white text-[11px] font-semibold hover:opacity-90"
+                                onClick={() => {
+                                  const ok = confirmMemory(mem.id);
+                                  if (!ok) {
+                                    setMemoryError('Impossible de confirmer ce souvenir.');
+                                  } else {
+                                    showToast('Souvenir confirmé.', 'success');
+                                  }
+                                }}
+                                title="Confirmer ce souvenir"
+                              >
+                                Confirmer
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn-icon-toggle"
+                              onClick={() => startEditingMemory(mem)}
+                              title="Modifier / corriger ce souvenir"
+                              aria-label="Modifier / corriger ce souvenir"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn-icon-toggle ${mem.enabledForAI ? 'enabled' : 'disabled'}`}
+                              onClick={() => toggleMemoryAI(mem.id)}
+                              title={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
+                              aria-label={mem.enabledForAI ? "Désactiver pour l'IA" : "Activer pour l'IA"}
+                            >
+                              {mem.enabledForAI ? <Eye size={15} /> : <EyeOff size={15} />}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon-delete"
+                              onClick={() => deleteMemory(mem.id)}
+                              title="Supprimer définitivement ce fait"
+                              aria-label="Supprimer définitivement ce fait"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="memory-val">{mem.value}</p>
+                        <div className="memory-footer">
+                          <span className="memory-source">Source : {mem.source}</span>
+                          <span className="memory-date">{mem.dateAdded}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -387,64 +682,64 @@ export const SettingsModal: React.FC = () => {
                 isDownloading ||
                 downloadError ||
                 downloadStatusNotice) && (
-                <div className="mt-4 p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-3">
-                  <div>
-                    <h4 className="text-sm font-semibold text-[var(--color-text-main)]">
-                      Modèle local Gemini Nano
-                    </h4>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      {caps?.onDeviceDetails}
-                    </p>
-                  </div>
+                  <div className="mt-4 p-4 rounded-2xl bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)] space-y-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-[var(--color-text-main)]">
+                        Modèle local Gemini Nano
+                      </h4>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                        {caps?.onDeviceDetails}
+                      </p>
+                    </div>
 
-                  {!isDownloading && caps?.onDeviceStatus === 'after-download' && (
-                    <button
-                      type="button"
-                      onClick={handleDownloadLocalModel}
-                      className="btn-accent-sm"
-                    >
-                      <Download size={14} />
-                      <span>Télécharger le modèle local (~4 Go)</span>
-                    </button>
-                  )}
-
-                  {isDownloading && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-[var(--color-text-main)]">
-                        <span>Téléchargement en cours...</span>
-                        <strong>{downloadProgress}%</strong>
-                      </div>
-                      <div
-                        className="w-full h-2 rounded-full overflow-hidden bg-[var(--color-border-subtle)]"
-                        role="progressbar"
-                        aria-valuenow={downloadProgress}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      >
-                        <div
-                          className="h-full bg-[var(--color-accent)] transition-all duration-200"
-                          style={{ width: `${downloadProgress}%` }}
-                        />
-                      </div>
+                    {!isDownloading && caps?.onDeviceStatus === 'after-download' && (
                       <button
                         type="button"
-                        onClick={handleCancelDownload}
-                        className="btn-secondary-sm"
+                        onClick={handleDownloadLocalModel}
+                        className="btn-accent-sm"
                       >
-                        Annuler
+                        <Download size={14} />
+                        <span>Télécharger le modèle local (~4 Go)</span>
                       </button>
-                    </div>
-                  )}
+                    )}
 
-                  {downloadError && (
-                    <p className="text-xs text-[var(--color-danger)]">{downloadError}</p>
-                  )}
+                    {isDownloading && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-[var(--color-text-main)]">
+                          <span>Téléchargement en cours...</span>
+                          <strong>{downloadProgress}%</strong>
+                        </div>
+                        <div
+                          className="w-full h-2 rounded-full overflow-hidden bg-[var(--color-border-subtle)]"
+                          role="progressbar"
+                          aria-valuenow={downloadProgress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div
+                            className="h-full bg-[var(--color-accent)] transition-all duration-200"
+                            style={{ width: `${downloadProgress}%` }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCancelDownload}
+                          className="btn-secondary-sm"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    )}
 
-                  {downloadStatusNotice && !downloadError && (
-                    <p className="text-xs text-[var(--color-emerald)]">{downloadStatusNotice}</p>
-                  )}
-                </div>
-              )}
+                    {downloadError && (
+                      <p className="text-xs text-[var(--color-danger)]">{downloadError}</p>
+                    )}
+
+                    {downloadStatusNotice && !downloadError && (
+                      <p className="text-xs text-[var(--color-emerald)]">{downloadStatusNotice}</p>
+                    )}
+                  </div>
+                )}
             </div>
           )}
 
@@ -475,6 +770,17 @@ export const SettingsModal: React.FC = () => {
                   </div>
                   <span className="theme-name">Noir Profond</span>
                   <span className="theme-sub">Contraste soigné pour sessions prolongées</span>
+                </button>
+
+                <button
+                  className={`theme-card ${theme === 'system' ? 'selected' : ''}`}
+                  onClick={() => setTheme('system')}
+                >
+                  <div className="theme-preview light-preview">
+                    <span className="preview-dot"></span>
+                  </div>
+                  <span className="theme-name">Système</span>
+                  <span className="theme-sub">Suit automatiquement votre appareil</span>
                 </button>
               </div>
             </div>

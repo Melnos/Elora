@@ -25,6 +25,8 @@ import {
   AlertCircle,
   Loader2,
   Square,
+  ArrowDown,
+  ExternalLink,
 } from 'lucide-react';
 import type { AIRequestAttachment } from '../../lib/ai/types';
 import {
@@ -32,6 +34,8 @@ import {
   MAX_CONVERSATION_TITLE_LENGTH,
 } from '../../lib/conversations/conversationUtils';
 import { extractDocumentText } from '../../lib/knowledge/documentExtractor';
+import { useToast } from '../../components/ui/ToastProvider';
+import { FormattedMarkdownMessage } from './markdownRenderer';
 
 export const AIScreen: React.FC = () => {
   const {
@@ -47,7 +51,11 @@ export const AIScreen: React.FC = () => {
     executeProposedAction,
     rejectProposedAction,
     caps,
+    knowledgeDocs,
+    tasks,
+    setActiveTab,
   } = useApp();
+  const { showToast } = useToast();
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -59,17 +67,41 @@ export const AIScreen: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState('');
   const [confirmDeleteConvId, setConfirmDeleteConvId] = useState<string | null>(null);
   const [, setRelativeTimeTick] = useState(0);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const isUserNearBottomRef = useRef(true);
 
   const currentConversation =
     conversations.find((c) => c.id === currentConversationId) || conversations[0];
 
+  const handleViewportScroll = () => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 120;
+    isUserNearBottomRef.current = nearBottom;
+    setShowScrollToBottom(!nearBottom && (currentConversation?.messages.length || 0) > 0);
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isUserNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: isGenerating ? 'auto' : 'smooth',
+      });
+    }
   }, [currentConversation?.messages, isGenerating]);
+
+  // Auto-redimensionnement vertical du champ de saisie (compact -> 120px max)
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [inputPrompt]);
 
   // Arrête la synthèse vocale si l'utilisateur quitte l'écran IA
   useEffect(() => {
@@ -116,9 +148,14 @@ export const AIScreen: React.FC = () => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+      const lower = file.name.toLowerCase();
+      const isRichDoc =
+        lower.endsWith('.pdf') ||
+        lower.endsWith('.docx') ||
+        file.type === 'application/pdf' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-      if (isPdf) {
+      if (isRichDoc) {
         const result = await extractDocumentText(file);
         if (result.success && result.text) {
           setAttachments((prev) => [
@@ -130,7 +167,7 @@ export const AIScreen: React.FC = () => {
             },
           ]);
         } else {
-          console.warn(`Extraction PDF échouée pour ${file.name}:`, result.error);
+          showToast(result.error || `Impossible d'extraire le texte de ${file.name}.`, 'error');
         }
         continue;
       }
@@ -163,22 +200,32 @@ export const AIScreen: React.FC = () => {
     const currentAtts = [...attachments];
     setInputPrompt('');
     setAttachments([]);
+    isUserNearBottomRef.current = true;
+    setShowScrollToBottom(false);
 
     await sendMessage(text, {
       attachments: currentAtts,
     });
   };
 
-  const handleCopyText = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyText = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      showToast('Impossible de copier dans le presse-papiers.', 'error');
+    }
   };
 
-  const handleCopyCode = (id: string, code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCodeId(id);
-    setTimeout(() => setCopiedCodeId(null), 2000);
+  const handleCopyCode = async (id: string, code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCodeId(id);
+      setTimeout(() => setCopiedCodeId(null), 2000);
+    } catch {
+      showToast('Impossible de copier le bloc de code.', 'error');
+    }
   };
 
   const handleSpeak = (id: string, text: string) => {
@@ -199,142 +246,6 @@ export const AIScreen: React.FC = () => {
     }
   };
 
-  const formatInline = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-    return parts.map((part, idx) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={idx} className="font-bold text-[var(--color-text-main)]">{part.slice(2, -2)}</strong>;
-      }
-      if (part.startsWith('`') && part.endsWith('`')) {
-        return (
-          <code key={idx} className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-elevated)] font-mono text-[11px] text-[var(--color-accent)] border border-[var(--color-border-subtle)] break-all">
-            {part.slice(1, -1)}
-          </code>
-        );
-      }
-      return part;
-    });
-  };
-
-  // Rendu structuré haute-fidélité des messages (Code blocks, Blockquotes, Tables, Listes)
-  const renderFormattedMessage = (content: string, msgId: string) => {
-    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
-    const segments: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    let blockCounter = 0;
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const textBefore = content.substring(lastIndex, match.index);
-      if (textBefore.trim()) {
-        segments.push(renderTextSegment(textBefore, `${msgId}-txt-${blockCounter}`));
-      }
-
-      const language = match[1] || 'texte';
-      const code = match[2];
-      const codeKey = `${msgId}-code-${blockCounter}`;
-
-      segments.push(
-        <div key={codeKey} className="my-3 rounded-xl overflow-hidden border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] max-w-full min-w-0">
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--color-bg-surface-elevated)] border-b border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] font-mono">
-            <span className="font-semibold uppercase tracking-wider">{language}</span>
-            <button
-              onClick={() => handleCopyCode(codeKey, code)}
-              className="flex items-center gap-1 hover:text-[var(--color-text-main)] transition-colors py-0.5 px-1.5 rounded cursor-pointer"
-              title="Copier le code"
-            >
-              {copiedCodeId === codeKey ? (
-                <>
-                  <Check size={11} className="text-[var(--color-accent)]" />
-                  <span className="text-[var(--color-accent)] font-sans">Copié</span>
-                </>
-              ) : (
-                <>
-                  <Copy size={11} />
-                  <span className="font-sans">Copier</span>
-                </>
-              )}
-            </button>
-          </div>
-          <pre className="p-3 sm:p-3.5 text-xs font-mono text-[var(--color-text-main)] overflow-x-auto max-w-full leading-relaxed">
-            <code>{code}</code>
-          </pre>
-        </div>
-      );
-
-      lastIndex = match.index + match[0].length;
-      blockCounter++;
-    }
-
-    const remainingText = content.substring(lastIndex);
-    if (remainingText.trim() || segments.length === 0) {
-      segments.push(renderTextSegment(remainingText || content, `${msgId}-txt-end`));
-    }
-
-    return <div className="space-y-2 min-w-0 max-w-full">{segments}</div>;
-  };
-
-  const renderTextSegment = (text: string, keyPrefix: string) => {
-    const lines = text.split('\n');
-    return (
-      <div key={keyPrefix} className="space-y-1 min-w-0 max-w-full">
-        {lines.map((line, idx) => {
-          const trimmed = line.trim();
-
-          // Titre niveau 3
-          if (line.startsWith('### ')) {
-            return (
-              <h4 key={idx} className="font-bold text-sm text-[var(--color-text-main)] mt-2.5 mb-1 break-words [overflow-wrap:anywhere]">
-                {formatInline(line.slice(4))}
-              </h4>
-            );
-          }
-
-          // Titre niveau 2
-          if (line.startsWith('## ')) {
-            return (
-              <h3 key={idx} className="font-extrabold text-base text-[var(--color-text-main)] mt-3 mb-1.5 break-words [overflow-wrap:anywhere]">
-                {formatInline(line.slice(3))}
-              </h3>
-            );
-          }
-
-          // Citation / Bloc de réflexion
-          if (line.startsWith('> ')) {
-            return (
-              <blockquote key={idx} className="pl-3 py-1 my-1.5 border-l-2 border-l-[var(--color-accent)] text-xs italic text-[var(--color-text-muted)] bg-[var(--color-accent-bg)] rounded-r-lg break-words [overflow-wrap:anywhere] max-w-full">
-                {formatInline(line.slice(2))}
-              </blockquote>
-            );
-          }
-
-          // Ligne de liste à puce
-          if (trimmed.match(/^(\*|-|\d+\.)\s/)) {
-            const itemText = trimmed.replace(/^(\*|-|\d+\.)\s+/, '');
-            return (
-              <div key={idx} className="flex items-start gap-2 my-0.5 pl-1 text-xs sm:text-sm min-w-0 max-w-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0 mt-2" />
-                <span className="flex-1 leading-relaxed break-words [overflow-wrap:anywhere]">{formatInline(itemText)}</span>
-              </div>
-            );
-          }
-
-          // Ligne vide
-          if (trimmed === '') {
-            return <div key={idx} className="h-1.5" />;
-          }
-
-          // Paragraphe classique
-          return (
-            <p key={idx} className="my-0.5 leading-relaxed text-xs sm:text-sm break-words [overflow-wrap:anywhere] max-w-full">
-              {formatInline(line)}
-            </p>
-          );
-        })}
-      </div>
-    );
-  };
-
   const quickStarters = [
     {
       title: 'Planifier ma semaine',
@@ -353,10 +264,28 @@ export const AIScreen: React.FC = () => {
     },
   ];
 
-  const contextualPrompts = [
-    { label: 'Créer une fiche de révision', prompt: 'Crée une fiche de révision claire et structurée sur ce sujet.' },
-    { label: 'Tester mes connaissances avec un quiz', prompt: 'Teste mes connaissances avec un quiz progressif de 5 questions.' },
-    { label: 'Planifier ma semaine', prompt: 'Aide-moi à planifier ma semaine autour de mes tâches et objectifs en cours.' },
+  // Suggestions contextuelles discrètes (affichées uniquement à l'état vide, adaptées aux données réelles)
+  const discreetSuggestions = [
+    ...(knowledgeDocs[0]
+      ? [
+          {
+            label: `Résumer « ${knowledgeDocs[0].title.slice(0, 26)} »`,
+            prompt: `Fais-moi une fiche de synthèse claire du document "${knowledgeDocs[0].title}".`,
+          },
+        ]
+      : []),
+    ...(tasks.find((t) => !t.completed)
+      ? [
+          {
+            label: 'Prioriser mes tâches',
+            prompt: 'Aide-moi à prioriser mes tâches en cours pour cette semaine.',
+          },
+        ]
+      : []),
+    {
+      label: 'Quiz rapide (5 questions)',
+      prompt: 'Teste mes connaissances avec un quiz progressif de 5 questions sur mon sujet d\'étude.',
+    },
   ];
 
   return (
@@ -537,8 +466,9 @@ export const AIScreen: React.FC = () => {
       {/* Surface principale de conversation */}
       <section className="ai-chat-canvas flex-1 flex flex-col h-full min-w-0 bg-[var(--color-bg-base)] relative overflow-hidden">
         {/* Barre supérieure du chat */}
-        <div className="chat-top-bar p-3 px-3.5 sm:px-6 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)] shrink-0 gap-2">
+        <div className="chat-top-bar p-2.5 px-3 sm:px-6 border-b border-[var(--color-border-subtle)] flex items-center justify-between bg-[var(--color-bg-surface)] shrink-0 gap-2">
           <button
+            type="button"
             className="mobile-thread-toggle lg:hidden flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-main)] px-2.5 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] cursor-pointer shrink-0"
             onClick={() => setShowHistoryMobile(!showHistoryMobile)}
           >
@@ -546,17 +476,18 @@ export const AIScreen: React.FC = () => {
             <span>Historique ({conversations.length})</span>
           </button>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] shrink-0">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] min-w-0 max-w-full">
             <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shrink-0" />
-            <span className="text-xs font-semibold text-[var(--color-text-main)]">
-              ELORA AI{' '}
-              <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline">
-                • {caps?.onDeviceStatus === 'readily' ? 'Assistant Hybride (Local & Cloud)' : 'Assistant Cloud (Firebase AI Logic)'}
-              </span>
+            <span className="text-xs font-semibold text-[var(--color-text-main)] truncate">
+              {currentConversation?.title || 'ELORA AI'}
+            </span>
+            <span className="text-[10px] text-[var(--color-text-muted)] font-normal hidden sm:inline shrink-0">
+              • {caps?.onDeviceStatus === 'readily' ? 'Hybride (Local & Cloud)' : 'Cloud'}
             </span>
           </div>
 
           <button
+            type="button"
             className="desktop-new-chat-btn hidden lg:flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-border-strong)] transition-colors cursor-pointer shrink-0"
             onClick={() => createConversation()}
           >
@@ -565,31 +496,36 @@ export const AIScreen: React.FC = () => {
           </button>
         </div>
 
-        {/* Défilement des messages (Largeur enrichie et lecture aérée) */}
-        <div className="chat-stream-viewport flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 pb-40 lg:pb-32">
+        {/* Défilement des messages (scroll intelligent, sans chevauchement) */}
+        <div
+          ref={viewportRef}
+          onScroll={handleViewportScroll}
+          className="chat-stream-viewport flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        >
           {!currentConversation || currentConversation.messages.length === 0 ? (
-            <div className="max-w-2xl mx-auto my-8 sm:my-12 text-center px-2">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-4 border border-[var(--color-accent)]/20 shadow-xs">
-                <Sparkles size={26} />
+            <div className="max-w-2xl mx-auto my-4 sm:my-10 text-center px-2">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[var(--color-accent-bg)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-3 border border-[var(--color-accent)]/20 shadow-xs">
+                <Sparkles size={24} />
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text-main)] tracking-tight">
+              <h2 className="text-lg sm:text-2xl font-bold text-[var(--color-text-main)] tracking-tight">
                 Intelligence Personnelle ELORA
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] max-w-lg mx-auto mt-2 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[var(--color-text-muted)] max-w-lg mx-auto mt-1.5 leading-relaxed">
                 Connectée à vos objectifs, vos documents de cours et votre planning pour vous aider à synthétiser, réviser et vous organiser.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mt-6 text-left">
                 {quickStarters.map((starter, idx) => (
                   <button
                     key={idx}
-                    className="p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
+                    type="button"
+                    className="p-3 sm:p-3.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)] transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
                     onClick={() => {
                       setInputPrompt(starter.prompt);
                       textareaRef.current?.focus();
                     }}
                   >
-                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-surface-elevated)] flex items-center justify-center mb-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-surface-elevated)] flex items-center justify-center mb-2">
                       {starter.icon}
                     </div>
                     <div>
@@ -603,6 +539,25 @@ export const AIScreen: React.FC = () => {
                   </button>
                 ))}
               </div>
+
+              {/* Suggestions contextuelles discrètes (état vide uniquement) */}
+              {discreetSuggestions.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4">
+                  {discreetSuggestions.map((sg, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
+                      onClick={() => {
+                        setInputPrompt(sg.prompt);
+                        textareaRef.current?.focus();
+                      }}
+                    >
+                      {sg.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 px-1 sm:px-4">
@@ -637,30 +592,38 @@ export const AIScreen: React.FC = () => {
                           : 'flex-1 max-w-[calc(100%-2.25rem)] sm:max-w-[90%] lg:max-w-[88%] p-3.5 sm:p-5 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-main)] shadow-xs'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-2 pb-1 border-b border-[var(--color-border-subtle)]/40">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-[var(--color-border-subtle)]/40 flex-wrap">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 ${msg.role === 'user' ? 'opacity-80' : 'text-[var(--color-accent)]'}`}>
                             {isAssistant ? 'ELORA' : 'Vous'}
                           </span>
-                          {/* Badge de provenance réelle */}
+                          {/* Séparation nette : Mode Cloud/Local vs Modèle */}
                           {isAssistant && msg.inferenceSource && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] flex items-center gap-1 shrink-0">
-                              {isLocalSource ? (
-                                <>
-                                  <Zap size={9} className="text-[var(--color-accent)]" />
-                                  <span>Nano Local{msg.durationMs ? ` (${msg.durationMs}ms)` : ''}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Cloud size={9} />
-                                  <span>Cloud{msg.modelName ? ` · ${msg.modelName.replace('Google Gemini (', '').replace(')', '').replace('Firebase AI Logic ', '')}` : ''}{msg.durationMs ? ` (${msg.durationMs}ms)` : ''}</span>
-                                </>
+                            <>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] inline-flex items-center gap-1 shrink-0">
+                                {isLocalSource ? (
+                                  <>
+                                    <Zap size={9} className="text-[var(--color-accent)]" />
+                                    <span>Local</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Cloud size={9} />
+                                    <span>Cloud</span>
+                                  </>
+                                )}
+                              </span>
+                              {msg.modelName && (
+                                <span className="text-[9px] font-mono text-[var(--color-text-muted)] truncate max-w-[180px]">
+                                  {msg.modelName.replace('Google Gemini (', '').replace(')', '').replace('Firebase AI Logic ', '')}
+                                  {msg.durationMs ? ` · ${msg.durationMs}ms` : ''}
+                                </span>
                               )}
-                            </span>
+                            </>
                           )}
                           {isAssistant && msg.fallbackOccurred && (
                             <span
-                              className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 shrink-0"
+                              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center gap-1 shrink-0"
                               title={msg.fallbackReason || 'Bascule transparente vers le Cloud'}
                             >
                               <span>↩ Repli Cloud</span>
@@ -668,29 +631,9 @@ export const AIScreen: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px] opacity-70">
-                            {msg.timestamp}
-                          </span>
-                          {isAssistant && msg.content && (
-                            <>
-                              <button
-                                className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
-                                onClick={() => handleSpeak(msg.id, msg.content)}
-                                title={speakingId === msg.id ? 'Arrêter la lecture' : 'Écouter'}
-                              >
-                                {speakingId === msg.id ? <VolumeX size={12} className="text-[var(--color-accent)]" /> : <Volume2 size={12} />}
-                              </button>
-                              <button
-                                className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors cursor-pointer"
-                                onClick={() => handleCopyText(msg.id, msg.content)}
-                                title="Copier"
-                              >
-                                {copiedId === msg.id ? <Check size={12} className="text-[var(--color-accent)]" /> : <Copy size={12} />}
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        <span className="text-[10px] opacity-70 shrink-0">
+                          {msg.timestamp}
+                        </span>
                       </div>
 
                       <div className="text-xs sm:text-sm leading-relaxed min-w-0 max-w-full">
@@ -701,27 +644,131 @@ export const AIScreen: React.FC = () => {
                           </div>
                         ) : isAssistant ? (
                           <>
-                            {renderFormattedMessage(msg.content, msg.id)}
+                            <FormattedMarkdownMessage
+                              content={msg.content}
+                              msgId={msg.id}
+                              copiedCodeId={copiedCodeId}
+                              onCopyCode={handleCopyCode}
+                            />
 
-                            {/* Sources mobilisées et citées par ContextEngine */}
+                            {/* Barre d'actions dédiée sur les réponses assistant */}
+                            {msg.content && (
+                              <div className="mt-3 pt-2 border-t border-[var(--color-border-subtle)]/40 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-surface-elevated)] transition-colors cursor-pointer"
+                                  onClick={() => handleCopyText(msg.id, msg.content)}
+                                >
+                                  {copiedId === msg.id ? (
+                                    <>
+                                      <Check size={12} className="text-[var(--color-accent)]" />
+                                      <span className="text-[var(--color-accent)]">Copié</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={12} />
+                                      <span>Copier</span>
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-surface-elevated)] transition-colors cursor-pointer"
+                                  onClick={() => handleSpeak(msg.id, msg.content)}
+                                >
+                                  {speakingId === msg.id ? (
+                                    <>
+                                      <VolumeX size={12} className="text-[var(--color-accent)]" />
+                                      <span className="text-[var(--color-accent)]">Arrêter</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Volume2 size={12} />
+                                      <span>Écouter</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Sources mobilisées et citées par ContextEngine (cliquables) */}
                             {msg.sources && msg.sources.length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-[var(--color-border-subtle)]/60">
+                              <div className="mt-3 pt-2.5 border-t border-[var(--color-border-subtle)]/60">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] block mb-1.5">
                                   Sources mobilisées ({msg.sources.length}) :
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {msg.sources.map((s, sIdx) => (
-                                    <span
-                                      key={sIdx}
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-main)]"
-                                      title={s.snippet || s.title}
-                                    >
-                                      <span className="font-semibold text-[var(--color-accent)] uppercase">
-                                        [{s.type === 'doc' ? 'Doc' : s.type === 'task' ? 'Tâche' : s.type === 'goal' ? 'Objectif' : 'Source'}]
+                                  {msg.sources.map((s, sIdx) => {
+                                    const badgeLabel =
+                                      s.type === 'doc'
+                                        ? 'Doc'
+                                        : s.type === 'task'
+                                          ? 'Tâche'
+                                          : s.type === 'goal'
+                                            ? 'Objectif'
+                                            : s.type === 'opportunity'
+                                              ? 'Opport.'
+                                              : 'Source';
+                                    const hasExternalUrl =
+                                      typeof s.url === 'string' &&
+                                      (s.url.startsWith('https://') || s.url.startsWith('http://'));
+
+                                    if (hasExternalUrl) {
+                                      return (
+                                        <a
+                                          key={sIdx}
+                                          href={s.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[10px] text-[var(--color-text-main)] transition-colors"
+                                          title={s.snippet || s.title}
+                                        >
+                                          <span className="font-semibold text-[var(--color-accent)] uppercase">
+                                            [{badgeLabel}]
+                                          </span>
+                                          <span className="truncate max-w-[140px]">{s.title}</span>
+                                          <ExternalLink size={10} className="text-[var(--color-accent)] shrink-0" />
+                                        </a>
+                                      );
+                                    }
+
+                                    const targetTab =
+                                      s.type === 'doc'
+                                        ? 'knowledge'
+                                        : s.type === 'task'
+                                          ? 'planner'
+                                          : s.type === 'goal'
+                                            ? 'progress'
+                                            : s.type === 'opportunity'
+                                              ? 'opportunities'
+                                              : null;
+
+                                    return targetTab ? (
+                                      <button
+                                        key={sIdx}
+                                        type="button"
+                                        onClick={() => setActiveTab(targetTab)}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[10px] text-[var(--color-text-main)] transition-colors cursor-pointer"
+                                        title={s.snippet || s.title}
+                                      >
+                                        <span className="font-semibold text-[var(--color-accent)] uppercase">
+                                          [{badgeLabel}]
+                                        </span>
+                                        <span className="truncate max-w-[140px]">{s.title}</span>
+                                      </button>
+                                    ) : (
+                                      <span
+                                        key={sIdx}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-main)]"
+                                        title={s.snippet || s.title}
+                                      >
+                                        <span className="font-semibold text-[var(--color-accent)] uppercase">
+                                          [{badgeLabel}]
+                                        </span>
+                                        <span className="truncate max-w-[140px]">{s.title}</span>
                                       </span>
-                                      <span className="truncate max-w-[140px]">{s.title}</span>
-                                    </span>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -802,7 +849,24 @@ export const AIScreen: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                          <div className="space-y-2">
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {msg.attachments.map((att, aIdx) => (
+                                  <span
+                                    key={aIdx}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-bg-base)]/15 border border-[var(--color-bg-base)]/25 text-[10px] font-mono"
+                                  >
+                                    <FileText size={11} />
+                                    <span className="truncate max-w-[150px]">{att.name}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {msg.content && (
+                              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -814,52 +878,56 @@ export const AIScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Zone inférieure : pièces jointes, suggestions contextuelles & compositeur */}
-        <div className="absolute bottom-[calc(74px+env(safe-area-inset-bottom,0px))] lg:bottom-4 left-3 right-3 sm:left-4 sm:right-4 max-w-4xl mx-auto z-20 flex flex-col gap-2 min-w-0 pointer-events-none">
-          {/* Fichiers joints en attente d'envoi */}
-          {attachments.length > 0 && (
-            <div className="p-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-lg flex flex-wrap gap-2 items-center min-w-0 pointer-events-auto">
-              <span className="text-xs font-semibold text-[var(--color-text-muted)] mr-1 shrink-0">Pièces jointes :</span>
-              {attachments.map((att, i) => {
-                const badge = getFileBadge(att.name);
-                return (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] max-w-full"
-                  >
-                    {badge.icon}
-                    <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(i)}
-                      className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer shrink-0"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Dock de suggestions rapides contextuelles */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pointer-events-auto">
-            {contextualPrompts.map((cp, idx) => (
-              <button
-                key={idx}
-                className="text-[10px] sm:text-[11px] font-medium px-2.5 sm:px-3 py-1 rounded-full bg-[var(--color-bg-surface)]/95 border border-[var(--color-border-subtle)] hover:border-[var(--color-accent)] text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors whitespace-nowrap shadow-2xs backdrop-blur-xs cursor-pointer"
-                onClick={() => {
-                  setInputPrompt(cp.prompt);
-                  textareaRef.current?.focus();
-                }}
-              >
-                {cp.label}
-              </button>
-            ))}
+        {/* Bouton discret pour revenir en bas si l'utilisateur lit d'anciens messages */}
+        {showScrollToBottom && (
+          <div className="relative flex justify-center pointer-events-none">
+            <button
+              type="button"
+              onClick={() => {
+                isUserNearBottomRef.current = true;
+                setShowScrollToBottom(false);
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="pointer-events-auto -mt-10 mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] shadow-md text-xs font-semibold text-[var(--color-text-main)] hover:border-[var(--color-accent)] transition-colors cursor-pointer"
+            >
+              <ArrowDown size={13} className="text-[var(--color-accent)]" />
+              <span>Revenir en bas</span>
+            </button>
           </div>
+        )}
 
-          {/* Compositeur épuré & accessible */}
-          <div className="min-w-0 pointer-events-auto">
+        {/* Compositeur en flux flex (compact, redimensionnable, sans chevauchement) */}
+        <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-3 sm:px-6 py-2.5">
+          <div className="max-w-4xl mx-auto flex flex-col gap-2 min-w-0">
+            {/* Fichiers joints en attente d'envoi */}
+            {attachments.length > 0 && (
+              <div className="p-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] flex flex-wrap gap-1.5 items-center min-w-0">
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)] mr-1 shrink-0">
+                  Pièces jointes :
+                </span>
+                {attachments.map((att, i) => {
+                  const badge = getFileBadge(att.name);
+                  return (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[var(--color-bg-surface-elevated)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-main)] max-w-full"
+                    >
+                      {badge.icon}
+                      <span className="truncate max-w-[120px] font-mono text-[11px]">{att.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(i)}
+                        aria-label={`Retirer ${att.name}`}
+                        className="text-[var(--color-text-muted)] hover:text-red-500 transition-colors ml-0.5 cursor-pointer shrink-0"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             <input
               type="file"
               ref={fileInputRef}
@@ -867,18 +935,19 @@ export const AIScreen: React.FC = () => {
               style={{ display: 'none' }}
               className="hidden"
               multiple
-              accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf"
+              accept=".txt,.md,.json,.csv,.js,.ts,.py,.html,.pdf,.docx"
             />
 
             <form
               onSubmit={handleSend}
-              className="flex items-center gap-2 p-1.5 sm:p-2 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-md transition-all min-w-0"
+              className="flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-accent)] shadow-sm transition-all min-w-0"
             >
               <button
                 type="button"
-                className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-surface-elevated)] transition-all shrink-0 cursor-pointer"
+                className="p-2 rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-surface-elevated)] transition-all shrink-0 cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
-                title="Joindre un fichier"
+                title="Joindre un fichier (PDF, DOCX, TXT, code...)"
+                aria-label="Joindre un fichier"
               >
                 <Paperclip size={16} />
               </button>
@@ -894,8 +963,8 @@ export const AIScreen: React.FC = () => {
                     handleSend();
                   }
                 }}
-                placeholder="Écrivez votre message ou déposez un fichier..."
-                className="flex-1 bg-transparent py-1.5 px-2 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-28 min-w-0"
+                placeholder="Écrivez votre message ou joignez un fichier..."
+                className="flex-1 bg-transparent py-1.5 px-1.5 text-xs sm:text-sm text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none resize-none max-h-[120px] overflow-y-auto min-w-0 leading-snug"
               />
 
               {isGenerating ? (
